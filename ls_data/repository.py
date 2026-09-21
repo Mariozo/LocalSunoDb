@@ -135,13 +135,15 @@ def get_track_ui_columns():
 def table_exists(table_name):
     conn = get_connection()
     cur = conn.cursor()
-
     cur.execute("""
         SELECT COUNT(*)
-        FROM sqlite_master
-        WHERE type = 'table' AND name = ?;
+        FROM (
+            SELECT name FROM sqlite_master WHERE type IN ('table', 'view')
+            UNION ALL
+            SELECT name FROM sqlite_temp_master WHERE type IN ('table', 'view')
+        )
+        WHERE name = ?;
     """, (table_name,))
-
     exists = cur.fetchone()[0] > 0
     conn.close()
     return exists
