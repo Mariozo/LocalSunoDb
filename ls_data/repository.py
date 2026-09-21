@@ -82,7 +82,7 @@ def ls_stem_base_title(value):
 
 _LOCAL_SUNO_DB_INIT_LOCK = threading.Lock()
 
-def _ensure_local_suno_runtime_database():
+def ensure_local_suno_runtime_database():
     if DB_PATH.is_file():
         return
     with _LOCAL_SUNO_DB_INIT_LOCK:
@@ -101,7 +101,7 @@ def _ensure_local_suno_runtime_database():
         )
 
 def get_connection():
-    _ensure_local_suno_runtime_database()
+    ensure_local_suno_runtime_database()
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
