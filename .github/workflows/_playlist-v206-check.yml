@@ -1,0 +1,23 @@
+name: Playlist selected add v2.06 check
+
+on:
+  push:
+    branches:
+      - task/playlist-add-selected-v2.06
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install pytest
+      - run: python -c "from ls_core.runtime import APP_VERSION, APP_BASED_ON; assert APP_VERSION == 'v2.06'; assert APP_BASED_ON == 'v2.05'"
+      - run: python -m pytest -q tests/test_local_playlists.py
+      - run: python -c "from pathlib import Path; c=Path(r'ls_library/templates/library.html').read_text(encoding='utf-8'); assert 'add-selected-playlist-btn' in c; p=Path(r'ls_library/playlists.py').read_text(encoding='utf-8'); assert '/playlist-add-tracks' in p"
+      - run: python LocalSunoDb.py --ls-update-probe
