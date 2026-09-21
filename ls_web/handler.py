@@ -107,6 +107,12 @@ class LocalSunoDbHandler(LibraryControllerMixin, DownloaderControllerMixin, Medi
 
     def handle_page_get_request(self, path, params):
         """Render top-level LocalSunoDb pages and lazy Library row chunks."""
+        if path == "/playlists":
+            playlist_id = params.get("id", [""])[0]
+            save_last_view_url(self.path)
+            self.send_html(render_playlists_page(playlist_id))
+            return
+
         if path == "/library-rows":
             query = params.get("q", [""])[0]
             style_query = params.get("style_q", [""])[0]
@@ -252,6 +258,13 @@ class LocalSunoDbHandler(LibraryControllerMixin, DownloaderControllerMixin, Medi
 
     def handle_status_get_request(self, path, params):
         """Serve read-only application and Downloader status endpoints."""
+        if path == "/playlists-json":
+            self.send_json_response(
+                playlists_json_payload(),
+                cache_control="no-store, no-cache, must-revalidate, max-age=0",
+            )
+            return
+
         if path == "/ls-upgrade/status":
             transaction_id = params.get("transaction_id", [""])[0]
             self.send_json_response(
