@@ -126,6 +126,30 @@ class LibraryControllerMixin:
 
     def handle_library_post_request(self, path, parsed):
         """Handle saved views, track metadata, tags, and local-audio POST endpoints."""
+        if path == "/playlist-create":
+            self.create_playlist()
+            return
+
+        if path == "/playlist-rename":
+            self.rename_playlist()
+            return
+
+        if path == "/playlist-delete":
+            self.delete_playlist()
+            return
+
+        if path == "/playlist-add-track":
+            self.add_playlist_track()
+            return
+
+        if path == "/playlist-remove-track":
+            self.remove_playlist_track()
+            return
+
+        if path == "/playlist-reorder":
+            self.reorder_playlist_tracks()
+            return
+
         if path == "/save-current-view":
             self.save_current_view()
             return
@@ -207,6 +231,92 @@ class LibraryControllerMixin:
             return
 
         return False
+
+    def read_playlist_form(self):
+        length = int(self.headers.get("Content-Length", "0") or "0")
+        if length < 0 or length > 131072:
+            raise ValueError("Playlist request is too large.")
+        raw_body = self.rfile.read(length).decode("utf-8", errors="replace")
+        return urllib.parse.parse_qs(raw_body, keep_blank_values=True)
+
+    def create_playlist(self):
+        try:
+            params = self.read_playlist_form()
+            item = create_local_playlist(params.get("name", [""])[0])
+            self.send_json_response({"ok": True, "playlist": item})
+        except ValueError as error:
+            self.send_json_response({"ok": False, "error": str(error)}, status=400)
+        except Exception as error:
+            self.send_json_response({"ok": False, "error": str(error)}, status=500)
+
+    def rename_playlist(self):
+        try:
+            params = self.read_playlist_form()
+            item = rename_local_playlist(
+                params.get("playlist_id", [""])[0],
+                params.get("name", [""])[0],
+            )
+            self.send_json_response({"ok": True, "playlist": item})
+        except ValueError as error:
+            self.send_json_response({"ok": False, "error": str(error)}, status=400)
+        except Exception as error:
+            self.send_json_response({"ok": False, "error": str(error)}, status=500)
+
+    def delete_playlist(self):
+        try:
+            params = self.read_playlist_form()
+            deleted_id = delete_local_playlist(
+                params.get("playlist_id", [""])[0]
+            )
+            self.send_json_response({"ok": True, "deleted_id": deleted_id})
+        except ValueError as error:
+            self.send_json_response({"ok": False, "error": str(error)}, status=400)
+        except Exception as error:
+            self.send_json_response({"ok": False, "error": str(error)}, status=500)
+
+    def add_playlist_track(self):
+        try:
+            params = self.read_playlist_form()
+            item = add_track_to_local_playlist(
+                params.get("playlist_id", [""])[0],
+                params.get("track_id", [""])[0],
+            )
+            self.send_json_response({"ok": True, "playlist": item})
+        except ValueError as error:
+            self.send_json_response({"ok": False, "error": str(error)}, status=400)
+        except Exception as error:
+            self.send_json_response({"ok": False, "error": str(error)}, status=500)
+
+    def remove_playlist_track(self):
+        try:
+            params = self.read_playlist_form()
+            item = remove_track_from_local_playlist(
+                params.get("playlist_id", [""])[0],
+                params.get("track_id", [""])[0],
+            )
+            self.send_json_response({"ok": True, "playlist": item})
+        except ValueError as error:
+            self.send_json_response({"ok": False, "error": str(error)}, status=400)
+        except Exception as error:
+            self.send_json_response({"ok": False, "error": str(error)}, status=500)
+
+    def reorder_playlist_tracks(self):
+        try:
+            params = self.read_playlist_form()
+            track_ids = [
+                value.strip()
+                for value in params.get("track_ids", [""])[0].split(",")
+                if value.strip()
+            ]
+            item = reorder_local_playlist(
+                params.get("playlist_id", [""])[0],
+                track_ids,
+            )
+            self.send_json_response({"ok": True, "playlist": item})
+        except ValueError as error:
+            self.send_json_response({"ok": False, "error": str(error)}, status=400)
+        except Exception as error:
+            self.send_json_response({"ok": False, "error": str(error)}, status=500)
 
     def read_saved_view_form(self):
         length = int(self.headers.get("Content-Length", "0") or "0")

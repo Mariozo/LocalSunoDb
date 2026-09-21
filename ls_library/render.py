@@ -1875,6 +1875,7 @@ def build_library_table_rows(
                                 <button type="button" class="row-menu-item menu-edit-lyrics">Edit Lyrics...</button>
                                 <button type="button" class="row-menu-item menu-copy-local-path">Kopēt īstā lokālā faila ceļu</button>
                                 <button type="button" class="row-menu-item menu-cache-suno-path">Izveidot pagaidu Suno MP3 (edit_cache)</button>
+                                <button type="button" class="row-menu-item menu-add-playlist">Add to Playlist</button>
                                 <button type="button" class="row-menu-item menu-add-local">Piesaistīt lokālu audio failu...</button>
                                 <button type="button" class="row-menu-item menu-add-stem-folder">Add Stem folder</button>
                                 <button type="button" class="row-menu-item danger menu-delete-local-variant">Delete local variant</button>

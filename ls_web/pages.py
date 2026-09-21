@@ -158,7 +158,7 @@ def render_suno_library_page_document(
             render_style_modal_close_script(),
             render_ls_update_monitor(),
             render_ls_elza_assets('SUNO Database', ls_elza_view_context, docked=True, local_family_title=get_local_family_title(), app_version=APP_VERSION, opacity=get_ls_elza_background_opacity()),
-            render_ls_web_runtime_assets() + render_ls_popup_theme_assets()
+            render_playlist_library_actions_script() + render_ls_web_runtime_assets() + render_ls_popup_theme_assets()
         ])
 
 

@@ -229,6 +229,7 @@ def _load_runtime_modules():
         "ls_media.service",
         "ls_media.controller",
         "ls_library.service",
+        "ls_library.playlists",
         "ls_library.render",
         "ls_library.controller",
         "ls_player.render",
