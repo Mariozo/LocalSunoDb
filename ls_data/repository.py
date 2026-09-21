@@ -775,42 +775,25 @@ def get_stats():
 def update_track_style(track_id, style_text):
     track_id = (track_id or "").strip()
     style_text = (style_text or "").strip()
-
     if not track_id:
         return False, "Missing Track ID"
 
-    columns = get_table_columns()
-
-    if "style" not in columns:
-        return False, "DB column missing: style"
-
     conn = get_connection()
     cur = conn.cursor()
-
     try:
-        if "prompt" in columns:
-            cur.execute("""
-                UPDATE tracks
-                SET style = ?, prompt = ?
-                WHERE id = ?;
-            """, (style_text, style_text, track_id))
-        else:
-            cur.execute("""
-                UPDATE tracks
-                SET style = ?
-                WHERE id = ?;
-            """, (style_text, track_id))
-
+        cur.execute("""
+            UPDATE main.tracks
+               SET style_tags = ?,
+                   prompt = ?,
+                   updated_at = COALESCE(updated_at, datetime('now'))
+             WHERE id = ?;
+        """, (style_text, style_text, track_id))
         conn.commit()
-
         if cur.rowcount == 0:
             return False, "Track ID not found"
-
         return True, "Saved"
-
     except Exception as e:
         return False, str(e)
-
     finally:
         conn.close()
 
@@ -1005,77 +988,53 @@ def get_track_text_payload(track_id):
         conn.close()
 
 def update_track_lyrics(track_id, lyrics_text):
-    """Save the exact Lyrics text for one Track ID.
-
-    This function is called only by the explicit Lyrics editor Save button.
-    Closing the editor, clicking Cancel, clicking the backdrop, or pressing Esc
-    never writes to the database.
-    """
+    """Save the exact Lyrics text for one Track ID."""
     track_id = (track_id or "").strip()
     lyrics_text = str(lyrics_text or "").replace("\r\n", "\n").replace("\r", "\n")
-
     if not track_id:
         return False, "Missing Track ID"
 
-    columns = get_table_columns()
-    if "lyrics" not in columns:
-        return False, "DB column missing: lyrics"
-
     conn = get_connection()
     cur = conn.cursor()
-
     try:
-        cur.execute(
-            """
-            UPDATE tracks
-            SET lyrics = ?
-            WHERE lower(id) = lower(?);
-            """,
-            (lyrics_text, track_id),
-        )
+        cur.execute("""
+            UPDATE main.tracks
+               SET lyrics = ?,
+                   updated_at = COALESCE(updated_at, datetime('now'))
+             WHERE lower(id) = lower(?);
+        """, (lyrics_text, track_id))
         conn.commit()
-
         if cur.rowcount == 0:
             return False, "Track ID not found"
-
         return True, "Lyrics saved"
-
     except Exception as e:
         return False, str(e)
-
     finally:
         conn.close()
 
 def update_track_title(track_id, title_text):
     track_id = (track_id or "").strip()
     title_text = (title_text or "").strip()
-
     if not track_id:
         return False, "Missing Track ID"
-
     if not title_text:
         return False, "Title cannot be empty"
 
     conn = get_connection()
     cur = conn.cursor()
-
     try:
         cur.execute("""
-            UPDATE tracks
-            SET title = ?, updated_at = COALESCE(updated_at, datetime('now'))
-            WHERE id = ?;
+            UPDATE main.tracks
+               SET title = ?,
+                   updated_at = COALESCE(updated_at, datetime('now'))
+             WHERE id = ?;
         """, (title_text, track_id))
-
         conn.commit()
-
         if cur.rowcount == 0:
             return False, "Track ID not found"
-
         return True, "Title saved"
-
     except Exception as e:
         return False, str(e)
-
     finally:
         conn.close()
 
@@ -1088,33 +1047,25 @@ def ensure_track_column(cur, column_name, column_type="TEXT"):
 
 def update_track_hidden(track_id, hidden=True, reason="manual_hide_from_finder"):
     track_id = (track_id or "").strip()
-
     if not track_id:
         return False, "Missing Track ID"
 
     conn = get_connection()
     cur = conn.cursor()
-
     try:
-        ensure_track_column(cur, "finder_hidden", "INTEGER")
-        ensure_track_column(cur, "finder_hidden_reason", "TEXT")
-
         cur.execute("""
-            UPDATE tracks
-            SET finder_hidden = ?, finder_hidden_reason = ?
-            WHERE id = ?;
+            UPDATE main.tracks
+               SET finder_hidden = ?,
+                   finder_hidden_reason = ?,
+                   updated_at = COALESCE(updated_at, datetime('now'))
+             WHERE id = ?;
         """, (1 if hidden else 0, reason, track_id))
-
         conn.commit()
-
         if cur.rowcount == 0:
             return False, "Track ID not found"
-
         return True, "Hidden" if hidden else "Unhidden"
-
     except Exception as e:
         return False, str(e)
-
     finally:
         conn.close()
 
@@ -1421,54 +1372,43 @@ def update_track_user_review(track_id, rating=None, tags=None, marks=None):
     if not track_id:
         return False, "Missing Track ID"
 
+    updates = []
+    params = []
+    if rating is not None:
+        try:
+            rating_int = int(rating)
+        except Exception:
+            rating_int = 0
+        updates.append("rating = ?")
+        params.append(max(0, min(5, rating_int)))
+    if tags is not None:
+        updates.append("tags = ?")
+        params.append(str(tags or "").strip())
+    if marks is not None:
+        try:
+            marks_int = int(marks)
+        except Exception:
+            marks_int = 0
+        updates.append("marks = ?")
+        params.append(max(0, min(31, marks_int)))
+    if not updates:
+        return False, "Nothing to update"
+
     conn = get_connection()
     cur = conn.cursor()
     try:
-        if not table_exists("track_ui"):
-            cur.execute("CREATE TABLE IF NOT EXISTS track_ui (track_id TEXT PRIMARY KEY);")
-
-        cur.execute("PRAGMA table_info(track_ui);")
-        columns = {row[1] for row in cur.fetchall()}
-        if "user_rating" not in columns:
-            cur.execute("ALTER TABLE track_ui ADD COLUMN user_rating INTEGER DEFAULT 0;")
-        if "user_tags" not in columns:
-            cur.execute("ALTER TABLE track_ui ADD COLUMN user_tags TEXT DEFAULT '';")
-        if "user_marks" not in columns:
-            cur.execute("ALTER TABLE track_ui ADD COLUMN user_marks INTEGER DEFAULT 0;")
-
-        cur.execute("INSERT OR IGNORE INTO track_ui (track_id) VALUES (?);", (track_id,))
-
-        updates = []
-        params = []
-
-        # Backward compatibility: user_rating remains available.
-        if rating is not None:
-            try:
-                rating_int = int(rating)
-            except Exception:
-                rating_int = 0
-            rating_int = max(0, min(5, rating_int))
-            updates.append("user_rating = ?")
-            params.append(rating_int)
-
-        if marks is not None:
-            try:
-                marks_int = int(marks)
-            except Exception:
-                marks_int = 0
-            marks_int = max(0, min(31, marks_int))
-            updates.append("user_marks = ?")
-            params.append(marks_int)
-
-        if tags is not None:
-            updates.append("user_tags = ?")
-            params.append(str(tags or "").strip())
-
-        if not updates:
-            return False, "Nothing to update"
-
+        cur.execute(
+            "INSERT OR IGNORE INTO main.track_user(track_id) VALUES (?);",
+            (track_id,),
+        )
+        updates.append("updated_at = ?")
+        params.append(now_iso_local())
         params.append(track_id)
-        cur.execute(f"UPDATE track_ui SET {', '.join(updates)} WHERE lower(track_id)=lower(?);", params)
+        cur.execute(
+            f"UPDATE main.track_user SET {', '.join(updates)} "
+            "WHERE lower(track_id) = lower(?);",
+            params,
+        )
         conn.commit()
         return True, "Saved"
     except Exception as e:
@@ -1479,98 +1419,51 @@ def update_track_user_review(track_id, rating=None, tags=None, marks=None):
 def update_track_main_category(track_id, category):
     track_id = (track_id or "").strip()
     category = (category or "").strip()
-
     if not track_id:
         return False, "Missing Track ID"
-
     if category not in ["Song", "Instrumental"]:
         return False, "Invalid category"
 
     conn = get_connection()
     cur = conn.cursor()
-
     try:
-        if not table_exists("track_ui"):
-            cur.execute("CREATE TABLE IF NOT EXISTS track_ui (track_id TEXT PRIMARY KEY);")
-
-        cur.execute("PRAGMA table_info(track_ui);")
-        columns = {row[1] for row in cur.fetchall()}
-
-        needed = {
-            "main_category": "TEXT DEFAULT ''",
-            "main_category_confidence_label": "TEXT DEFAULT ''",
-            "main_category_score": "INTEGER DEFAULT 0",
-            "main_category_review_group": "TEXT DEFAULT ''",
-            "main_category_rule": "TEXT DEFAULT ''",
-        }
-        for name, ddl in needed.items():
-            if name not in columns:
-                cur.execute(f"ALTER TABLE track_ui ADD COLUMN {name} {ddl};")
-
-        cur.execute("INSERT OR IGNORE INTO track_ui (track_id) VALUES (?);", (track_id,))
+        cur.execute(
+            "INSERT OR IGNORE INTO main.track_user(track_id) VALUES (?);",
+            (track_id,),
+        )
         cur.execute("""
-            UPDATE track_ui
-               SET main_category = ?,
-                   main_category_confidence_label = 'strong',
-                   main_category_score = 100,
-                   main_category_review_group = 'manual_toggle',
-                   main_category_rule = 'manual category toggle in LS'
-             WHERE lower(track_id)=lower(?);
-        """, (category, track_id))
-
-        audit_table_exists = cur.execute("""
-            SELECT 1
-              FROM sqlite_master
-             WHERE type = 'table'
-               AND name = 'ls_category_intent_audit'
-             LIMIT 1;
-        """).fetchone()
-        if audit_table_exists:
-            cur.execute("""
-                UPDATE ls_category_intent_audit
-                   SET current_category = ?,
-                       audio_status = 'manual_classified',
-                       recommended_action = 'preserve_manual_category'
-                 WHERE lower(track_id) = lower(?);
-            """, (category, track_id))
-
+            UPDATE main.track_user
+               SET manual_category = ?,
+                   updated_at = ?
+             WHERE lower(track_id) = lower(?);
+        """, (category, now_iso_local(), track_id))
         conn.commit()
         return True, category
-
     except Exception as e:
         return False, str(e)
-
     finally:
         conn.close()
 
 def update_track_like(track_id, liked):
     track_id = (track_id or "").strip()
-
     if not track_id:
         return False, "Missing Track ID"
 
     conn = get_connection()
     cur = conn.cursor()
-
     try:
-        ensure_track_column(cur, "raw_is_liked", "TEXT")
-
         cur.execute("""
-            UPDATE tracks
-            SET raw_is_liked = ?
-            WHERE id = ?;
-        """, ("True" if liked else "False", track_id))
-
+            UPDATE main.tracks
+               SET is_liked = ?,
+                   updated_at = COALESCE(updated_at, datetime('now'))
+             WHERE id = ?;
+        """, (1 if liked else 0, track_id))
         conn.commit()
-
         if cur.rowcount == 0:
             return False, "Track ID not found"
-
         return True, "Liked" if liked else "Unliked"
-
     except Exception as e:
         return False, str(e)
-
     finally:
         conn.close()
 
