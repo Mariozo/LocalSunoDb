@@ -35,6 +35,8 @@ LS_CHROME_APP_LAUNCH_FLAG = "--launch-chrome-app"
 LS_BACKEND_ONLY_FLAG = "--start-backend-only"
 LS_BACKEND_SUPERVISOR_FLAG = "--backend-supervisor"
 LS_BACKEND_AUTOSTART_INSTALL_FLAG = "--install-backend-autostart"
+LS_BACKEND_RESTART_FLAG = "--restart-backend"
+LS_BACKEND_RESTART_QUIET_FLAG = "--quiet-restart"
 LS_BACKEND_RUN_VALUE_NAME = "LocalSunoDbBackend"
 LS_BROWSER_MANAGED_FLAG = "--ls-browser-managed"
 LS_APP_URL = f"http://{HOST}:{PORT}/"
@@ -1148,6 +1150,74 @@ def ensure_localsunodb_backend_ready(
     return status, True
 
 
+def restart_localsunodb_backend(
+    *,
+    status_getter=None,
+    backend_starter=None,
+    backend_waiter=None,
+    backend_terminator=None,
+    backend_stop_waiter=None,
+    supervisor_starter=None,
+):
+    """Explicitly restart the current backend even when APP_VERSION is unchanged.
+
+    This is the development/runtime reload path: code can be replaced on disk,
+    then one explicit restart loads the new files without a Windows restart.
+    """
+    status_getter = status_getter or get_ls_backend_status
+    backend_starter = backend_starter or start_ls_backend
+    backend_waiter = backend_waiter or wait_for_ls_backend
+    backend_terminator = backend_terminator or _terminate_backend_process
+    backend_stop_waiter = backend_stop_waiter or _wait_for_backend_stopped
+    supervisor_starter = supervisor_starter or start_localsunodb_backend_supervisor
+
+    previous_status = status_getter()
+    previous_pid = _backend_process_id(previous_status)
+
+    if previous_status is not None:
+        if previous_pid == os.getpid():
+            raise RuntimeError(
+                "Backend restart must be launched by the external LS restart helper."
+            )
+        if not backend_terminator(previous_status):
+            raise RuntimeError(
+                "LocalSunoDb backend procesu neizdevās apturēt."
+            )
+        try:
+            stopped = backend_stop_waiter(status_getter=status_getter)
+        except TypeError:
+            stopped = backend_stop_waiter()
+        if not stopped:
+            raise RuntimeError(
+                "LocalSunoDb backend process neapstājās laikā."
+            )
+
+    backend_starter()
+    if not backend_waiter():
+        raise RuntimeError(
+            "LocalSunoDb backendu pēc restarta neizdevās palaist 15 sekunžu laikā."
+        )
+
+    status = status_getter()
+    if status is None:
+        raise RuntimeError(
+            "LocalSunoDb backend palaidās, bet gatavības pārbaude neatbild."
+        )
+
+    try:
+        supervisor_starter()
+    except Exception as exc:
+        _record_launcher_error(exc)
+
+    return {
+        "ok": True,
+        "action": "backend_restarted",
+        "previous_process_id": previous_pid,
+        "process_id": _backend_process_id(status),
+        "running_version": _backend_status_version(status),
+    }
+
+
 def _read_current_running_minor(registry_path=None):
     path = Path(registry_path or LS_VERSION_REGISTRY_PATH)
     if not path.is_file():
@@ -1778,6 +1848,21 @@ def start_localsunodb_backend_supervisor():
     )
 
 
+def start_localsunodb_backend_restart_helper():
+    """Launch one detached helper that can replace the currently running backend."""
+    command = [
+        str(_background_python_executable()),
+        str(Path(__file__).resolve()),
+        LS_BACKEND_RESTART_FLAG,
+        LS_BACKEND_RESTART_QUIET_FLAG,
+    ]
+    return subprocess.Popen(
+        command,
+        cwd=str(HOST_ROOT),
+        **_hidden_process_kwargs(),
+    )
+
+
 def build_backend_autostart_command(*, python_executable=None, launcher_path=None):
     """Build the per-user Windows Run command for the persistent LS backend."""
     python_executable = Path(python_executable or _background_python_executable()).resolve()
@@ -2084,6 +2169,22 @@ def _show_launcher_error(exc):
 
 def main():
     try:
+        if LS_BACKEND_RESTART_FLAG in sys.argv:
+            result = restart_localsunodb_backend()
+            if os.name == "nt" and LS_BACKEND_RESTART_QUIET_FLAG not in sys.argv:
+                try:
+                    ctypes.windll.user32.MessageBoxW(
+                        0,
+                        (
+                            "LocalSunoDb backend ir pārstartēts.\n"
+                            f"Process ID: {int(result.get('process_id') or 0)}"
+                        ),
+                        "LocalSunoDb",
+                        0x40,
+                    )
+                except Exception:
+                    pass
+            return 0
         if LS_BACKEND_SUPERVISOR_FLAG in sys.argv:
             run_localsunodb_backend_supervisor()
             return 0
