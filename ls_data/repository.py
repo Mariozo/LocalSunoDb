@@ -28,6 +28,317 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path, PurePosixPath
 
 from ls_core.runtime import *
+
+
+def _canonical_db_active(conn=None):
+    own = conn is None
+    if own:
+        if not Path(DB_PATH).is_file():
+            return False
+        conn = sqlite3.connect(DB_PATH)
+    try:
+        names = {
+            row[0]
+            for row in conn.execute(
+                "SELECT name FROM main.sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+        return {"tracks", "track_user", "track_variants", "media_files"}.issubset(names)
+    finally:
+        if own:
+            conn.close()
+
+
+def _legacy_path_filename(value):
+    text = str(value or "").replace("/", "\\")
+    return text.rsplit("\\", 1)[-1] if text else ""
+
+
+def _legacy_path_folder(value):
+    text = str(value or "").replace("/", "\\")
+    return text.rsplit("\\", 1)[0] if "\\" in text else ""
+
+
+def _configure_canonical_compat(conn):
+    """Expose the old read contract over the canonical Local Suno schema.
+
+    Views are TEMP-only: the clean DB file itself is not polluted with legacy
+    cache tables or duplicate compatibility columns.
+    """
+    if not _canonical_db_active(conn):
+        return False
+
+    conn.create_function("ls_path_filename", 1, _legacy_path_filename)
+    conn.create_function("ls_path_folder", 1, _legacy_path_folder)
+    conn.executescript(
+        """
+        DROP VIEW IF EXISTS temp.tracks_compat;
+        DROP VIEW IF EXISTS temp.track_ui;
+        DROP VIEW IF EXISTS temp.local_audio_files;
+
+        CREATE TEMP VIEW tracks_compat AS
+        SELECT
+            t.id,
+            t.title,
+            t.created_at,
+            t.workspace_name AS workspaceName,
+            t.workspace_name AS workspace,
+            t.workspace_id AS workspaceId,
+            t.workspace_id AS workspace_id,
+            t.project_id,
+            t.audio_url,
+            '' AS status,
+            t.image_url,
+            t.image_large_url,
+            t.image_url AS raw_image_url,
+            t.image_large_url AS raw_image_large_url,
+            t.model_name,
+            t.major_model_version,
+            t.major_model_version AS model_version,
+            t.source_type AS metadata_type,
+            t.source_type AS type,
+            t.source_type AS raw_type,
+            t.source_task AS metadata_task,
+            t.source_task AS raw_task,
+            t.style_tags AS metadata_tags,
+            t.style_tags AS style,
+            t.style_tags AS raw_tags,
+            t.negative_tags AS metadata_negative_tags,
+            t.prompt AS metadata_prompt,
+            t.prompt AS prompt,
+            t.duration_seconds AS metadata_duration,
+            CASE
+                WHEN t.duration_seconds IS NULL THEN ''
+                ELSE printf('%d:%02d',
+                    CAST(t.duration_seconds / 60 AS INTEGER),
+                    CAST(t.duration_seconds AS INTEGER) % 60)
+            END AS duration,
+            t.has_stem AS metadata_has_stem,
+            CAST(t.has_stem AS TEXT) AS raw_has_stem,
+            t.has_vocal AS metadata_has_vocal,
+            CAST(t.has_vocal AS TEXT) AS raw_has_vocal,
+            t.make_instrumental AS metadata_make_instrumental,
+            CAST(t.make_instrumental AS TEXT) AS raw_make_instrumental,
+            t.is_remix AS metadata_is_remix,
+            CAST(t.is_remix AS TEXT) AS raw_is_remix,
+            t.studio_project_id AS metadata_studio_project_id,
+            t.studio_project_version_id AS metadata_studio_project_version_id,
+            t.edited_clip_id AS metadata_edited_clip_id,
+            t.cover_clip_id AS metadata_cover_clip_id,
+            t.avg_bpm AS metadata_avg_bpm,
+            t.min_bpm AS metadata_min_bpm,
+            t.max_bpm AS metadata_max_bpm,
+            t.avg_bpm AS bpm,
+            '' AS key,
+            t.is_liked,
+            CASE WHEN t.is_liked = 1 THEN 'True' ELSE 'False' END AS raw_is_liked,
+            t.explicit,
+            t.display_tags,
+            t.display_tags AS raw_display_tags,
+            t.kind,
+            CASE WHEN lower(COALESCE(t.kind,'')) = 'stem' THEN 1 ELSE 0 END AS is_stem,
+            t.caption,
+            t.lyrics,
+            t.library_status,
+            t.finder_hidden,
+            t.finder_hidden_reason,
+            t.updated_at,
+            '' AS reaction_type,
+            '' AS notes,
+            (
+                SELECT mf.path
+                FROM main.media_files mf
+                JOIN main.track_variants tv ON tv.id = mf.variant_id
+                WHERE tv.track_id = t.id
+                  AND mf.role = 'main'
+                  AND lower(COALESCE(mf.format,'')) = 'wav'
+                ORDER BY COALESCE(tv.variant_no, 2147483647), mf.id
+                LIMIT 1
+            ) AS local_wav,
+            (
+                SELECT mf.path
+                FROM main.media_files mf
+                JOIN main.track_variants tv ON tv.id = mf.variant_id
+                WHERE tv.track_id = t.id
+                  AND mf.role = 'main'
+                  AND lower(COALESCE(mf.format,'')) = 'mp3'
+                ORDER BY COALESCE(tv.variant_no, 2147483647), mf.id
+                LIMIT 1
+            ) AS local_mp3,
+            COALESCE(sp.raw_json, '') AS raw_json
+        FROM main.tracks t
+        LEFT JOIN main.suno_source_payload sp ON sp.track_id = t.id;
+
+        CREATE TEMP VIEW track_ui AS
+        SELECT
+            t.id AS track_id,
+            '' AS play_status,
+            0 AS play_sort,
+            CASE lower(COALESCE(t.source_task, ''))
+                WHEN 'cover' THEN 'Cover'
+                WHEN 'extend' THEN 'Extend'
+                WHEN 'mashup' THEN 'Mashup'
+                WHEN 'upload' THEN 'Upload'
+                WHEN 'replace_section' THEN 'Replace Section'
+                ELSE COALESCE(NULLIF(t.source_task, ''), NULLIF(t.kind, ''), '')
+            END AS ui_type,
+            0 AS ui_type_sort,
+            COALESCE(t.display_tags, t.style_tags, '') AS ui_tags,
+            COALESCE(t.duration_seconds, 0) AS duration_seconds,
+            CASE
+                WHEN t.duration_seconds IS NULL THEN ''
+                ELSE printf('%d:%02d',
+                    CAST(t.duration_seconds / 60 AS INTEGER),
+                    CAST(t.duration_seconds AS INTEGER) % 60)
+            END AS duration_text,
+            CASE
+                WHEN t.avg_bpm IS NULL THEN ''
+                ELSE CAST(CAST(ROUND(t.avg_bpm) AS INTEGER) AS TEXT)
+            END AS bpm_text,
+            COALESCE(NULLIF(t.major_model_version,''), t.model_name, '') AS model_badge,
+            CASE WHEN EXISTS (
+                SELECT 1
+                FROM main.track_variants tv
+                JOIN main.media_files mf ON mf.variant_id = tv.id
+                WHERE tv.track_id = t.id AND mf.role = 'main'
+            ) THEN 1 ELSE 0 END AS has_local_audio,
+            COALESCE((
+                SELECT mf.path
+                FROM main.track_variants tv
+                JOIN main.media_files mf ON mf.variant_id = tv.id
+                WHERE tv.track_id = t.id AND mf.role = 'main'
+                ORDER BY COALESCE(tv.variant_no, 2147483647), mf.id
+                LIMIT 1
+            ), '') AS best_local_audio_path,
+            (
+                SELECT COUNT(*)
+                FROM main.track_variants tv
+                JOIN main.media_files mf ON mf.variant_id = tv.id
+                WHERE tv.track_id = t.id AND mf.role = 'stem'
+            ) AS stem_count,
+            COALESCE(
+                NULLIF(tu.manual_category, ''),
+                CASE WHEN t.kind IN ('Song','Instrumental') THEN t.kind ELSE '' END
+            ) AS main_category,
+            '' AS proposed_main_category,
+            '' AS main_category_confidence,
+            '' AS main_category_confidence_label,
+            '' AS main_category_review_reason,
+            CASE WHEN COALESCE(tu.manual_category,'') != '' THEN 'manual_toggle' ELSE '' END
+                AS main_category_review_group,
+            CASE WHEN COALESCE(tu.manual_category,'') != '' THEN 'manual category toggle in LS' ELSE '' END
+                AS main_category_rule,
+            0 AS main_category_score,
+            '' AS review_group,
+            COALESCE(tu.rating, 0) AS user_rating,
+            COALESCE(tu.tags, '') AS user_tags,
+            COALESCE(tu.marks, 0) AS user_marks,
+            CASE WHEN COALESCE(t.finder_hidden,0) = 1 THEN 0 ELSE 1 END AS visible_in_finder
+        FROM main.tracks t
+        LEFT JOIN main.track_user tu ON tu.track_id = t.id;
+
+        CREATE TEMP VIEW local_audio_files AS
+        SELECT
+            mf.id,
+            tv.track_id,
+            mf.path,
+            ls_path_filename(mf.path) AS filename,
+            ls_path_folder(mf.path) AS folder,
+            mf.format AS extension,
+            mf.size_bytes,
+            mf.modified_at AS modified_time,
+            CASE WHEN mf.role = 'stem' THEN 1 ELSE 0 END AS is_stem,
+            mf.stem_label,
+            mf.chronology_at AS created_at,
+            mf.modified_at AS updated_at,
+            '' AS linked_by,
+            mf.suno_clip_id,
+            mf.suno_project_token,
+            mf.suno_created_at,
+            mf.embedded_suno_metadata AS suno_metadata_raw
+        FROM main.media_files mf
+        LEFT JOIN main.track_variants tv ON tv.id = mf.variant_id;
+        """
+    )
+    return True
+
+
+def _canonical_variant_folder(path_value, role):
+    path = Path(str(path_value or ""))
+    folder = path.parent
+    if role == "stem" and folder.name.casefold() == "stems":
+        folder = folder.parent
+    return str(folder)
+
+
+def _canonical_variant_no(path_value, role):
+    folder = Path(_canonical_variant_folder(path_value, role))
+    try:
+        value = int(folder.name)
+    except Exception:
+        return None
+    return value if value > 0 else None
+
+
+def _canonical_get_or_create_variant(cur, track_id, path_value, role):
+    folder = _canonical_variant_folder(path_value, role)
+    cur.execute(
+        """
+        SELECT id
+        FROM main.track_variants
+        WHERE lower(track_id)=lower(?) AND lower(folder_path)=lower(?)
+        ORDER BY id
+        LIMIT 1
+        """,
+        (track_id, folder),
+    )
+    row = cur.fetchone()
+    if row:
+        return int(row[0])
+
+    if role == "stem":
+        cur.execute(
+            """
+            SELECT id
+            FROM main.track_variants
+            WHERE lower(track_id)=lower(?)
+            ORDER BY CASE WHEN variant_kind='main' THEN 0 ELSE 1 END, id
+            """,
+            (track_id,),
+        )
+        rows = cur.fetchall()
+        if len(rows) == 1:
+            return int(rows[0][0])
+
+    cur.execute(
+        """
+        INSERT INTO main.track_variants(track_id, variant_no, folder_path, variant_kind)
+        VALUES (?, ?, ?, ?)
+        """,
+        (
+            track_id,
+            _canonical_variant_no(path_value, role),
+            folder,
+            "stems_only" if role == "stem" else "main",
+        ),
+    )
+    return int(cur.lastrowid)
+
+
+def _canonical_delete_orphan_variants(cur, track_id):
+    cur.execute(
+        """
+        DELETE FROM main.track_variants
+        WHERE lower(track_id)=lower(?)
+          AND NOT EXISTS (
+              SELECT 1 FROM main.media_files mf
+              WHERE mf.variant_id = main.track_variants.id
+          )
+        """,
+        (track_id,),
+    )
+
+
 from ls_data.local_suno_migration import migrate as migrate_local_suno_database
 from ls_data.local_suno_runtime import configure_legacy_runtime_views
 
@@ -115,7 +426,7 @@ def get_table_columns():
     conn = get_connection()
     cur = conn.cursor()
 
-    cur.execute("PRAGMA table_info(tracks);")
+    cur.execute("PRAGMA table_info(tracks_compat);")
     rows = cur.fetchall()
     conn.close()
 
@@ -196,7 +507,7 @@ def get_unlinked_stems_condition_sql():
         kind = 'Stem'
         AND ls_stem_base_title(title) NOT IN (
             SELECT DISTINCT ls_stem_base_title(t2.title)
-            FROM tracks t2
+            FROM tracks_compat t2
             WHERE IFNULL(t2.library_status, 'active') = 'active'
               AND EXISTS (
                   SELECT 1
@@ -387,7 +698,7 @@ def get_local_family_group_match_track_ids(
                     COALESCE(t.workspaceName, t.workspace, '') AS workspace,
                     {category_sql} AS main_category,
                     {review_group_sql} AS review_group
-                FROM tracks t
+                FROM tracks_compat t
                 LEFT JOIN track_ui tu ON tu.track_id = t.id
                 WHERE lower(t.id) IN ({placeholders})
                   AND {visibility_sql};
@@ -455,7 +766,7 @@ def get_workspaces():
 
     cur.execute(f"""
         SELECT workspace, COUNT(*) AS count
-        FROM tracks
+        FROM tracks_compat
         WHERE {where_sql}
         GROUP BY workspace
         ORDER BY workspace COLLATE NOCASE;
@@ -521,7 +832,7 @@ def get_ui_type_counts():
     cur = conn.cursor()
 
     base_from = """
-        FROM tracks t
+        FROM tracks_compat t
         LEFT JOIN track_ui tu ON tu.track_id = t.id
     """
     main_where = """
@@ -549,10 +860,10 @@ def get_stats():
     conn = get_connection()
     cur = conn.cursor()
 
-    total_tracks = safe_count(cur, "SELECT COUNT(*) FROM tracks;")
+    total_tracks = safe_count(cur, "SELECT COUNT(*) FROM tracks_compat;")
 
     base_from = """
-        FROM tracks t
+        FROM tracks_compat t
         LEFT JOIN track_ui tu ON tu.track_id = t.id
     """
     active_where = """
@@ -566,27 +877,27 @@ def get_stats():
 
     total_missing = safe_count(cur, """
         SELECT COUNT(*)
-        FROM tracks
+        FROM tracks_compat
         WHERE library_status = 'missing_from_latest_csv';
     """)
 
     missing_stems = safe_count(cur, """
         SELECT COUNT(*)
-        FROM tracks
+        FROM tracks_compat
         WHERE library_status = 'missing_from_latest_csv'
           AND kind = 'Stem';
     """)
 
     total_workspaces = safe_count(cur, """
         SELECT COUNT(DISTINCT COALESCE(workspaceName, workspace, ''))
-        FROM tracks
+        FROM tracks_compat
         WHERE COALESCE(workspaceName, workspace, '') != ''
           AND IFNULL(library_status, 'active') = 'active';
     """)
 
     total_stems = safe_count(cur, """
         SELECT COUNT(*)
-        FROM tracks
+        FROM tracks_compat
         WHERE IFNULL(library_status, 'active') = 'active'
           AND kind = 'Stem';
     """)
@@ -659,7 +970,7 @@ def get_stats():
     if "finder_hidden" in track_columns:
         hidden_duplicates = safe_count(cur, """
             SELECT COUNT(*)
-            FROM tracks
+            FROM tracks_compat
             WHERE IFNULL(library_status, 'active') = 'active'
               AND IFNULL(finder_hidden, 0) = 1;
         """)
@@ -717,12 +1028,12 @@ def get_stats():
     if table_exists("local_audio_files"):
         total_unlinked_stems = safe_count(cur, """
             SELECT COUNT(*)
-            FROM tracks
+            FROM tracks_compat
             WHERE IFNULL(library_status, 'active') = 'active'
               AND kind = 'Stem'
               AND ls_stem_base_title(title) NOT IN (
                   SELECT DISTINCT ls_stem_base_title(t2.title)
-                  FROM tracks t2
+                  FROM tracks_compat t2
                   WHERE IFNULL(t2.library_status, 'active') = 'active'
                     AND EXISTS (
                         SELECT 1
@@ -827,7 +1138,7 @@ def get_track_lyrics_payload(track_id):
                 id,
                 COALESCE(title, '') AS title,
                 COALESCE(lyrics, '') AS lyrics
-            FROM tracks
+            FROM tracks_compat
             WHERE lower(id) = lower(?)
             LIMIT 1;
             """,
@@ -895,7 +1206,7 @@ def get_track_text_payload(track_id):
         cur.execute(
             f"""
             SELECT {", ".join(select_parts)}
-            FROM tracks
+            FROM tracks_compat
             WHERE lower(id) = lower(?)
             LIMIT 1;
             """,
@@ -2462,7 +2773,7 @@ def search_tracks(query="", style_query="", workspace="", kind_filter="", catego
         sql = f"""
             WITH selected_track_ids AS MATERIALIZED (
                 SELECT t.id AS track_id
-                FROM tracks t
+                FROM tracks_compat t
                 LEFT JOIN track_ui tu ON tu.track_id = t.id
                 {where_sql}
                 ORDER BY {order_sql}
@@ -2470,7 +2781,7 @@ def search_tracks(query="", style_query="", workspace="", kind_filter="", catego
             )
             {full_select_sql}
             FROM selected_track_ids selected
-            JOIN tracks t ON t.id = selected.track_id
+            JOIN tracks_compat t ON t.id = selected.track_id
             LEFT JOIN track_ui tu ON tu.track_id = t.id
             {audit_join_sql}
             ORDER BY {order_sql};
@@ -2478,7 +2789,7 @@ def search_tracks(query="", style_query="", workspace="", kind_filter="", catego
     else:
         sql = f"""
             {full_select_sql}
-            FROM tracks t
+            FROM tracks_compat t
             LEFT JOIN track_ui tu ON tu.track_id = t.id
             {audit_join_sql}
             {where_sql}
@@ -2520,7 +2831,7 @@ def count_tracks(query="", style_query="", workspace="", kind_filter="", categor
 
     cur.execute(f"""
         SELECT COUNT(*)
-        FROM tracks t
+        FROM tracks_compat t
         LEFT JOIN track_ui tu ON tu.track_id = t.id
         {where_sql};
     """, params)
@@ -2583,7 +2894,7 @@ def get_best_local_audio_path_for_track(track_id):
 
         cur.execute("""
             SELECT title, workspace, local_wav, local_mp3
-            FROM tracks
+            FROM tracks_compat
             WHERE lower(id) = lower(?);
         """, (track_id,))
         row = cur.fetchone()
@@ -3155,7 +3466,7 @@ def get_track_row_for_meta(track_id):
     conn = get_connection()
     cur = conn.cursor()
     try:
-        cur.execute("SELECT * FROM tracks WHERE lower(id)=lower(?);", (str(track_id or "").strip(),))
+        cur.execute("SELECT * FROM tracks_compat WHERE lower(id)=lower(?);", (str(track_id or "").strip(),))
         row = cur.fetchone()
         return dict(row) if row else {}
     finally:
@@ -3187,7 +3498,7 @@ def get_meta_candidate_rows(limit=80):
     try:
         cur.execute(f"""
             SELECT id, title, COALESCE(workspaceName, workspace, '') AS workspace
-            FROM tracks
+            FROM tracks_compat
             WHERE IFNULL(library_status, 'active') = 'active'
               AND IFNULL(kind, '') != 'Stem'
               AND ({where_missing})
@@ -3207,7 +3518,7 @@ def _collect_ls_structured_repair_plan():
         cur.execute("""
             SELECT t.*, tu.bpm_text AS ls_ui_bpm_text,
                    tu.model_badge AS ls_ui_model_badge
-            FROM tracks t
+            FROM tracks_compat t
             LEFT JOIN track_ui tu ON tu.track_id = t.id
             WHERE IFNULL(t.library_status, 'active') = 'active'
             ORDER BY t.created_at DESC, t.title COLLATE NOCASE;
@@ -3396,7 +3707,7 @@ def _ls_intent_source_signature(conn):
                t.raw_json, t.library_status, t.kind,
                tu.main_category, tu.main_category_review_group,
                tu.main_category_rule, tu.user_tags, tu.visible_in_finder
-          FROM tracks t
+          FROM tracks_compat t
      LEFT JOIN track_ui tu ON tu.track_id = t.id
       ORDER BY t.id;
     """)
@@ -3422,7 +3733,7 @@ def _collect_ls_intent_audit_plan():
                 SELECT t.*,
                        tu.main_category AS ls_main_category,
                        tu.main_category_review_group AS ls_review_group
-                  FROM tracks t
+                  FROM tracks_compat t
              LEFT JOIN track_ui tu ON tu.track_id = t.id;
             """).fetchall()
         }
@@ -3434,7 +3745,7 @@ def _collect_ls_intent_audit_plan():
                        tu.main_category_review_group AS ls_review_group,
                        tu.main_category_rule AS ls_rule,
                        tu.user_tags AS ls_user_tags
-                  FROM tracks t
+                  FROM tracks_compat t
              LEFT JOIN track_ui tu ON tu.track_id = t.id
                  WHERE IFNULL(t.library_status, 'active') = 'active'
                    AND IFNULL(t.kind, '') != 'Stem'
@@ -3688,7 +3999,7 @@ def _collect_ls_category_assignment_plan(conn=None):
                    COALESCE(tu.main_category_review_group, '') AS review_group,
                    sia.intent_label, sia.intent_score, sia.audio_status,
                    sia.rule_code, sia.recommended_action
-              FROM tracks t
+              FROM tracks_compat t
               JOIN {_DATA_LS_INTENT_AUDIT_TABLE} sia
                 ON lower(sia.track_id) = lower(t.id)
          LEFT JOIN track_ui tu ON tu.track_id = t.id
@@ -4073,7 +4384,7 @@ def build_suno_update_preview(limit=300):
     try:
         cur.execute("""
             SELECT *
-            FROM tracks
+            FROM tracks_compat
             WHERE IFNULL(library_status, 'active') = 'active'
             ORDER BY created_at DESC, title COLLATE NOCASE;
         """)
@@ -4231,7 +4542,7 @@ def build_suno_update_preview_fallback(limit=300, error=""):
                 {col_expr('workspace')},
                 {col_expr('workspaceName')},
                 {col_expr('created_at')}
-            FROM tracks
+            FROM tracks_compat
             {where_sql}
             ORDER BY {order_sql}
             LIMIT ?;
@@ -4244,7 +4555,7 @@ def build_suno_update_preview_fallback(limit=300, error=""):
         if "kind" in columns:
             count_where.append("IFNULL(kind, '') != 'Stem'")
         count_sql = "WHERE " + " AND ".join(count_where) if count_where else ""
-        cur.execute(f"SELECT COUNT(*) FROM tracks {count_sql};")
+        cur.execute(f"SELECT COUNT(*) FROM tracks_compat {count_sql};")
         eligible_total = int(cur.fetchone()[0] or 0)
     finally:
         conn.close()
@@ -4401,7 +4712,7 @@ def get_track_download_info(track_id):
                 t.local_mp3,
                 t.lyrics,
                 {category_sql} AS download_category
-            FROM tracks t
+            FROM tracks_compat t
             LEFT JOIN track_ui tu ON tu.track_id = t.id
             WHERE lower(t.id) = lower(?)
             LIMIT 1;
@@ -5925,11 +6236,11 @@ def get_track_identity_snapshot():
     conn = get_connection()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT lower(id) AS id_key FROM tracks WHERE id IS NOT NULL AND TRIM(id) != ''")
+        cur.execute("SELECT lower(id) AS id_key FROM tracks_compat WHERE id IS NOT NULL AND TRIM(id) != ''")
         ls_ids = {row["id_key"] for row in cur.fetchall() if row["id_key"]}
         cur.execute("""
             SELECT lower(id) AS id_key, title, COALESCE(workspaceName, workspace, '') AS workspace
-            FROM tracks
+            FROM tracks_compat
             WHERE id IS NOT NULL AND TRIM(id) != ''
         """)
         ls_map = {row["id_key"]: dict(row) for row in cur.fetchall() if row["id_key"]}
