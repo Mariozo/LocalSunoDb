@@ -3367,152 +3367,24 @@ def backup_db_before_structured_repair():
 
 
 def apply_ls_structured_repair():
-    if not LS_STRUCTURED_REPAIR_LOCK.acquire(blocking=False):
-        raise RuntimeError("A structured DB repair is already running")
-    try:
-        job_state = read_suno_metadata_job_state()
-        if job_state.get("running"):
-            raise RuntimeError(
-                "Automatic metadata backfill is still running. Wait for it to finish before DB repair."
-            )
-
-        plan = _collect_ls_structured_repair_plan()
-        write_count = (
-            int(plan["structured_rows"])
-            + int(plan["confirmed_prompt_rows"])
-            + int(plan["bpm_migrations"])
-            + int(plan["ui_cache_rows"])
-        )
-        if not write_count:
-            result = build_ls_structured_repair_preview()
-            result.update({
-                "message": "No proven structured DB repairs remain.",
-                "backup": "",
-                "report": "",
-            })
-            return result
-
-        backup_path = backup_db_before_structured_repair()
-        now_value = now_iso_local()
-        applied_structured_rows = 0
-        applied_structured_fields = 0
-        applied_prompt_rows = 0
-        applied_prompt_fields = 0
-        applied_bpm = 0
-        applied_ui_rows = 0
-        conn = get_connection()
-        try:
-            cur = conn.cursor()
-            cur.execute("BEGIN IMMEDIATE;")
-
-            for item in plan["_structured_updates"]:
-                updates = dict(item["updates"])
-                if not updates:
-                    continue
-                assignments = [f"{column} = ?" for column in updates]
-                values = list(updates.values())
-                assignments.append("updated_at = ?")
-                values.extend([now_value, item["id"]])
-                cur.execute(
-                    f"UPDATE tracks SET {', '.join(assignments)} "
-                    "WHERE lower(id) = lower(?);",
-                    values,
-                )
-                if cur.rowcount:
-                    applied_structured_rows += 1
-                    applied_structured_fields += len(updates)
-
-            for item in plan["_prompt_updates"]:
-                updates = dict(item["updates"])
-                if not updates:
-                    continue
-                assignments = [f"{column} = ?" for column in updates]
-                values = list(updates.values())
-                assignments.append("updated_at = ?")
-                values.extend([now_value, item["id"]])
-                cur.execute(
-                    f"UPDATE tracks SET {', '.join(assignments)} "
-                    "WHERE lower(id) = lower(?);",
-                    values,
-                )
-                if cur.rowcount:
-                    applied_prompt_rows += 1
-                    applied_prompt_fields += len(updates)
-
-            for item in plan["_bpm_migrations"]:
-                cur.execute("""
-                    UPDATE tracks
-                       SET bpm = ?, updated_at = ?
-                     WHERE lower(id) = lower(?)
-                       AND TRIM(COALESCE(bpm, '')) = ''
-                       AND metadata_avg_bpm IS NULL;
-                """, (item["bpm"], now_value, item["id"]))
-                applied_bpm += max(0, int(cur.rowcount or 0))
-
-            for item in plan["_ui_updates"]:
-                updates = dict(item["updates"])
-                if not updates:
-                    continue
-                assignments = [f"{column} = ?" for column in updates]
-                values = list(updates.values())
-                assignments.append("updated_at = ?")
-                values.extend([now_value, item["id"]])
-                cur.execute(
-                    f"UPDATE track_ui SET {', '.join(assignments)} "
-                    "WHERE lower(track_id) = lower(?);",
-                    values,
-                )
-                applied_ui_rows += max(0, int(cur.rowcount or 0))
-
-            check = cur.execute("PRAGMA quick_check;").fetchone()
-            if not check or str(check[0]).lower() != "ok":
-                raise RuntimeError("DB integrity check failed; repair was rolled back")
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            conn.close()
-
-        remaining = build_ls_structured_repair_preview()
-        backup_dir = backup_path.parent
-        stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        report_path = backup_dir / f"LS_PROVEN_META_REPAIR_{stamp}.json"
-        report_payload = {
-            "ok": True,
-            "app_version": APP_VERSION,
-            "finished_at": now_iso_local(),
-            "backup": str(backup_path),
-            "applied_structured_rows": applied_structured_rows,
-            "applied_structured_fields": applied_structured_fields,
-            "applied_prompt_rows": applied_prompt_rows,
-            "applied_prompt_fields": applied_prompt_fields,
-            "applied_bpm_migrations": applied_bpm,
-            "applied_ui_cache_rows": applied_ui_rows,
-            "field_counts": plan["field_counts"],
-            "remaining": remaining,
-        }
-        report_path.write_text(
-            json.dumps(report_payload, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-        return {
-            "ok": True,
-            "message": "Proven structured DB repair completed.",
-            "backup": str(backup_path),
-            "report": str(report_path),
-            "applied_structured_rows": applied_structured_rows,
-            "applied_structured_fields": applied_structured_fields,
-            "applied_prompt_rows": applied_prompt_rows,
-            "applied_prompt_fields": applied_prompt_fields,
-            "applied_bpm_migrations": applied_bpm,
-            "applied_ui_cache_rows": applied_ui_rows,
-            "field_counts": plan["field_counts"],
-            "remaining": remaining,
-        }
-    finally:
-        LS_STRUCTURED_REPAIR_LOCK.release()
-
+    """Legacy repair is obsolete after migration into the canonical schema."""
+    return {
+        "ok": True,
+        "message": (
+            "Canonical Local Suno DB already stores normalized structured fields; "
+            "legacy track_ui/tracks repair is not applicable."
+        ),
+        "backup": "",
+        "report": "",
+        "applied_structured_rows": 0,
+        "applied_structured_fields": 0,
+        "applied_prompt_rows": 0,
+        "applied_prompt_fields": 0,
+        "applied_bpm_migrations": 0,
+        "applied_ui_cache_rows": 0,
+        "field_counts": {},
+        "remaining": {},
+    }
 
 def _ls_intent_source_signature(conn):
     digest = hashlib.sha256()
@@ -3908,136 +3780,24 @@ def backup_db_before_category_assignment():
 
 
 def apply_ls_category_assignment(expected_signature=""):
-    if not LS_CATEGORY_ASSIGNMENT_LOCK.acquire(blocking=False):
-        raise RuntimeError("Category assignment is already running")
-    try:
-        job_state = read_suno_metadata_job_state()
-        if job_state.get("running"):
-            raise RuntimeError(
-                "Automatic metadata backfill is still running. Wait for it first."
-            )
-        plan = _collect_ls_category_assignment_plan()
-        expected_signature = str(expected_signature or "").strip()
-        if not expected_signature:
-            raise RuntimeError("Preview is required before Apply")
-        if expected_signature != plan["source_signature"]:
-            raise RuntimeError(
-                "LS DB changed after the shown preview. Run Preview again."
-            )
+    """Canonical DB persists only manual category overrides.
 
-        backup_path = backup_db_before_category_assignment()
-        conn = get_connection()
-        try:
-            cur = conn.cursor()
-            cur.execute("PRAGMA busy_timeout = 10000;")
-            cur.execute("BEGIN IMMEDIATE;")
-            track_ui_columns = {
-                row[1] for row in cur.execute("PRAGMA table_info(track_ui);")
-            }
-            live_plan = _collect_ls_category_assignment_plan(conn)
-            if live_plan["source_signature"] != plan["source_signature"]:
-                raise RuntimeError(
-                    "LS DB changed while preparing category assignment. "
-                    "Nothing was written; run Preview again."
-                )
-
-            applied = []
-            for item in live_plan["_updates"]:
-                # The WHERE guard preserves a manual decision made after Preview.
-                proposed = item["proposed_category"]
-                definite = proposed in {"Song", "Instrumental"}
-                cur.execute("""
-                    INSERT OR IGNORE INTO track_ui (track_id) VALUES (?);
-                """, (item["track_id"],))
-                cur.execute("""
-                    UPDATE track_ui
-                       SET main_category = ?,
-                           main_category_confidence_label = ?,
-                           main_category_score = ?,
-                           main_category_review_group = ?,
-                           main_category_rule = ?
-                     WHERE lower(track_id) = lower(?)
-                       AND COALESCE(main_category_review_group, '') != 'manual_toggle';
-                """, (
-                    proposed,
-                    "strong" if definite else "weak",
-                    item["intent_score"],
-                    "auto_intent_score_90" if definite else "song_or_instrumental",
-                    (
-                        "automatic intent audit assignment >= 90"
-                        if definite else
-                        "intent conflict below 90; category uncertain"
-                    ),
-                    item["track_id"],
-                ))
-                if cur.rowcount:
-                    applied.append(item)
-                    if "proposed_main_category" in track_ui_columns:
-                        cur.execute("""
-                            UPDATE track_ui
-                               SET proposed_main_category = ''
-                             WHERE lower(track_id) = lower(?);
-                        """, (item["track_id"],))
-                    cur.execute(f"""
-                        UPDATE {_DATA_LS_INTENT_AUDIT_TABLE}
-                           SET current_category = ?,
-                               recommended_action = ?
-                         WHERE lower(track_id) = lower(?);
-                    """, (
-                        proposed,
-                        "auto_category_assigned" if definite
-                        else "category_marked_uncertain",
-                        item["track_id"],
-                    ))
-
-            check = cur.execute("PRAGMA quick_check;").fetchone()
-            if not check or str(check[0]).lower() != "ok":
-                raise RuntimeError(
-                    "DB integrity check failed; category changes were rolled back"
-                )
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            conn.close()
-
-        stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        report_path = backup_path.parent / f"LS_CATEGORY_ASSIGNMENT_{stamp}.json"
-        report_payload = {
-            key: value for key, value in plan.items() if not key.startswith("_")
-        }
-        report_payload.update({
-            "app_version": APP_VERSION,
-            "applied_at": now_iso_local(),
-            "backup": str(backup_path),
-            "applied_rows": len(applied),
-            "applied": applied,
-        })
-        report_path.write_text(
-            json.dumps(report_payload, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-        return {
-            "ok": True,
-            "message": "Automatic Song / Instrumental assignment completed.",
-            "backup": str(backup_path),
-            "report": str(report_path),
-            "applied_rows": len(applied),
-            "to_song": sum(
-                item["proposed_category"] == "Song" for item in applied
-            ),
-            "to_instrumental": sum(
-                item["proposed_category"] == "Instrumental" for item in applied
-            ),
-            "to_uncertain": sum(
-                item["proposed_category"] == "SongOrInstrumental"
-                for item in applied
-            ),
-        }
-    finally:
-        LS_CATEGORY_ASSIGNMENT_LOCK.release()
-
+    Automatic category intent remains derived/recomputed data and is deliberately
+    not written back into track_user.
+    """
+    return {
+        "ok": True,
+        "message": (
+            "Canonical Local Suno DB keeps automatic Song/Instrumental intent "
+            "derived; only manual overrides are persisted."
+        ),
+        "backup": "",
+        "report": "",
+        "applied_rows": 0,
+        "to_song": 0,
+        "to_instrumental": 0,
+        "to_uncertain": 0,
+    }
 
 def backup_db_before_metadata_import():
     backup_dir = BASE_DIR / "Backup"
@@ -4061,30 +3821,11 @@ def backup_db_before_metadata_import():
 
 
 def insert_suno_tracks_metadata_only(track_items):
-    """Insert already-normalized Suno track payloads into LS DB.
-
-    Each item is a mapping with ``raw``, ``meta`` and ``is_stem`` fields.  The
-    repository deliberately performs no Suno API parsing itself.
-    """
+    """Insert normalized Suno payloads into the canonical Local Suno schema."""
     if not track_items:
         return {"ok": False, "error": "No Suno tracks to import"}
 
     backup_path = backup_db_before_metadata_import()
-    columns = get_table_columns()
-    allowed = [
-        "id", "title", "audio_url", "status", "created_at",
-        "lyrics", "metadata_prompt", "prompt", "metadata_tags", "style", "display_tags",
-        "image_url", "raw_image_url", "raw_image_large_url",
-        "workspaceName", "workspace", "workspaceId", "workspace_id",
-        "reaction_type", "model_name", "model_version", "major_model_version",
-        "bpm", "key", "raw_json", "raw_is_liked", "is_liked",
-        "is_stem", "library_status", "kind", "type", "metadata_type",
-        "metadata_duration", "duration", "created_local_at", "updated_at",
-    ]
-    insert_cols = [col for col in allowed if col in columns]
-    if "id" not in insert_cols or "title" not in insert_cols:
-        return {"ok": False, "error": "tracks table does not have required id/title columns"}
-
     selected_ids = []
     selected_seen = set()
     for item in track_items:
@@ -4092,18 +3833,34 @@ def insert_suno_tracks_metadata_only(track_items):
             continue
         raw_track = item.get("raw") if isinstance(item.get("raw"), dict) else {}
         meta = item.get("meta") if isinstance(item.get("meta"), dict) else {}
-        selected_id = str(meta.get("id") or raw_track.get("id") or raw_track.get("clip_id") or "").strip()
-        selected_key = selected_id.lower()
-        if selected_id and selected_key not in selected_seen:
+        selected_id = str(
+            meta.get("id") or raw_track.get("id") or raw_track.get("clip_id") or ""
+        ).strip()
+        key = selected_id.lower()
+        if selected_id and key not in selected_seen:
             selected_ids.append(selected_id)
-            selected_seen.add(selected_key)
+            selected_seen.add(key)
+
+    def number(value):
+        if value in (None, ""):
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    def bool_value(value, default=0):
+        if value is None or value == "":
+            return default
+        if isinstance(value, bool):
+            return 1 if value else 0
+        if isinstance(value, (int, float)):
+            return 1 if value else 0
+        return 1 if str(value).strip().lower() in {"1", "true", "yes", "like", "liked"} else 0
 
     conn = get_connection()
     rows = []
-    inserted = 0
-    skipped_existing = 0
-    skipped_stem = 0
-    errors = 0
+    inserted = skipped_existing = skipped_stem = errors = 0
     inserted_ids = []
     try:
         cur = conn.cursor()
@@ -4112,34 +3869,123 @@ def insert_suno_tracks_metadata_only(track_items):
                 continue
             raw_track = item.get("raw") if isinstance(item.get("raw"), dict) else {}
             meta = item.get("meta") if isinstance(item.get("meta"), dict) else {}
+            md = raw_track.get("metadata") if isinstance(raw_track.get("metadata"), dict) else {}
+
             if bool(item.get("is_stem")):
                 skipped_stem += 1
                 continue
-            tid = str(meta.get("id") or "").strip()
-            title = meta.get("title") or "(untitled)"
+
+            tid = str(meta.get("id") or raw_track.get("id") or raw_track.get("clip_id") or "").strip()
+            title = str(meta.get("title") or raw_track.get("title") or "(untitled)")
             if not tid:
                 errors += 1
                 rows.append({"track_id": "", "short_id": "", "title": title, "status": "ERROR", "error": "Missing Suno ID"})
                 continue
-            cur.execute("SELECT COUNT(*) FROM tracks WHERE lower(id)=lower(?)", (tid,))
-            if cur.fetchone()[0] > 0:
+
+            if cur.execute(
+                "SELECT COUNT(*) FROM main.tracks WHERE lower(id)=lower(?)", (tid,)
+            ).fetchone()[0] > 0:
                 skipped_existing += 1
                 rows.append({"track_id": tid, "short_id": tid[:8], "title": title, "status": "SKIPPED_EXISTS", "error": ""})
                 continue
-            values = []
-            final_cols = []
-            for col in insert_cols:
-                value = ls_db_insert_column_value(columns, meta, raw_track, col)
-                if value is None and col not in ("metadata_duration", "is_liked", "is_stem"):
-                    continue
-                final_cols.append(col)
-                values.append(value)
-            placeholders = ", ".join(["?"] * len(final_cols))
-            col_sql = ", ".join([f'"{col}"' for col in final_cols])
-            cur.execute(f"INSERT INTO tracks ({col_sql}) VALUES ({placeholders})", values)
+
+            lyrics = str(meta.get("lyrics") or raw_track.get("lyrics") or "")
+            source_type = (
+                meta.get("metadata_type") or raw_track.get("type") or md.get("type") or ""
+            )
+            source_task = (
+                meta.get("metadata_task") or raw_track.get("task") or md.get("task") or ""
+            )
+            style_tags = (
+                meta.get("metadata_tags") or meta.get("style") or md.get("tags") or ""
+            )
+            duration_seconds = number(
+                meta.get("metadata_duration") or raw_track.get("duration") or md.get("duration")
+            )
+            kind = str(meta.get("kind") or "").strip()
+            if not kind:
+                title_lower = title.lower()
+                lyrics_lower = lyrics.lower()
+                kind = "Instrumental" if (
+                    "instrumental" in lyrics_lower or "(instrumental" in title_lower
+                ) else "Song"
+
+            is_liked = bool_value(
+                meta.get("is_liked")
+                if meta.get("is_liked") is not None
+                else raw_track.get("is_liked"),
+                0,
+            )
+
+            cur.execute("""
+                INSERT INTO main.tracks(
+                    id, title, created_at, workspace_id, workspace_name, project_id,
+                    audio_url, image_url, image_large_url, model_name,
+                    major_model_version, source_type, source_task, style_tags,
+                    negative_tags, prompt, duration_seconds, has_stem, has_vocal,
+                    make_instrumental, is_remix, studio_project_id,
+                    studio_project_version_id, edited_clip_id, cover_clip_id,
+                    avg_bpm, min_bpm, max_bpm, is_liked, explicit, display_tags,
+                    kind, caption, lyrics, library_status, updated_at
+                ) VALUES (
+                    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+                );
+            """, (
+                tid,
+                title,
+                meta.get("created_at") or raw_track.get("created_at") or None,
+                meta.get("workspaceId") or meta.get("workspace_id") or None,
+                meta.get("workspaceName") or meta.get("workspace_name") or None,
+                meta.get("project_id") or raw_track.get("project_id") or None,
+                meta.get("audio_url") or raw_track.get("audio_url") or None,
+                meta.get("image_url") or raw_track.get("image_url") or None,
+                meta.get("image_large_url") or raw_track.get("image_large_url") or None,
+                meta.get("model_name") or None,
+                meta.get("major_model_version") or meta.get("model_version") or None,
+                source_type or None,
+                source_task or None,
+                style_tags or None,
+                meta.get("metadata_negative_tags") or md.get("negative_tags") or None,
+                meta.get("prompt") or meta.get("metadata_prompt") or md.get("prompt") or None,
+                duration_seconds,
+                bool_value(meta.get("metadata_has_stem") if meta.get("metadata_has_stem") is not None else md.get("has_stem"), 0),
+                bool_value(meta.get("metadata_has_vocal") if meta.get("metadata_has_vocal") is not None else md.get("has_vocal"), 0),
+                bool_value(meta.get("metadata_make_instrumental") if meta.get("metadata_make_instrumental") is not None else md.get("make_instrumental"), 0),
+                bool_value(meta.get("metadata_is_remix") if meta.get("metadata_is_remix") is not None else md.get("is_remix"), 0),
+                meta.get("metadata_studio_project_id") or None,
+                meta.get("metadata_studio_project_version_id") or None,
+                meta.get("metadata_edited_clip_id") or None,
+                meta.get("metadata_cover_clip_id") or None,
+                number(meta.get("metadata_avg_bpm") or meta.get("bpm")),
+                number(meta.get("metadata_min_bpm")),
+                number(meta.get("metadata_max_bpm")),
+                is_liked,
+                bool_value(meta.get("explicit") if meta.get("explicit") is not None else raw_track.get("explicit"), 0),
+                meta.get("display_tags") or style_tags or None,
+                kind,
+                meta.get("caption") or raw_track.get("caption") or None,
+                lyrics,
+                "active",
+                now_iso_local(),
+            ))
+
+            raw_json = meta.get("raw_json")
+            if isinstance(raw_json, (dict, list)):
+                raw_json = json.dumps(raw_json, ensure_ascii=False)
+            if not raw_json:
+                raw_json = json.dumps(raw_track, ensure_ascii=False)
+            cur.execute("""
+                INSERT INTO main.suno_source_payload(track_id, raw_json, captured_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(track_id) DO UPDATE SET
+                    raw_json = excluded.raw_json,
+                    captured_at = excluded.captured_at;
+            """, (tid, str(raw_json), now_iso_local()))
+
             inserted += 1
             inserted_ids.append(tid)
             rows.append({"track_id": tid, "short_id": tid[:8], "title": title, "status": "INSERTED", "error": ""})
+
         conn.commit()
         if inserted_ids:
             set_last_imported_suno_ids(inserted_ids)
@@ -4150,9 +3996,8 @@ def insert_suno_tracks_metadata_only(track_items):
         conn.close()
 
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    reports_dir = REPORTS_DIR
-    reports_dir.mkdir(exist_ok=True)
-    report_path = reports_dir / f"suno_tracklist_import_{stamp}.md"
+    REPORTS_DIR.mkdir(exist_ok=True)
+    report_path = REPORTS_DIR / f"suno_tracklist_import_{stamp}.md"
     lines = [
         "# Suno Tracklist Import", "", f"- Backup: `{backup_path}`",
         f"- Inserted: **{inserted}**", f"- Skipped existing: **{skipped_existing}**",
@@ -4160,19 +4005,29 @@ def insert_suno_tracks_metadata_only(track_items):
         "| ID | Title | Status | Error |", "|---|---|---|---|",
     ]
     for row in rows:
-        lines.append(f"| `{row.get('short_id','')}` | {row.get('title','')} | {row.get('status','')} | {row.get('error','')} |")
+        lines.append(
+            f"| `{row.get('short_id','')}` | {row.get('title','')} | "
+            f"{row.get('status','')} | {row.get('error','')} |"
+        )
     report_path.write_text("\n".join(lines), encoding="utf-8")
     return {
-        "ok": True, "backup": str(backup_path), "report": str(report_path),
-        "inserted": inserted, "selected_ids": selected_ids,
-        "selected_url": "/?" + urllib.parse.urlencode({"track_ids": ",".join(selected_ids), "rows": "all", "selected_from_suno": "1"}) if selected_ids else "",
+        "ok": True,
+        "backup": str(backup_path),
+        "report": str(report_path),
+        "inserted": inserted,
+        "selected_ids": selected_ids,
+        "selected_url": "/?" + urllib.parse.urlencode({
+            "track_ids": ",".join(selected_ids),
+            "rows": "all",
+            "selected_from_suno": "1",
+        }) if selected_ids else "",
         "last_imported_ids": inserted_ids,
         "last_imported_url": "/?kind_filter=__last_imported__&rows=all&last_imported=1" if inserted_ids else "",
-        "skipped_existing": skipped_existing, "skipped_stem": skipped_stem,
-        "errors": errors, "rows": rows,
+        "skipped_existing": skipped_existing,
+        "skipped_stem": skipped_stem,
+        "errors": errors,
+        "rows": rows,
     }
-
-
 
 def build_suno_update_preview(limit=300):
     """Read-only metadata audit used by Downloader Update.
@@ -4430,48 +4285,95 @@ def build_suno_update_preview_fallback(limit=300, error=""):
 
 
 def apply_suno_metadata_to_db(track_id, api_meta, overwrite=False):
-    """Update one LS track from already fetched Suno API metadata.
-
-    Safe default: fill empty DB fields only.
-    Returns updated fields and non-overwritten conflicts.
-    """
+    """Update one canonical track from already fetched Suno API metadata."""
     track_id = str(track_id or "").strip()
     if not track_id:
         return {"updated_fields": [], "conflicts": [], "found": False}
 
-    columns = get_table_columns()
+    canonical_specs = [
+        ("title", api_meta.get("title"), True),
+        ("audio_url", api_meta.get("audio_url"), False),
+        ("created_at", api_meta.get("created_at"), True),
+        ("lyrics", api_meta.get("lyrics"), True),
+        ("prompt", api_meta.get("metadata_prompt") or api_meta.get("prompt"), True),
+        ("style_tags", api_meta.get("metadata_tags") or api_meta.get("style"), True),
+        ("negative_tags", api_meta.get("metadata_negative_tags"), True),
+        ("display_tags", api_meta.get("display_tags"), False),
+        ("caption", api_meta.get("caption"), True),
+        ("image_url", api_meta.get("image_url") or api_meta.get("raw_image_url"), False),
+        ("image_large_url", api_meta.get("image_large_url") or api_meta.get("raw_image_large_url"), False),
+        ("workspace_name", api_meta.get("workspaceName") or api_meta.get("workspace_name"), False),
+        ("workspace_id", api_meta.get("workspaceId") or api_meta.get("workspace_id"), False),
+        ("model_name", api_meta.get("model_name"), True),
+        ("major_model_version", api_meta.get("major_model_version") or api_meta.get("model_version"), True),
+        ("source_type", api_meta.get("metadata_type") or api_meta.get("raw_type"), True),
+        ("source_task", api_meta.get("metadata_task") or api_meta.get("raw_task"), True),
+        ("duration_seconds", api_meta.get("metadata_duration"), True),
+        ("has_stem", api_meta.get("metadata_has_stem"), True),
+        ("has_vocal", api_meta.get("metadata_has_vocal"), True),
+        ("make_instrumental", api_meta.get("metadata_make_instrumental"), True),
+        ("is_remix", api_meta.get("metadata_is_remix"), True),
+        ("studio_project_id", api_meta.get("metadata_studio_project_id"), True),
+        ("studio_project_version_id", api_meta.get("metadata_studio_project_version_id"), True),
+        ("edited_clip_id", api_meta.get("metadata_edited_clip_id"), True),
+        ("cover_clip_id", api_meta.get("metadata_cover_clip_id"), True),
+        ("avg_bpm", api_meta.get("metadata_avg_bpm") or api_meta.get("bpm"), True),
+        ("min_bpm", api_meta.get("metadata_min_bpm"), True),
+        ("max_bpm", api_meta.get("metadata_max_bpm"), True),
+        ("is_liked", api_meta.get("is_liked"), False),
+        ("explicit", api_meta.get("explicit"), False),
+    ]
+
     conn = get_connection()
     cur = conn.cursor()
-
     try:
-        cur.execute("SELECT * FROM tracks WHERE lower(id)=lower(?);", (track_id,))
-        row = cur.fetchone()
+        row = cur.execute(
+            "SELECT * FROM main.tracks WHERE lower(id)=lower(?);", (track_id,)
+        ).fetchone()
         if not row:
             return {"updated_fields": [], "conflicts": [], "found": False}
 
         current = dict(row)
-        updates, conflicts = collect_suno_metadata_changes(
-            current,
-            columns,
-            api_meta,
-            overwrite=overwrite,
-        )
+        updates = {}
+        conflicts = []
+        for column, value, report_conflict in canonical_specs:
+            if not metadata_value_present(value):
+                continue
+            current_value = current.get(column)
+            if overwrite or is_db_value_empty(current_value):
+                updates[column] = value
+            elif report_conflict and not metadata_values_equal(current_value, value):
+                conflicts.append(column)
 
-        if not updates:
-            return {"updated_fields": [], "conflicts": conflicts, "found": True}
-
-        if "updated_at" in columns:
+        if updates:
             updates["updated_at"] = now_iso_local()
+            sql = (
+                "UPDATE main.tracks SET "
+                + ", ".join([f'"{col}" = ?' for col in updates])
+                + " WHERE lower(id)=lower(?)"
+            )
+            cur.execute(sql, list(updates.values()) + [track_id])
 
-        sql = "UPDATE tracks SET " + ", ".join([f'"{col}" = ?' for col in updates]) + " WHERE lower(id)=lower(?)"
-        cur.execute(sql, list(updates.values()) + [track_id])
+        raw_json = api_meta.get("raw_json")
+        if raw_json:
+            if isinstance(raw_json, (dict, list)):
+                raw_json = json.dumps(raw_json, ensure_ascii=False)
+            cur.execute("""
+                INSERT INTO main.suno_source_payload(track_id, raw_json, captured_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(track_id) DO UPDATE SET
+                    raw_json = excluded.raw_json,
+                    captured_at = excluded.captured_at;
+            """, (track_id, str(raw_json), now_iso_local()))
+
         conn.commit()
-        updated_fields = [column for column in updates if column != "updated_at"]
-        return {"updated_fields": updated_fields, "conflicts": conflicts, "found": True}
-
+        return {
+            "updated_fields": [key for key in updates if key != "updated_at"],
+            "conflicts": sorted(set(conflicts)),
+            "found": True,
+        }
     finally:
         conn.close()
-
 
 def get_track_download_info(track_id):
     track_id = str(track_id or "").strip()
@@ -6037,7 +5939,7 @@ def get_track_identity_snapshot():
 
 
 def apply_suno_title_updates(selected_track_ids, changed_items):
-    """Apply already-resolved Suno title changes; no network access."""
+    """Apply already-resolved Suno title changes to canonical tracks."""
     by_id = {str(item.get("id") or "").lower(): item for item in (changed_items or [])}
     backup_path = backup_db_before_metadata_import()
     conn = get_connection()
@@ -6055,7 +5957,10 @@ def apply_suno_title_updates(selected_track_ids, changed_items):
             if not suno_title or suno_title == ls_title:
                 rows.append({"short_id": str(tid)[:8], "status": "NO_CHANGE", "ls_title": ls_title, "suno_title": suno_title, "error": ""})
                 continue
-            cur.execute("UPDATE tracks SET title = ? WHERE lower(id)=lower(?)", (suno_title, tid))
+            cur.execute(
+                "UPDATE main.tracks SET title = ?, updated_at = ? WHERE lower(id)=lower(?)",
+                (suno_title, now_iso_local(), tid),
+            )
             updated += cur.rowcount
             rows.append({"short_id": str(tid)[:8], "status": "UPDATED", "ls_title": ls_title, "suno_title": suno_title, "error": ""})
         conn.commit()
