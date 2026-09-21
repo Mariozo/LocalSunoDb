@@ -6,7 +6,7 @@ Logs/
 Reports/
 Backup/
 Temp/
-Tools/
+/Tools/
 exports/
 
 # Runtime-created Data files; keep the shared F&T catalog in Git
