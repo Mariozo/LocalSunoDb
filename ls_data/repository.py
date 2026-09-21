@@ -28,6 +28,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path, PurePosixPath
 
 from ls_core.runtime import *
+from ls_data.local_suno_migration import migrate as migrate_local_suno_database
+from ls_data.local_suno_runtime import configure_legacy_runtime_views
 
 
 # DATA-private copies of stable v5.394 domain constants used by repository
@@ -78,12 +80,35 @@ def ls_stem_base_title(value):
     text = re.sub(r"\s+", " ", text).strip().lower()
     return text
 
+_LOCAL_SUNO_DB_INIT_LOCK = threading.Lock()
+
+def _ensure_local_suno_runtime_database():
+    if DB_PATH.is_file():
+        return
+    with _LOCAL_SUNO_DB_INIT_LOCK:
+        if DB_PATH.is_file():
+            return
+        if not LEGACY_DB_PATH.is_file():
+            raise FileNotFoundError(
+                f"Canonical Local Suno DB is missing and legacy DB was not found: {LEGACY_DB_PATH}"
+            )
+        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+        migrate_local_suno_database(
+            LEGACY_DB_PATH,
+            DB_PATH,
+            REPORTS_DIR / "local_suno_migration_report.json",
+        )
+
 def get_connection():
+    _ensure_local_suno_runtime_database()
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
     conn.create_function("ls_stem_base_title", 1, ls_stem_base_title)
     conn.create_function("ls_sort_text", 1, lv_sort_key)
     conn.create_function("ls_duration_seconds", 1, duration_sort_value)
+    configure_legacy_runtime_views(conn)
     return conn
 
 def get_table_columns():
