@@ -1,12 +1,12 @@
 # Runtime / user data
-suno_finder_v4.db
-suno_finder_v4.db-*
+*.db
+*.db-*
 error.log
 Logs/
 Reports/
 Backup/
 Temp/
-Tools/
+/Tools/
 exports/
 
 # Runtime-created Data files; keep the shared F&T catalog in Git
