@@ -17,5 +17,10 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -c "from ls_core.runtime import APP_VERSION, APP_BASED_ON; assert APP_VERSION == 'v2.04'; assert APP_BASED_ON == 'v2.03'"
-      - run: python -c "from pathlib import Path; c=Path(r'ls_library/static/suno_page_suno_library_list_style_assets.css').read_text(encoding='utf-8'); assert 'ls-cover-playing-bars' in c; assert 'animation: ls-cover-playing-bars' in c"
+      - name: Check animated cover indicator CSS
+        shell: pwsh
+        run: |
+          $css = Get-Content -Raw "ls_library/static/suno_page_suno_library_list_style_assets.css"
+          if (-not $css.Contains("ls-cover-playing-bars")) { throw "missing keyframes" }
+          if (-not $css.Contains("animation: ls-cover-playing-bars")) { throw "missing animation binding" }
       - run: python LocalSunoDb.py --ls-update-probe
