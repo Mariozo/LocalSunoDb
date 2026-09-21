@@ -37,6 +37,7 @@ LS_BACKEND_SUPERVISOR_FLAG = "--backend-supervisor"
 LS_BACKEND_AUTOSTART_INSTALL_FLAG = "--install-backend-autostart"
 LS_BACKEND_RESTART_FLAG = "--restart-backend"
 LS_BACKEND_RESTART_QUIET_FLAG = "--quiet-restart"
+LS_BACKEND_RESTART_GUARD_PATH = Path(HOST_ROOT) / "Temp" / "ls_backend_restart.guard"
 LS_BACKEND_RUN_VALUE_NAME = "LocalSunoDbBackend"
 LS_BROWSER_MANAGED_FLAG = "--ls-browser-managed"
 LS_APP_URL = f"http://{HOST}:{PORT}/"
@@ -1158,6 +1159,7 @@ def restart_localsunodb_backend(
     backend_terminator=None,
     backend_stop_waiter=None,
     supervisor_starter=None,
+    restart_guard_setter=None,
 ):
     """Explicitly restart the current backend even when APP_VERSION is unchanged.
 
@@ -1170,39 +1172,45 @@ def restart_localsunodb_backend(
     backend_terminator = backend_terminator or _terminate_backend_process
     backend_stop_waiter = backend_stop_waiter or _wait_for_backend_stopped
     supervisor_starter = supervisor_starter or start_localsunodb_backend_supervisor
+    restart_guard_setter = restart_guard_setter or _set_backend_restart_guard
 
     previous_status = status_getter()
     previous_pid = _backend_process_id(previous_status)
+    status = None
 
-    if previous_status is not None:
-        if previous_pid == os.getpid():
+    restart_guard_setter(True)
+    try:
+        if previous_status is not None:
+            if previous_pid == os.getpid():
+                raise RuntimeError(
+                    "Backend restart must be launched by the external LS restart helper."
+                )
+            if not backend_terminator(previous_status):
+                raise RuntimeError(
+                    "LocalSunoDb backend procesu neizdevās apturēt."
+                )
+            try:
+                stopped = backend_stop_waiter(status_getter=status_getter)
+            except TypeError:
+                stopped = backend_stop_waiter()
+            if not stopped:
+                raise RuntimeError(
+                    "LocalSunoDb backend process neapstājās laikā."
+                )
+
+        backend_starter()
+        if not backend_waiter():
             raise RuntimeError(
-                "Backend restart must be launched by the external LS restart helper."
-            )
-        if not backend_terminator(previous_status):
-            raise RuntimeError(
-                "LocalSunoDb backend procesu neizdevās apturēt."
-            )
-        try:
-            stopped = backend_stop_waiter(status_getter=status_getter)
-        except TypeError:
-            stopped = backend_stop_waiter()
-        if not stopped:
-            raise RuntimeError(
-                "LocalSunoDb backend process neapstājās laikā."
+                "LocalSunoDb backendu pēc restarta neizdevās palaist 15 sekunžu laikā."
             )
 
-    backend_starter()
-    if not backend_waiter():
-        raise RuntimeError(
-            "LocalSunoDb backendu pēc restarta neizdevās palaist 15 sekunžu laikā."
-        )
-
-    status = status_getter()
-    if status is None:
-        raise RuntimeError(
-            "LocalSunoDb backend palaidās, bet gatavības pārbaude neatbild."
-        )
+        status = status_getter()
+        if status is None:
+            raise RuntimeError(
+                "LocalSunoDb backend palaidās, bet gatavības pārbaude neatbild."
+            )
+    finally:
+        restart_guard_setter(False)
 
     try:
         supervisor_starter()
@@ -1815,22 +1823,77 @@ def _acquire_backend_supervisor_mutex():
         return None
 
 
+def _set_backend_restart_guard(active, *, path=None):
+    guard_path = Path(path or LS_BACKEND_RESTART_GUARD_PATH)
+    if active:
+        guard_path.parent.mkdir(parents=True, exist_ok=True)
+        guard_path.write_text(
+            json.dumps({"pid": os.getpid(), "started_at": time.time()}),
+            encoding="utf-8",
+        )
+        return guard_path
+    try:
+        guard_path.unlink()
+    except FileNotFoundError:
+        pass
+    return guard_path
+
+
+def _backend_restart_guard_active(*, path=None, max_age=60.0):
+    guard_path = Path(path or LS_BACKEND_RESTART_GUARD_PATH)
+    if not guard_path.is_file():
+        return False
+    try:
+        age = max(0.0, time.time() - guard_path.stat().st_mtime)
+    except OSError:
+        return False
+    if age <= float(max_age):
+        return True
+    try:
+        guard_path.unlink()
+    except OSError:
+        pass
+    return False
+
+
+def supervise_localsunodb_backend_once(
+    *,
+    status_getter=None,
+    backend_ensurer=None,
+    restart_guard_checker=None,
+):
+    """One supervisor iteration.
+
+    Any responding LocalSunoDb backend is left alone regardless of version.
+    Version replacement belongs to the explicit restart/update path; otherwise
+    an old supervisor can fight a newly installed backend forever.
+    """
+    status_getter = status_getter or (lambda: _fetch_backend_status(timeout=0.8))
+    backend_ensurer = backend_ensurer or ensure_localsunodb_backend_ready
+    restart_guard_checker = restart_guard_checker or _backend_restart_guard_active
+
+    if restart_guard_checker():
+        return "restart_in_progress"
+
+    status = status_getter()
+    if status is not None:
+        return "backend_present"
+
+    backend_ensurer()
+    return "backend_started"
+
+
 def run_localsunodb_backend_supervisor(*, initial_delay=2.0, poll_interval=0.75):
-    """Keep the version-matched LS backend alive independently of Chrome."""
+    """Keep one LS backend alive without enforcing a cached supervisor version."""
     mutex = _acquire_backend_supervisor_mutex()
     if mutex is False:
         return {"ok": True, "action": "supervisor_already_running"}
     time.sleep(max(0.0, float(initial_delay)))
     while True:
         try:
-            status = _fetch_backend_status(timeout=0.8)
-            if not _backend_status_matches_expected(status):
-                ensure_localsunodb_backend_ready()
-        except Exception:
-            try:
-                ensure_localsunodb_backend_ready()
-            except Exception as exc:
-                _record_launcher_error(exc)
+            supervise_localsunodb_backend_once()
+        except Exception as exc:
+            _record_launcher_error(exc)
         time.sleep(max(0.25, float(poll_interval)))
 
 
