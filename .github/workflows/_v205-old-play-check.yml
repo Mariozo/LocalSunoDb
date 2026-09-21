@@ -1,0 +1,21 @@
+name: v2.05 old play button check
+
+on:
+  push:
+    branches:
+      - task/restore-old-play-button-v2.05
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -c "from ls_core.runtime import APP_VERSION, APP_BASED_ON; assert APP_VERSION == 'v2.05'; assert APP_BASED_ON == 'v2.04'"
+      - run: python -c "from pathlib import Path; c=Path(r'ls_library/static/suno_page_suno_library_list_style_assets.css').read_text(encoding='utf-8'); assert 'ls-cover-playing-bars' not in c; assert 'tr.track-row.player-open .ls-cover-play-btn' in c"
+      - run: python LocalSunoDb.py --ls-update-probe
