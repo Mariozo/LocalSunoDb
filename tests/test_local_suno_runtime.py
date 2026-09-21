@@ -172,3 +172,38 @@ def test_user_writes_land_in_canonical_tables(tmp_path, monkeypatch):
     assert user == (5, "#keep #mix", 7, "Instrumental")
     assert "track_ui" not in names
     assert "local_audio_files" not in names
+
+
+def test_bootstrap_builds_canonical_db_when_only_legacy_exists(tmp_path, monkeypatch):
+    legacy_path = tmp_path / "suno_finder_v4.db"
+    db_path = tmp_path / "Data" / "local_suno.db"
+
+    conn = sqlite3.connect(legacy_path)
+    conn.execute("""
+        CREATE TABLE tracks(
+            id TEXT PRIMARY KEY,
+            title TEXT,
+            kind TEXT,
+            library_status TEXT
+        )
+    """)
+    conn.execute(
+        "INSERT INTO tracks(id,title,kind,library_status) VALUES ('legacy-1','Legacy Track','Song','active')"
+    )
+    conn.commit()
+    conn.close()
+
+    _wire_repository(monkeypatch, db_path, tmp_path)
+    monkeypatch.setattr(repository, "LEGACY_DB_PATH", legacy_path)
+    repository.ensure_local_suno_runtime_database()
+
+    assert db_path.is_file()
+    assert (tmp_path / "Reports" / "local_suno_migration_report.json").is_file()
+    conn = sqlite3.connect(db_path)
+    try:
+        assert conn.execute(
+            "SELECT title FROM tracks WHERE id='legacy-1'"
+        ).fetchone()[0] == "Legacy Track"
+        assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+    finally:
+        conn.close()
