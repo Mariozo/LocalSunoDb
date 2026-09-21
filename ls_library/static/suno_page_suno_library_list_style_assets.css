@@ -199,44 +199,6 @@
             background: rgba(0, 0, 0, 0.46);
         }
 
-        #tracks-table .ls-cover-play-btn[title="Pause"] {
-            color: transparent;
-            text-shadow: none;
-        }
-
-        #tracks-table .ls-cover-play-btn[title="Pause"]::after {
-            content: "";
-            width: 26px;
-            height: 28px;
-            background:
-                linear-gradient(#FFFFFF, #FFFFFF) left bottom / 5px 48% no-repeat,
-                linear-gradient(#FFFFFF, #FFFFFF) center bottom / 5px 88% no-repeat,
-                linear-gradient(#FFFFFF, #FFFFFF) right bottom / 5px 64% no-repeat;
-            filter: drop-shadow(0 1px 3px rgba(0,0,0,0.62));
-            animation: ls-cover-playing-bars 760ms ease-in-out infinite;
-        }
-
-        @keyframes ls-cover-playing-bars {
-            0%, 100% {
-                background-size: 5px 46%, 5px 86%, 5px 58%;
-            }
-            25% {
-                background-size: 5px 82%, 5px 52%, 5px 92%;
-            }
-            50% {
-                background-size: 5px 62%, 5px 96%, 5px 44%;
-            }
-            75% {
-                background-size: 5px 94%, 5px 64%, 5px 76%;
-            }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            #tracks-table .ls-cover-play-btn[title="Pause"]::after {
-                animation: none;
-            }
-        }
-
         #tracks-table .ls-track-select-control {
             position: absolute;
             top: 4px;
