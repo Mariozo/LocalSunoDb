@@ -164,16 +164,44 @@ def delete_local_playlist(playlist_id):
     return target
 
 
-def add_track_to_local_playlist(playlist_id, track_id):
-    track_id = _clean_track_id(track_id)
+def add_tracks_to_local_playlist(playlist_id, track_ids):
+    cleaned = []
+    seen_input = set()
+    for value in track_ids or []:
+        track_id = _clean_track_id(value)
+        key = track_id.casefold()
+        if key in seen_input:
+            continue
+        seen_input.add(key)
+        cleaned.append(track_id)
+    if not cleaned:
+        raise ValueError("At least one Track ID is required.")
+
     payload = _load_playlist_store()
     item = _playlist_by_id(payload, playlist_id)
     existing = {str(value).casefold() for value in item.get("track_ids") or []}
-    if track_id.casefold() not in existing:
+    added = []
+    for track_id in cleaned:
+        key = track_id.casefold()
+        if key in existing:
+            continue
         item.setdefault("track_ids", []).append(track_id)
+        existing.add(key)
+        added.append(track_id)
+
+    if added:
         item["updated_at"] = _playlist_now()
         _save_playlist_store(payload)
-    return dict(item, track_count=len(item.get("track_ids") or []))
+    return dict(
+        item,
+        track_count=len(item.get("track_ids") or []),
+        added_count=len(added),
+        added_track_ids=added,
+    )
+
+
+def add_track_to_local_playlist(playlist_id, track_id):
+    return add_tracks_to_local_playlist(playlist_id, [track_id])
 
 
 def remove_track_from_local_playlist(playlist_id, track_id):
@@ -593,25 +621,107 @@ def render_playlist_library_actions_script():
     return data;
   };
 
-  const choosePlaylist = async (trackId) => {
+  const cleanTrackIds = (values) => {
+    const seen = new Set();
+    return (Array.isArray(values) ? values : [values])
+      .map((value) => String(value || "").trim())
+      .filter((value) => {
+        const key = value.toLowerCase();
+        if (!value || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  };
+
+  const addTracks = async (playlistId, trackIds) => {
+    const ids = cleanTrackIds(trackIds);
+    if (!ids.length) throw new Error("No tracks selected.");
+    return await post("/playlist-add-tracks", {
+      playlist_id: playlistId,
+      track_ids: ids.join(","),
+    });
+  };
+
+  const choosePlaylist = async (trackIds) => {
+    const ids = cleanTrackIds(trackIds);
+    if (!ids.length) return null;
+
     const response = await fetch("/playlists-json", {cache:"no-store"});
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error(data.error || "Could not load playlists.");
     const playlists = Array.isArray(data.playlists) ? data.playlists : [];
+
+    let playlist = null;
     if (!playlists.length) {
       const name = window.prompt("No playlists yet. New playlist name:");
-      if (!name) return;
+      if (!name) return null;
       const created = await post("/playlist-create", {name});
-      await post("/playlist-add-track", {playlist_id:created.playlist.id, track_id:trackId});
-      return;
+      playlist = created.playlist;
+    } else {
+      const lines = playlists
+        .map((item, index) => String(index + 1) + ". " + item.name + " (" + item.track_count + ")")
+        .join("\n");
+      const answer = window.prompt(
+        "Add " + ids.length + (ids.length === 1 ? " song" : " songs") +
+        " to Playlist — enter number:\n\n0. + New Playlist\n" + lines,
+        "1"
+      );
+      if (answer === null || String(answer).trim() === "") return null;
+      const number = Number.parseInt(answer, 10);
+      if (number === 0) {
+        const name = window.prompt("New playlist name:");
+        if (!name) return null;
+        const created = await post("/playlist-create", {name});
+        playlist = created.playlist;
+      } else {
+        const index = number - 1;
+        if (!Number.isInteger(index) || index < 0 || index >= playlists.length) {
+          throw new Error("Invalid playlist number.");
+        }
+        playlist = playlists[index];
+      }
     }
-    const lines = playlists.map((item, index) => String(index + 1) + ". " + item.name + " (" + item.track_count + ")").join("\n");
-    const answer = window.prompt("Add to Playlist — enter number:\n\n" + lines, "1");
-    if (!answer) return;
-    const index = Number.parseInt(answer, 10) - 1;
-    if (!Number.isInteger(index) || index < 0 || index >= playlists.length) throw new Error("Invalid playlist number.");
-    await post("/playlist-add-track", {playlist_id:playlists[index].id, track_id:trackId});
+
+    const result = await addTracks(playlist.id, ids);
+    const added = Number(result.playlist?.added_count || 0);
+    const skipped = ids.length - added;
+    const suffix = skipped > 0 ? " · " + skipped + " already there" : "";
+    window.alert("Playlist: " + playlist.name + "\nAdded: " + added + suffix);
+    return result;
   };
+
+  const getSelectedTrackIds = () => Array.from(
+    document.querySelectorAll("#tracks-table tbody .track-check:checked")
+  ).map((check) => String(check.value || "").trim()).filter(Boolean);
+
+  const selectedButton = document.getElementById("add-selected-playlist-btn");
+  const syncSelectedButton = () => {
+    if (!selectedButton) return;
+    const count = getSelectedTrackIds().length;
+    selectedButton.disabled = count < 1;
+    selectedButton.style.display = count > 0 ? "" : "none";
+    selectedButton.textContent = count > 0 ? "Add to Playlist (" + count + ")" : "Add to Playlist";
+  };
+
+  document.addEventListener("change", (event) => {
+    if (event.target?.matches?.("#tracks-table .track-check")) syncSelectedButton();
+  });
+  document.addEventListener("ls-library-wav-selection-changed", syncSelectedButton);
+
+  if (selectedButton) {
+    selectedButton.addEventListener("click", async () => {
+      const ids = getSelectedTrackIds();
+      if (!ids.length) return;
+      selectedButton.disabled = true;
+      try {
+        await choosePlaylist(ids);
+      } catch (error) {
+        window.alert(error.message);
+      } finally {
+        syncSelectedButton();
+      }
+    });
+  }
 
   document.addEventListener("click", async (event) => {
     const item = event.target.closest(".menu-add-playlist");
@@ -624,11 +734,13 @@ def render_playlist_library_actions_script():
     if (menu) menu.classList.add("hidden");
     if (!trackId) return;
     try {
-      await choosePlaylist(trackId);
+      await choosePlaylist([trackId]);
     } catch (error) {
       window.alert(error.message);
     }
   });
+
+  window.setTimeout(syncSelectedButton, 0);
 })();
 </script>
 """
