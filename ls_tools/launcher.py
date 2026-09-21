@@ -2194,7 +2194,7 @@ def main():
                 try:
                     ctypes.windll.user32.MessageBoxW(
                         0,
-                        "LocalSunoDb v1.16 backend autostart ir uzstādīts un backend darbojas.",
+                        f"LocalSunoDb {APP_VERSION} backend autostart ir uzstādīts un backend darbojas.",
                         "LocalSunoDb",
                         0x40,
                     )
