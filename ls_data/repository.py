@@ -1070,6 +1070,12 @@ def update_track_hidden(track_id, hidden=True, reason="manual_hide_from_finder")
         conn.close()
 
 def ensure_local_audio_files_table(cur):
+    """Compatibility no-op for the canonical Track -> Variant -> Media schema."""
+    row = cur.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='media_files' LIMIT 1;"
+    ).fetchone()
+    if row:
+        return
     cur.execute("""
         CREATE TABLE IF NOT EXISTS local_audio_files (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1470,148 +1476,166 @@ def update_track_like(track_id, liked):
 def add_local_audio_to_track(track_id, local_path):
     track_id = (track_id or "").strip()
     local_path = urllib.parse.unquote(str(local_path or "")).strip().strip('"')
-
     if not track_id:
         return False, "Missing Track ID"
-
     if not local_path:
         return False, "Missing local file path"
 
     path_obj = Path(local_path)
-
     if not path_obj.exists() or not path_obj.is_file():
         return False, "Local file not found"
-
     extension = path_obj.suffix.lower()
-
-    if extension not in [".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg"]:
+    if extension not in _DATA_AUDIO_EXTENSIONS:
         return False, "Unsupported audio extension"
 
     conn = get_connection()
     cur = conn.cursor()
-
     try:
-        ensure_local_audio_files_table(cur)
-
-        cur.execute("SELECT COUNT(*) FROM tracks WHERE id = ?;", (track_id,))
-        if cur.fetchone()[0] == 0:
+        if cur.execute(
+            "SELECT COUNT(*) FROM main.tracks WHERE id = ?;", (track_id,)
+        ).fetchone()[0] == 0:
             return False, "Track ID not found"
 
-        if extension == ".wav":
-            ensure_track_column(cur, "local_wav", "TEXT")
-            cur.execute("UPDATE tracks SET local_wav = ? WHERE id = ?;", (str(path_obj), track_id))
-        elif extension == ".mp3":
-            ensure_track_column(cur, "local_mp3", "TEXT")
-            cur.execute("UPDATE tracks SET local_mp3 = ? WHERE id = ?;", (str(path_obj), track_id))
+        folder_path = str(path_obj.parent)
+        variant_no = None
+        try:
+            parsed_no = int(path_obj.parent.name)
+            if parsed_no > 0:
+                variant_no = parsed_no
+        except Exception:
+            pass
+
+        # Preserve one physical path only once. Relinking transfers that path.
+        old_variant_ids = [
+            row[0] for row in cur.execute(
+                "SELECT variant_id FROM main.media_files WHERE path = ?;",
+                (str(path_obj),),
+            ).fetchall() if row[0] is not None
+        ]
+        cur.execute("DELETE FROM main.media_files WHERE path = ?;", (str(path_obj),))
+
+        variant_row = cur.execute("""
+            SELECT tv.id
+              FROM main.track_variants tv
+             WHERE tv.track_id = ?
+               AND lower(tv.folder_path) = lower(?)
+               AND NOT EXISTS (
+                    SELECT 1 FROM main.media_files mf
+                     WHERE mf.variant_id = tv.id AND mf.role = 'main'
+               )
+             ORDER BY tv.id
+             LIMIT 1;
+        """, (track_id, folder_path)).fetchone()
+
+        if variant_row:
+            variant_id = int(variant_row[0])
+        else:
+            cur.execute("""
+                INSERT INTO main.track_variants(
+                    track_id, variant_no, label, folder_path, variant_kind
+                ) VALUES (?, ?, ?, ?, 'main');
+            """, (track_id, variant_no, path_obj.parent.name, folder_path))
+            variant_id = int(cur.lastrowid)
 
         stat = path_obj.stat()
-        modified_time = datetime.fromtimestamp(stat.st_mtime).isoformat(timespec="seconds")
-        now_text = now_iso_local()
+        modified_at = datetime.fromtimestamp(stat.st_mtime).isoformat(timespec="seconds")
+        file_created_at = (
+            datetime.fromtimestamp(stat.st_ctime).isoformat(timespec="seconds")
+            if os.name == "nt" else None
+        )
+        chronology_at = file_created_at or modified_at
+        chronology_source = "filesystem_created_at" if file_created_at else "modified_time"
 
-        cur.execute("DELETE FROM local_audio_files WHERE path = ?;", (str(path_obj),))
         cur.execute("""
-            INSERT INTO local_audio_files (
-                track_id, path, filename, folder, extension, size_bytes,
-                modified_time, is_stem, stem_label, created_at, updated_at
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, 0, '', ?, ?);
+            INSERT INTO main.media_files(
+                variant_id, path, role, format, stem_label, size_bytes,
+                modified_at, file_created_at, file_created_at_source,
+                chronology_at
+            ) VALUES (?, ?, 'main', ?, '', ?, ?, ?, ?, ?);
         """, (
-            track_id,
+            variant_id,
             str(path_obj),
-            path_obj.name,
-            str(path_obj.parent),
             extension.lstrip("."),
-            stat.st_size,
-            modified_time,
-            now_text,
-            now_text,
+            int(stat.st_size or 0),
+            modified_at,
+            file_created_at,
+            chronology_source,
+            chronology_at,
         ))
+
+        for old_variant_id in old_variant_ids:
+            cur.execute("""
+                DELETE FROM main.track_variants
+                 WHERE id = ?
+                   AND NOT EXISTS (
+                       SELECT 1 FROM main.media_files WHERE variant_id = ?
+                   );
+            """, (old_variant_id, old_variant_id))
 
         conn.commit()
         return True, "Local audio added"
-
     except Exception as e:
+        conn.rollback()
         return False, str(e)
-
     finally:
         conn.close()
 
 def delete_local_audio_from_track(track_id, local_path):
     track_id = (track_id or "").strip()
     local_path = urllib.parse.unquote(str(local_path or "")).strip().strip('"')
-
     if not track_id:
         return False, "Missing Track ID"
-
     if not local_path:
         return False, "Missing local file path"
 
     path_obj = Path(local_path)
-
     conn = get_connection()
     cur = conn.cursor()
-
     try:
-        ensure_local_audio_files_table(cur)
-
-        cur.execute("""
-            SELECT local_wav, local_mp3
-            FROM tracks
-            WHERE id = ?;
-        """, (track_id,))
-        row = cur.fetchone()
-
+        row = cur.execute("""
+            SELECT mf.id, mf.variant_id
+              FROM main.media_files mf
+              JOIN main.track_variants tv ON tv.id = mf.variant_id
+             WHERE lower(tv.track_id) = lower(?)
+               AND mf.path = ?
+             LIMIT 1;
+        """, (track_id, str(path_obj))).fetchone()
         if not row:
-            return False, "Track ID not found"
-
-        local_wav = str(row[0] or "")
-        local_mp3 = str(row[1] or "")
-
-        cur.execute("""
-            SELECT COUNT(*)
-            FROM local_audio_files
-            WHERE track_id = ? AND path = ?;
-        """, (track_id, str(path_obj)))
-        listed_for_track = cur.fetchone()[0] > 0
-
-        if str(path_obj) not in [local_wav, local_mp3] and not listed_for_track:
             return False, "This local file is not linked to this track in LS DB"
 
+        media_id = int(row["id"])
+        variant_id = row["variant_id"]
         moved_to = ""
 
         if path_obj.exists() and path_obj.is_file():
             backup_dir = BASE_DIR / "Backup" / "deleted_local_audio"
             backup_dir.mkdir(parents=True, exist_ok=True)
-
             stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             target = backup_dir / f"{path_obj.stem}__deleted_{stamp}{path_obj.suffix}"
             counter = 1
-
             while target.exists():
                 target = backup_dir / f"{path_obj.stem}__deleted_{stamp}_{counter}{path_obj.suffix}"
                 counter += 1
-
             shutil.move(str(path_obj), str(target))
             moved_to = str(target)
 
-        if str(path_obj) == local_wav:
-            cur.execute("UPDATE tracks SET local_wav = '' WHERE id = ?;", (track_id,))
-
-        if str(path_obj) == local_mp3:
-            cur.execute("UPDATE tracks SET local_mp3 = '' WHERE id = ?;", (track_id,))
-
-        cur.execute("DELETE FROM local_audio_files WHERE track_id = ? AND path = ?;", (track_id, str(path_obj)))
-
+        cur.execute("DELETE FROM main.media_files WHERE id = ?;", (media_id,))
+        if variant_id is not None:
+            cur.execute("""
+                DELETE FROM main.track_variants
+                 WHERE id = ?
+                   AND NOT EXISTS (
+                       SELECT 1 FROM main.media_files WHERE variant_id = ?
+                   );
+            """, (variant_id, variant_id))
         conn.commit()
 
         if moved_to:
             return True, f"Local audio moved to Backup: {moved_to}"
-
         return True, "Local audio link removed; file was already missing on disk"
-
     except Exception as e:
+        conn.rollback()
         return False, str(e)
-
     finally:
         conn.close()
 
@@ -2983,7 +3007,6 @@ def get_best_local_audio_paths_for_render(rows, confirmed_paths=None):
 def add_stem_folder_to_track(track_id, folder_path):
     track_id = (track_id or "").strip()
     folder_path = urllib.parse.unquote(str(folder_path or "")).strip().strip('"')
-
     if not track_id:
         return False, "Missing Track ID"
     if not folder_path:
@@ -2993,56 +3016,121 @@ def add_stem_folder_to_track(track_id, folder_path):
     if not folder.exists() or not folder.is_dir():
         return False, "Stem folder not found"
 
-    files = [p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in _DATA_AUDIO_EXTENSIONS]
-    files.sort(key=lambda p: stem_sort_key({"stem_label": detect_stem_label(p), "filename": p.name}))
-
+    files = [
+        p for p in folder.iterdir()
+        if p.is_file() and p.suffix.lower() in _DATA_AUDIO_EXTENSIONS
+    ]
+    files.sort(key=lambda p: stem_sort_key({
+        "stem_label": detect_stem_label(p),
+        "filename": p.name,
+    }))
     if not files:
         return False, "No audio stem files found in selected folder"
+
+    variant_folder = folder.parent if folder.name.casefold() == "stems" else folder
+    variant_no = None
+    try:
+        parsed_no = int(variant_folder.name)
+        if parsed_no > 0:
+            variant_no = parsed_no
+    except Exception:
+        pass
 
     conn = get_connection()
     cur = conn.cursor()
     try:
-        ensure_local_audio_files_table(cur)
-        cur.execute("SELECT COUNT(*) FROM tracks WHERE id = ?;", (track_id,))
-        if cur.fetchone()[0] == 0:
+        if cur.execute(
+            "SELECT COUNT(*) FROM main.tracks WHERE id = ?;", (track_id,)
+        ).fetchone()[0] == 0:
             return False, "Track ID not found"
 
-        # Viena dziesma = viens aktuālais stemu komplekts. Ja izvēlas citu mapi, vecie stem linki tiek aizstāti.
-        cur.execute("DELETE FROM local_audio_files WHERE track_id = ? AND is_stem = 1;", (track_id,))
+        matches = cur.execute("""
+            SELECT id
+              FROM main.track_variants
+             WHERE track_id = ?
+               AND lower(folder_path) = lower(?)
+             ORDER BY id;
+        """, (track_id, str(variant_folder))).fetchall()
 
-        now_text = now_iso_local()
+        if len(matches) == 1:
+            variant_id = int(matches[0][0])
+        else:
+            mains = cur.execute("""
+                SELECT tv.id
+                  FROM main.track_variants tv
+                 WHERE tv.track_id = ?
+                   AND EXISTS (
+                       SELECT 1 FROM main.media_files mf
+                        WHERE mf.variant_id = tv.id AND mf.role = 'main'
+                   )
+                 ORDER BY tv.id;
+            """, (track_id,)).fetchall()
+            if len(mains) == 1:
+                variant_id = int(mains[0][0])
+            else:
+                cur.execute("""
+                    INSERT INTO main.track_variants(
+                        track_id, variant_no, label, folder_path, variant_kind
+                    ) VALUES (?, ?, ?, ?, 'stems_only');
+                """, (
+                    track_id,
+                    variant_no,
+                    variant_folder.name,
+                    str(variant_folder),
+                ))
+                variant_id = int(cur.lastrowid)
+
+        cur.execute(
+            "DELETE FROM main.media_files WHERE variant_id = ? AND role = 'stem';",
+            (variant_id,),
+        )
+
         inserted = 0
         for path_obj in files:
             stat = path_obj.stat()
-            modified_time = datetime.fromtimestamp(stat.st_mtime).isoformat(timespec="seconds")
-            label = detect_stem_label(path_obj)
+            modified_at = datetime.fromtimestamp(stat.st_mtime).isoformat(timespec="seconds")
+            file_created_at = (
+                datetime.fromtimestamp(stat.st_ctime).isoformat(timespec="seconds")
+                if os.name == "nt" else None
+            )
+            chronology_at = file_created_at or modified_at
+            chronology_source = "filesystem_created_at" if file_created_at else "modified_time"
             cur.execute("""
-                INSERT INTO local_audio_files (
-                    track_id, path, filename, folder, extension, size_bytes,
-                    modified_time, is_stem, stem_label, created_at, updated_at
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?);
+                INSERT INTO main.media_files(
+                    variant_id, path, role, format, stem_label, size_bytes,
+                    modified_at, file_created_at, file_created_at_source,
+                    chronology_at
+                ) VALUES (?, ?, 'stem', ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(path) DO UPDATE SET
+                    variant_id = excluded.variant_id,
+                    role = 'stem',
+                    format = excluded.format,
+                    stem_label = excluded.stem_label,
+                    size_bytes = excluded.size_bytes,
+                    modified_at = excluded.modified_at,
+                    file_created_at = excluded.file_created_at,
+                    file_created_at_source = excluded.file_created_at_source,
+                    chronology_at = excluded.chronology_at;
             """, (
-                track_id,
+                variant_id,
                 str(path_obj),
-                path_obj.name,
-                str(path_obj.parent),
                 path_obj.suffix.lower().lstrip("."),
-                stat.st_size,
-                modified_time,
-                label,
-                now_text,
-                now_text,
+                detect_stem_label(path_obj),
+                int(stat.st_size or 0),
+                modified_at,
+                file_created_at,
+                chronology_source,
+                chronology_at,
             ))
             inserted += 1
 
         conn.commit()
         return True, f"Added {inserted} stem audio files from: {folder}"
     except Exception as e:
+        conn.rollback()
         return False, str(e)
     finally:
         conn.close()
-
 
 def ensure_local_inventory_schema():
     conn = get_local_inventory_connection()
