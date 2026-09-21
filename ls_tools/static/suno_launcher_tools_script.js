@@ -87,4 +87,67 @@
             }
         });
     }
+    let restartButton = toolsPopover.querySelector("[data-ls-backend-restart='1']");
+    if (!restartButton) {
+        restartButton = document.createElement("button");
+        restartButton.type = "button";
+        restartButton.dataset.lsBackendRestart = "1";
+        restartButton.textContent = "Pārstartēt backend";
+        toolsPopover.appendChild(restartButton);
+
+        restartButton.addEventListener("click", async () => {
+            if (restartButton.disabled) {
+                return;
+            }
+            restartButton.disabled = true;
+            const previousText = restartButton.textContent;
+            restartButton.textContent = "Pārstartartē backend…";
+            try {
+                const response = await fetch("/ls-lifecycle/restart-backend", {
+                    method: "POST",
+                    cache: "no-store",
+                    headers: {"Content-Type": "application/x-www-form-urlencoded"},
+                    body: "",
+                });
+                const payload = await response.json();
+                if (!response.ok || !payload.ok) {
+                    throw new Error(payload.error || "Backend restart neizdevās.");
+                }
+
+                const oldPid = Number(payload.process_id || 0);
+                const deadline = Date.now() + 20000;
+                let ready = false;
+                while (Date.now() < deadline) {
+                    await new Promise((resolve) => window.setTimeout(resolve, 350));
+                    try {
+                        const statusResponse = await fetch("/app-version?restart_probe=" + Date.now(), {
+                            cache: "no-store",
+                        });
+                        if (!statusResponse.ok) {
+                            continue;
+                        }
+                        const status = await statusResponse.json();
+                        const newPid = Number(status.process_id || 0);
+                        if (status.server_ready && newPid && newPid !== oldPid) {
+                            ready = true;
+                            break;
+                        }
+                    } catch (_error) {
+                        // Expected while the old backend is down and the new one starts.
+                    }
+                }
+                if (!ready) {
+                    throw new Error("Backend 20 sekunžu laikā neatgriezās.");
+                }
+                window.location.reload();
+                return;
+            } catch (error) {
+                window.alert(String(error && error.message || "Backend restart neizdevās."));
+            } finally {
+                restartButton.disabled = false;
+                restartButton.textContent = previousText;
+            }
+        });
+    }
+
 })();
