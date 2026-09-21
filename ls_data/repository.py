@@ -1266,11 +1266,7 @@ def backup_tags_file_before_user_tag_delete():
     return None
 
 def delete_available_user_tag(value):
-    """Delete one catalog tag and remove the exact same tag marker from every track.
-
-    This is a global DB write, so both the DB and tag list are backed up first.
-    Exact case-insensitive tag matching is used; substrings are never removed.
-    """
+    """Delete one catalog tag and remove the exact same tag from track_user."""
     requested = _normalize_single_user_tag(value)
     tags = get_available_user_tags()
     by_key = {item.lower(): item for item in tags}
@@ -1285,31 +1281,23 @@ def delete_available_user_tag(value):
     conn = get_connection()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='track_ui';")
-        has_track_ui = cur.fetchone() is not None
-
-        if has_track_ui:
-            cur.execute("PRAGMA table_info(track_ui);")
-            ui_columns = {row[1] for row in cur.fetchall()}
-            if "user_tags" in ui_columns:
+        cur.execute("""
+            SELECT track_id, tags
+              FROM main.track_user
+             WHERE TRIM(COALESCE(tags, '')) != '';
+        """)
+        rows = cur.fetchall()
+        target_key = canonical.lower()
+        for row in rows:
+            old_tags = _parse_user_tags_value(row["tags"])
+            new_tags = [tag for tag in old_tags if tag.lower() != target_key]
+            if len(new_tags) != len(old_tags):
                 cur.execute("""
-                    SELECT track_id, user_tags
-                    FROM track_ui
-                    WHERE TRIM(COALESCE(user_tags, '')) != '';
-                """)
-                rows = cur.fetchall()
-                target_key = canonical.lower()
-
-                for row in rows:
-                    old_tags = _parse_user_tags_value(row["user_tags"])
-                    new_tags = [tag for tag in old_tags if tag.lower() != target_key]
-                    if len(new_tags) != len(old_tags):
-                        cur.execute(
-                            "UPDATE track_ui SET user_tags = ? WHERE lower(track_id) = lower(?);",
-                            (", ".join(new_tags), row["track_id"]),
-                        )
-                        removed_from_tracks += 1
-
+                    UPDATE main.track_user
+                       SET tags = ?, updated_at = ?
+                     WHERE lower(track_id) = lower(?);
+                """, (", ".join(new_tags), now_iso_local(), row["track_id"]))
+                removed_from_tracks += 1
         conn.commit()
     except Exception:
         conn.rollback()
@@ -1319,7 +1307,6 @@ def delete_available_user_tag(value):
 
     remaining_tags = [item for item in tags if item.lower() != canonical.lower()]
     remaining_tags = _write_available_user_tags(remaining_tags)
-
     pinned = [item for item in get_pinned_user_tags() if item.lower() != canonical.lower()]
     save_settings({"pinned_user_tags": pinned})
 
