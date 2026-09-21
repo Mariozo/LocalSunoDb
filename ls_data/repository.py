@@ -1707,18 +1707,9 @@ def get_remembered_variant_number(song_folder):
         return 0
 
 def delete_local_variant_from_track(track_id, local_path):
-    r"""Move one complete numbered LS variant folder to Backup and clean DB links.
-
-    Supported structure:
-      <audio root>\Song|Instrumental\<Title>\<1..n>\<Title>.wav
-      <audio root>\Song|Instrumental\<Title>\<1..n>\Stems\...
-
-    The numbered variant folder is moved as one unit. Variant numbers are never
-    renumbered or reused because the highest used number is remembered separately.
-    """
+    r"""Move one complete numbered LS variant folder to Backup and remove its canonical DB rows."""
     track_id = str(track_id or "").strip()
     local_path = urllib.parse.unquote(str(local_path or "")).strip().strip('"')
-
     if not track_id:
         return False, "Missing Track ID"
     if not local_path:
@@ -1726,7 +1717,6 @@ def delete_local_variant_from_track(track_id, local_path):
 
     root = Path(get_audio_library_root_folder())
     path_obj = Path(local_path)
-
     if not root.exists() or not root.is_dir():
         return False, f"Audio library root folder not found: {root}"
     if not path_obj.exists() or not path_obj.is_file():
@@ -1738,73 +1728,46 @@ def delete_local_variant_from_track(track_id, local_path):
 
     song_folder = variant_folder.parent
     category_folder = song_folder.parent
-
     if category_folder.name not in ("Song", "Instrumental"):
         return False, "Linked file is not inside the LS Song / Instrumental library structure."
-
     try:
         if _normalized_absolute_path(category_folder.parent) != _normalized_absolute_path(root):
             return False, "Linked variant is outside the configured Audio library root."
     except Exception:
         return False, "Could not validate the local variant path."
 
-    # The main linked WAV/MP3 must be directly inside the numbered variant folder.
-    if _normalized_absolute_path(path_obj.parent) != _normalized_absolute_path(variant_folder):
-        return False, "Linked audio is not directly inside the numbered variant folder."
-
     conn = get_connection()
     moved_to = None
     backup_path = None
     report_path = None
-    removed_links = 0
-    removed_stem_links = 0
-    song_folder_removed = False
-
     try:
         cur = conn.cursor()
-        ensure_local_audio_files_table(cur)
-
-        cur.execute("""
-            SELECT title, local_wav, local_mp3
-            FROM tracks
-            WHERE lower(id) = lower(?)
-            LIMIT 1;
-        """, (track_id,))
-        track_row = cur.fetchone()
-        if not track_row:
-            return False, "Track ID not found"
-
-        local_wav = str(track_row["local_wav"] or "").strip()
-        local_mp3 = str(track_row["local_mp3"] or "").strip()
-
-        cur.execute("""
-            SELECT id, path, folder, IFNULL(is_stem, 0) AS is_stem
-            FROM local_audio_files
-            WHERE lower(track_id) = lower(?);
-        """, (track_id,))
-        local_rows = [dict(row) for row in cur.fetchall()]
-
-        has_track_link = False
-        for candidate in [local_wav, local_mp3]:
-            if candidate and _path_is_inside(candidate, variant_folder):
-                has_track_link = True
-                break
-        if not has_track_link:
-            has_track_link = any(
-                (
-                    row.get("path") and _path_is_inside(row.get("path"), variant_folder)
-                ) or (
-                    row.get("folder") and _path_is_inside(row.get("folder"), variant_folder)
-                )
-                for row in local_rows
-            )
-
-        if not has_track_link:
+        row = cur.execute("""
+            SELECT tv.id AS variant_id, t.title
+              FROM main.media_files mf
+              JOIN main.track_variants tv ON tv.id = mf.variant_id
+              JOIN main.tracks t ON t.id = tv.track_id
+             WHERE lower(tv.track_id) = lower(?)
+               AND mf.path = ?
+             LIMIT 1;
+        """, (track_id, str(path_obj))).fetchone()
+        if not row:
             return False, "This numbered variant folder is not linked to this Track ID in LS DB."
 
-        # Preserve the used number before the folder disappears.
-        remember_variant_number(song_folder, int(variant_folder.name))
+        variant_id = int(row["variant_id"])
+        title = str(row["title"] or "")
+        media_rows = [
+            dict(item) for item in cur.execute("""
+                SELECT id, path, role
+                  FROM main.media_files
+                 WHERE variant_id = ?
+                 ORDER BY id;
+            """, (variant_id,)).fetchall()
+        ]
+        if not media_rows:
+            return False, "Variant has no linked media rows"
 
+        remember_variant_number(song_folder, int(variant_folder.name))
         backup_path = backup_db_before_local_variant_delete()
 
         relative_variant = Path(os.path.relpath(str(variant_folder), str(root)))
@@ -1812,45 +1775,18 @@ def delete_local_variant_from_track(track_id, local_path):
         backup_root = BASE_DIR / "Backup" / "deleted_local_variants" / delete_stamp
         moved_to = backup_root / relative_variant
         moved_to.parent.mkdir(parents=True, exist_ok=True)
-
         if moved_to.exists():
             raise RuntimeError(f"Backup target already exists: {moved_to}")
 
         shutil.move(str(variant_folder), str(moved_to))
-
         try:
-            if local_wav and _path_is_inside(local_wav, variant_folder):
-                cur.execute("UPDATE tracks SET local_wav = '' WHERE lower(id) = lower(?);", (track_id,))
-            if local_mp3 and _path_is_inside(local_mp3, variant_folder):
-                cur.execute("UPDATE tracks SET local_mp3 = '' WHERE lower(id) = lower(?);", (track_id,))
-
-            delete_ids = []
-            for row in local_rows:
-                row_path = str(row.get("path") or "").strip()
-                row_folder = str(row.get("folder") or "").strip()
-                if (
-                    (row_path and _path_is_inside(row_path, variant_folder))
-                    or (row_folder and _path_is_inside(row_folder, variant_folder))
-                ):
-                    delete_ids.append(int(row["id"]))
-                    removed_links += 1
-                    if int(row.get("is_stem") or 0) == 1:
-                        removed_stem_links += 1
-
-            if delete_ids:
-                placeholders = ",".join(["?"] * len(delete_ids))
-                cur.execute(
-                    f"DELETE FROM local_audio_files WHERE id IN ({placeholders});",
-                    delete_ids,
-                )
-
+            cur.execute("DELETE FROM main.media_files WHERE variant_id = ?;", (variant_id,))
+            cur.execute("DELETE FROM main.track_variants WHERE id = ?;", (variant_id,))
             conn.commit()
-
         except Exception:
             conn.rollback()
-            # Best-effort file rollback so DB and filesystem remain aligned.
             try:
-                if moved_to and moved_to.exists() and not variant_folder.exists():
+                if moved_to.exists() and not variant_folder.exists():
                     variant_folder.parent.mkdir(parents=True, exist_ok=True)
                     shutil.move(str(moved_to), str(variant_folder))
             except Exception as rollback_exc:
@@ -1867,36 +1803,34 @@ def delete_local_variant_from_track(track_id, local_path):
                 )
             raise
 
-        # Remove the title folder only when no local material remains in it.
-        # Empty leftover subfolders (for example an empty Stems folder) do not
-        # count as a surviving local song variant.
+        song_folder_removed = False
         if song_folder.exists():
             has_remaining_files = any(item.is_file() for item in song_folder.rglob("*"))
             if not has_remaining_files:
                 shutil.rmtree(song_folder)
                 song_folder_removed = True
 
-        reports_dir = REPORTS_DIR
-        reports_dir.mkdir(exist_ok=True)
+        REPORTS_DIR.mkdir(exist_ok=True)
         report_stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        report_path = reports_dir / f"local_variant_delete_{report_stamp}.md"
-        report_lines = [
+        report_path = REPORTS_DIR / f"local_variant_delete_{report_stamp}.md"
+        removed_links = len(media_rows)
+        removed_stem_links = sum(1 for item in media_rows if item.get("role") == "stem")
+        report_path.write_text("\n".join([
             "# LocalSunoDb Local Variant Delete",
             "",
             f"- Track ID: `{track_id}`",
-            f"- Title: `{track_row['title'] or ''}`",
+            f"- Title: `{title}`",
             f"- Original variant: `{variant_folder}`",
             f"- Variant backup: `{moved_to}`",
             f"- DB backup: `{backup_path}`",
-            f"- Removed local_audio_files rows: **{removed_links}**",
+            f"- Removed media_files rows: **{removed_links}**",
             f"- Removed stem links: **{removed_stem_links}**",
             f"- Song title folder removed: **{'yes' if song_folder_removed else 'no'}**",
             "",
             "Variant numbers are not renumbered or reused.",
-        ]
-        report_path.write_text("\n".join(report_lines), encoding="utf-8")
+        ]), encoding="utf-8")
 
-        message_lines = [
+        return True, "\n".join([
             "Local variant moved to Backup:",
             str(moved_to),
             "",
@@ -1904,47 +1838,12 @@ def delete_local_variant_from_track(track_id, local_path):
             f"Removed DB audio links: {removed_links}",
             f"Removed stem links: {removed_stem_links}",
             f"Song title folder removed: {'yes' if song_folder_removed else 'no'}",
-        ]
-        if report_path:
-            message_lines.append(f"Report: {report_path}")
-        return True, "\n".join(message_lines)
-
+            f"Report: {report_path}",
+        ])
     except Exception as exc:
         return False, str(exc)
-
     finally:
         conn.close()
-
-SAVED_VIEWS_LOCK = threading.RLock()
-
-SAVED_VIEW_MAX_COUNT = 40
-
-SAVED_VIEW_PARAM_ORDER = (
-    "q",
-    "style_q",
-    "workspace",
-    "workspace_mode",
-    "category_filter",
-    "category_mode",
-    "local_family_filter",
-    "kind_filter",
-    "local_audio_filter",
-    "search_name",
-    "search_lyrics",
-    "search_prompt",
-    "search_marks",
-    "search_tags",
-    "flag_filter",
-    "tag_filter",
-    "sort_by",
-    "sort_dir",
-)
-
-SAVED_VIEW_MULTI_PARAMS = {
-    "workspace",
-    "category_filter",
-    "local_family_filter",
-}
 
 def normalize_saved_view_name(value):
     text = str(value or "").replace("\r", " ").replace("\n", " ")
