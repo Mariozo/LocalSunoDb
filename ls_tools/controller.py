@@ -3,6 +3,7 @@ from ls_tools.launcher import (
     create_localsunodb_launcher_shortcut,
     open_localsunodb_pwa_install_page,
     record_localsunodb_app_session,
+    start_localsunodb_backend_restart_helper,
 )
 
 
@@ -16,6 +17,9 @@ class ToolsControllerMixin:
             return
         if path == "/ls-lifecycle/app-session":
             self.record_ls_app_session()
+            return
+        if path == "/ls-lifecycle/restart-backend":
+            self.restart_ls_backend_runtime()
             return
         if path != "/ls-lifecycle/shutdown":
             return False
@@ -107,6 +111,63 @@ class ToolsControllerMixin:
                 {"ok": False, "error": str(exc)},
                 status=500,
             )
+
+    def restart_ls_backend_runtime(self):
+        """Restart the backend from the current files without restarting Windows."""
+        origin = str(self.headers.get("Origin") or "").strip().rstrip("/")
+        allowed_origins = {
+            f"http://{HOST}:{PORT}",
+            f"http://localhost:{PORT}",
+        }
+        if origin not in allowed_origins:
+            self.send_json_response(
+                {"ok": False, "error": "LS backend restart accepts only this local LocalSunoDb."},
+                status=403,
+            )
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0") or "0")
+        except ValueError:
+            length = 0
+        if length < 0 or length > 256:
+            self.send_json_response(
+                {"ok": False, "error": "Invalid LS backend restart request."},
+                status=400,
+            )
+            return
+        if length:
+            self.rfile.read(length)
+
+        current_pid = os.getpid()
+        self.send_json_response({
+            "ok": True,
+            "restarting": True,
+            "process_id": current_pid,
+        })
+
+        def restart_later():
+            # Give the HTTP response time to reach the PWA before the helper
+            # terminates this backend process.
+            time.sleep(0.35)
+            try:
+                start_localsunodb_backend_restart_helper()
+            except Exception as exc:
+                try:
+                    log_ls_exception(
+                        "backend_restart",
+                        "spawn_helper",
+                        exc,
+                        {"process_id": current_pid},
+                        include_traceback=True,
+                    )
+                except Exception:
+                    pass
+
+        threading.Thread(
+            target=restart_later,
+            name="ls-backend-restart-request",
+            daemon=True,
+        ).start()
 
     def shutdown_ls_runtime(self):
         """Gracefully stop the one local LS backend from the LS UI."""
