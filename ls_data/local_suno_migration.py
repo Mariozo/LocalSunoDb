@@ -207,6 +207,7 @@ def create_schema(conn: sqlite3.Connection) -> None:
             id INTEGER PRIMARY KEY,
             track_id TEXT NOT NULL,
             variant_no INTEGER,
+            label TEXT NOT NULL DEFAULT '',
             folder_path TEXT NOT NULL DEFAULT '',
             variant_kind TEXT NOT NULL DEFAULT 'main'
                 CHECK(variant_kind IN ('main','stems_only')),
@@ -223,8 +224,8 @@ def create_schema(conn: sqlite3.Connection) -> None:
             size_bytes INTEGER,
             modified_at TEXT,
             file_created_at TEXT,
+            file_created_at_source TEXT NOT NULL DEFAULT '',
             chronology_at TEXT,
-            chronology_source TEXT NOT NULL DEFAULT 'none',
             suno_clip_id TEXT,
             suno_project_token TEXT,
             suno_created_at TEXT,
@@ -453,12 +454,13 @@ def _insert_variant(
     cur = dest.execute(
         """
         INSERT INTO track_variants(
-            track_id,variant_no,folder_path,variant_kind
-        ) VALUES (?,?,?,?)
+            track_id,variant_no,label,folder_path,variant_kind
+        ) VALUES (?,?,?,?,?)
         """,
         (
             track_id,
             _variant_number(path, role),
+            PureWindowsPath(_variant_folder(path, role)).name,
             _variant_folder(path, role),
             kind,
         ),
@@ -478,7 +480,7 @@ def _insert_media(
         """
         INSERT INTO media_files (
             variant_id,path,role,format,stem_label,size_bytes,modified_at,
-            file_created_at,chronology_at,chronology_source,suno_clip_id,
+            file_created_at,file_created_at_source,chronology_at,suno_clip_id,
             suno_project_token,suno_created_at,embedded_suno_metadata
         ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """,
@@ -491,8 +493,14 @@ def _insert_media(
             row.get("size_bytes"),
             _text(row.get("modified_time")) or None,
             file_created or None,
+            (
+                "suno_created_at_fallback"
+                if chronology_source == "suno_created_at" and not file_created
+                else "modified_time_fallback"
+                if chronology_source == "modified_time" and not file_created
+                else chronology_source
+            ),
             chronology_at or None,
-            chronology_source,
             _text(row.get("suno_clip_id")) or None,
             _text(row.get("suno_project_token")) or None,
             _text(row.get("suno_created_at")) or None,
