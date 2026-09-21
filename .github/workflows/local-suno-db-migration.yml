@@ -8,6 +8,7 @@ on:
       - 'ls_data/local_suno_runtime.py'
       - 'ls_data/repository.py'
       - 'ls_core/runtime.py'
+      - 'ls_web/app.py'
       - 'tests/test_local_suno_migration.py'
       - 'tests/test_local_suno_runtime.py'
       - '.github/workflows/local-suno-db-migration.yml'
