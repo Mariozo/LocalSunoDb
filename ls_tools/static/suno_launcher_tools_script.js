@@ -101,7 +101,7 @@
             }
             restartButton.disabled = true;
             const previousText = restartButton.textContent;
-            restartButton.textContent = "Pārstartartē backend…";
+            restartButton.textContent = "Pārstartē backend…";
             try {
                 const response = await fetch("/ls-lifecycle/restart-backend", {
                     method: "POST",
