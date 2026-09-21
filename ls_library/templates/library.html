@@ -1,0 +1,1067 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>LS @@LS0@@</title>
+    <link rel="icon" type="image/x-icon" href="/ls-static/ls_web/static/LS.ico?v=@@LS0@@">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <script src="/ls-static/ls_web/static/ls_pwa_install.js?v=@@LS0@@" defer></script>
+@@LS1@@
+    <script src="/ls-static/ls_web/static/ls_app_session.js?v=@@LS0@@" defer></script>
+</head>
+<body id="ls-library">
+    <header>
+        <div class="header-row">
+            <div class="header-title-box">
+                <h1>
+                    <span class="ls-sidebar-title-full">LS</span>
+                    <span class="ls-sidebar-title-compact">LS</span>
+                </h1>
+                <button
+                    type="button"
+                    class="ls-sidebar-collapse-btn"
+                    id="ls-sidebar-collapse-btn"
+                    title="Close navigation panel"
+                    aria-label="Close navigation panel"
+                    aria-expanded="true"
+                >
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M14.5 6.5 9 12l5.5 5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="profile-menu-wrap ls-sidebar-profile">
+                <button type="button" class="profile-btn" id="profile-menu-btn" title="Open My Suno menu">
+                    <img class="profile-avatar" src="/profile-image" alt="My Suno" onerror="this.hidden=true; this.nextElementSibling.hidden=false;">
+                    <span class="profile-avatar-fallback" hidden aria-hidden="true">🦋</span>
+                    <span class="ls-sidebar-profile-copy">
+                        <strong>My Suno</strong>
+                        <small class="ls-sidebar-profile-credits" title="Credits Remaining">@@LS3@@</small>
+                    </span>
+                    <svg class="ls-sidebar-profile-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                        <path d="m6 8 4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+                <div class="top-dropdown hidden" id="profile-menu">
+                    <div class="profile-card">
+                        <div class="profile-card-title">My Suno</div>
+                        <div class="profile-card-sub ls-profile-card-credits" title="Credits Remaining">@@LS4@@ Credits Remaining</div>
+                    </div>
+                    <div class="top-menu-separator"></div>
+                    <a class="top-menu-item" href="https://suno.com/create" target="_blank" rel="noopener">Open Suno Create</a>
+                    <a class="top-menu-item" href="https://suno.com/me" target="_blank" rel="noopener">Open Suno Library</a>
+                </div>
+            </div>
+
+            <nav class="header-tabs" aria-label="Main sections">
+                <a class="header-tab active" id="ls-sidebar-suno-library-btn" href="/" title="Suno Library">
+                    <span class="ls-sidebar-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M7.2 18.2H6a4 4 0 0 1-.6-7.95A6.5 6.5 0 0 1 18 8.2a4.6 4.6 0 0 1-.5 9.18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            <path d="M14.5 10.2v7.1a2 2 0 1 1-1.4-1.9v-4.5l4.1-.9v5.9a2 2 0 1 1-1.4-1.9v-4.1l-2.7.6" fill="currentColor"/>
+                        </svg>
+                    </span>
+                    <span class="ls-sidebar-label">Suno Library</span>
+                </a>
+                <button
+                    type="button"
+                    class="header-tab ls-sidebar-stems-tab"
+                    id="ls-sidebar-stems-btn"
+                    title="Izvēlētajai dziesmai nav piesaistītu Stems"
+                    aria-label="Stems"
+                    aria-pressed="false"
+                    disabled
+                >
+                    <span class="ls-sidebar-stems-branch" aria-hidden="true"></span>
+                    <span class="ls-sidebar-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        </svg>
+                    </span>
+                    <span class="ls-sidebar-label">Stems</span>
+                </button>
+                <a class="header-tab" href="/downloader" title="Downloader">
+                    <span class="ls-sidebar-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M12 3.5v11m0 0 4-4m-4 4-4-4M5 18v2h14v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </span>
+                    <span class="ls-sidebar-label">Downloader</span>
+                </a>
+                <button
+                    type="button"
+                    class="header-tab ls-sidebar-explore"
+                    id="open-f4-search-btn"
+                    title="Explore — open Search (Ctrl+F)"
+                    aria-label="Explore — open Search"
+                >
+                    <span class="ls-sidebar-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <circle cx="10.7" cy="10.7" r="6.2" stroke="currentColor" stroke-width="2"/>
+                            <path d="m15.3 15.3 4.4 4.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </span>
+                    <span class="ls-sidebar-label">Explore</span>
+                </button>
+                <button
+                    type="button"
+                    class="header-tab ls-sidebar-elza"
+                    id="ls-elza-open-btn"
+                    title="Open LS Elza"
+                    aria-label="Open LS Elza"
+                >
+                    <span class="ls-sidebar-icon ls-sidebar-question-icon" aria-hidden="true">?</span>
+                    <span class="ls-sidebar-label">LS Elza</span>
+                </button>
+                <div class="ls-sidebar-tools-wrap" id="ls-sidebar-tools-wrap">
+                    <button type="button" class="header-tab ls-sidebar-tools-trigger" id="ls-sidebar-tools-trigger" title="Rīki" aria-label="Rīku izvēlne" aria-expanded="false">
+                        <span class="ls-sidebar-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <path d="M14.7 6.3a4.2 4.2 0 0 0-5.3 5.3L4 17l3 3 5.4-5.4a4.2 4.2 0 0 0 5.3-5.3l-2.6 2.6-3-3 2.6-2.6Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                            </svg>
+                        </span>
+                        <span class="ls-sidebar-label">Rīki</span>
+                    </button>
+                    <div class="library-tools-popover ls-sidebar-tools-popover" id="ls-sidebar-tools-popover" hidden>
+                        <button type="submit" form="main-filter-form" formaction="/refresh-db" formmethod="get" data-busy-label="Notiek DB atjaunošana…">Atjaunot DB…</button>
+                        <button type="button" id="install-latest-ls-version-btn" data-ls-update-trigger="1" onclick="return window.LSRunToolsUpdateDirect(event, this);">Meklēt jaunāko versiju…</button>
+                        <button type="button" id="open-ls-comparison-btn">Pārskatīt, lai salīdzinātu…</button>
+                    </div>
+                </div>
+            </nav>
+
+            <div class="header-actions">
+                <button type="button" class="autoplay-top-btn" id="autoplay-top-btn" title="Auto list OFF. Toggle: P">
+                    <span class="ls-sidebar-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="m7 5 8 7-8 7V5Zm9.5 1.5v11" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </span>
+                    <span class="ls-sidebar-label">Auto</span>
+                    <span class="ls-sidebar-switch" aria-hidden="true"></span>
+                </button>
+                <button type="button" class="ls-sidebar-bottom-item" id="open-stats-modal" title="Stats">
+                    <span class="ls-sidebar-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M5 19V11m7 8V5m7 14v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </span>
+                    <span class="ls-sidebar-label">Stats</span>
+                </button>
+                <button type="button" class="ls-sidebar-bottom-item" id="open-settings-modal" title="Settings">
+                    <span class="ls-sidebar-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.8"/>
+                            <path d="M19.2 13.6v-3.2l-2-.55a7.2 7.2 0 0 0-.8-1.9l1.02-1.8-2.26-2.26-1.8 1.02a7.2 7.2 0 0 0-1.9-.8L10.9 2H7.7l-.55 2.1a7.2 7.2 0 0 0-1.9.8l-1.8-1.02L1.2 6.14l1.02 1.8a7.2 7.2 0 0 0-.8 1.9l-2.1.55v3.2l2.1.55a7.2 7.2 0 0 0 .8 1.9l-1.02 1.8 2.26 2.26 1.8-1.02a7.2 7.2 0 0 0 1.9.8L7.7 22h3.2l.55-2.1a7.2 7.2 0 0 0 1.9-.8l1.8 1.02 2.26-2.26-1.02-1.8a7.2 7.2 0 0 0 .8-1.9l2.01-.56Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" transform="translate(1.7 0) scale(.86)"/>
+                        </svg>
+                    </span>
+                    <span class="ls-sidebar-label">Settings</span>
+                </button>
+                <button type="button" class="ls-sidebar-bottom-item" id="open-help-modal" title="Help">
+                    <span class="ls-sidebar-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/>
+                            <path d="M9.7 9a2.5 2.5 0 1 1 3.7 2.2c-.9.5-1.4 1-1.4 2.1M12 17.2h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+                        </svg>
+                    </span>
+                    <span class="ls-sidebar-label">Help</span>
+                </button>
+            </div>
+        </div>
+        <div
+            class="ls-panel-resizer ls-sidebar-resizer"
+            id="ls-sidebar-resizer"
+            role="separator"
+            aria-label="Resize navigation panel"
+            aria-orientation="vertical"
+            tabindex="0"
+            title="Drag to resize navigation panel"
+        ></div>
+    </header>
+    @@LS5@@
+    @@LS6@@
+    <main>
+        <div class="panel">
+            <form method="get" action="/" id="main-filter-form">
+                <input type="hidden" name="ls_wav_picker" id="ls-wav-picker-mode-input" value="1" disabled>
+                <input type="hidden" name="q" value="@@LS7@@">
+                <input type="hidden" name="style_q" value="@@LS8@@">
+                <input type="hidden" name="search_name" value="@@LS9@@">
+                <input type="hidden" name="search_lyrics" value="@@LS10@@">
+                <input type="hidden" name="search_prompt" value="@@LS11@@">
+                <input type="hidden" name="search_marks" value="@@LS12@@">
+                <input type="hidden" name="search_tags" value="@@LS13@@">
+                <input type="hidden" name="flag_filter" value="@@LS14@@">
+                <input type="hidden" name="tag_filter" value="@@LS15@@">
+                <input type="hidden" name="track_ids" value="@@LS16@@">
+                <input type="hidden" name="sort_by" value="@@LS18@@">
+                <input type="hidden" name="sort_dir" value="@@LS19@@">
+                <input type="hidden" name="workspace_mode" value="@@LS20@@">
+                <input type="hidden" name="category_mode" value="@@LS21@@">
+                @@LS22@@
+                @@LS23@@
+                @@LS24@@
+
+                <div class="library-control-row">
+                    <details class="library-filter-select library-multi-filter" data-multi-filter="workspace">
+                        <summary title="Click = one Workspace · Ctrl+click = add or remove">
+                            <span class="library-filter-label">Workspace</span>
+                            <span class="library-multi-summary">@@LS25@@</span>
+                            <span class="library-multi-arrow" aria-hidden="true"></span>
+                        </summary>
+                        <div class="library-multi-menu" role="listbox" aria-label="Workspace filter" aria-multiselectable="true">
+                            @@LS26@@
+                            @@LS27@@
+                            <div class="library-multi-help">Click = select one · Ctrl+click = add/remove</div>
+                        </div>
+                    </details>
+
+                    <details class="library-filter-select library-multi-filter" data-multi-filter="local_family_filter">
+                        <summary title="Click = one confirmed Local family · Ctrl+click = add or remove">
+                            <span class="library-filter-label">Local family</span>
+                            <span class="library-multi-summary">@@LS28@@</span>
+                            <span class="library-multi-arrow" aria-hidden="true"></span>
+                        </summary>
+                        <div class="library-multi-menu" role="listbox" aria-label="Confirmed Local family filter" aria-multiselectable="true">
+                            @@LS29@@
+                            <div class="library-multi-help">Confirmed Track ID families only · Ctrl+click = add/remove</div>
+                        </div>
+                    </details>
+
+                    <details class="library-filter-select library-multi-filter" data-multi-filter="category_filter">
+                        <summary title="Click = one Category · Ctrl+click = add or remove">
+                            <span class="library-filter-label">Category</span>
+                            <span class="library-multi-summary">@@LS30@@</span>
+                            <span class="library-multi-arrow" aria-hidden="true"></span>
+                        </summary>
+                        <div class="library-multi-menu" role="listbox" aria-label="Category filter" aria-multiselectable="true">
+                            <input
+                                type="search"
+                                id="category-filter-search"
+                                class="library-category-filter-input"
+                                placeholder="Filter categories…"
+                                aria-label="Filter categories"
+                                autocomplete="off"
+                                spellcheck="false"
+                            >
+                            @@LS31@@
+                            @@LS32@@
+                            <div class="library-multi-help">Click = select one · Ctrl+click = add/remove</div>
+                        </div>
+                    </details>
+
+                    <label class="library-filter-select" title="Audio source">
+                        <span class="library-filter-label">Audio</span>
+                        <span class="library-select-shell">
+                            <select name="local_audio_filter" data-auto-submit="1" aria-label="Audio source filter">
+                                @@LS17@@
+                            </select>
+                            <span class="library-select-arrow" aria-hidden="true"></span>
+                        </span>
+                    </label>
+
+                    <label class="library-filter-select" title="Filter by Suno operation type">
+                        <span class="library-filter-label">Type</span>
+                        <span class="library-select-shell">
+                            <select name="kind_filter" data-auto-submit="1" aria-label="Type filter">
+                                @@LS33@@
+                            </select>
+                            <span class="library-select-arrow" aria-hidden="true"></span>
+                        </span>
+                    </label>
+
+                    <div class="library-sort-group" aria-label="Sort tracks">
+                        <button type="button" class="sort-control library-sort-control" data-column="2" data-type="text">
+                            <span>Title</span>
+                            <span class="library-sort-icon" aria-hidden="true">
+                                <svg viewBox="0 0 12 18" focusable="false">
+                                    <path class="sort-up" d="M2 7 L6 3 L10 7"></path>
+                                    <path class="sort-down" d="M2 11 L6 15 L10 11"></path>
+                                </svg>
+                            </span>
+                        </button>
+                        <button type="button" class="sort-control library-sort-control" data-column="4" data-type="number">
+                            <span>Created</span>
+                            <span class="library-sort-icon" aria-hidden="true">
+                                <svg viewBox="0 0 12 18" focusable="false">
+                                    <path class="sort-up" d="M2 7 L6 3 L10 7"></path>
+                                    <path class="sort-down" d="M2 11 L6 15 L10 11"></path>
+                                </svg>
+                            </span>
+                        </button>
+                        <button type="button" class="sort-control library-sort-control" data-column="5" data-type="number" title="Sort by duration">
+                            <span>Duration</span>
+                            <span class="library-sort-icon" aria-hidden="true">
+                                <svg viewBox="0 0 12 18" focusable="false">
+                                    <path class="sort-up" d="M2 7 L6 3 L10 7"></path>
+                                    <path class="sort-down" d="M2 11 L6 15 L10 11"></path>
+                                </svg>
+                            </span>
+                        </button>
+                    </div>
+
+                    <script>
+                    (() => {
+                        if (typeof window.LSRunToolsUpdateDirect === "function") { return; }
+
+                        window.LSRunToolsUpdateDirect = (event, button) => {
+                            if (event) {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                if (event.stopImmediatePropagation) { event.stopImmediatePropagation(); }
+                            }
+                            const menu = button && button.closest ? button.closest("details.library-tools-menu") : null;
+                            if (menu) { menu.removeAttribute("open"); }
+                            const sidebarTools = document.getElementById("ls-sidebar-tools-wrap");
+                            const sidebarToolsPopover = document.getElementById("ls-sidebar-tools-popover");
+                            const sidebarToolsTrigger = document.getElementById("ls-sidebar-tools-trigger");
+                            if (sidebarTools) { sidebarTools.classList.remove("is-open"); }
+                            if (sidebarToolsPopover) { sidebarToolsPopover.hidden = true; }
+                            if (sidebarToolsTrigger) { sidebarToolsTrigger.setAttribute("aria-expanded", "false"); }
+                            if (typeof window.LSRunManualUpdateCheck === "function") {
+                                window.LSRunManualUpdateCheck(event);
+                            }
+                            return false;
+                        };
+
+                        document.addEventListener("click", (event) => {
+                            document.querySelectorAll("details.library-tools-menu[open]").forEach((menu) => {
+                                if (!menu.contains(event.target)) { menu.removeAttribute("open"); }
+                            });
+                        });
+                    })();
+                    </script>
+                    <script>
+                    document.addEventListener("DOMContentLoaded", () => {
+                        const openButton = document.getElementById("open-ls-comparison-btn");
+                        const modal = document.getElementById("ls-comparison-modal");
+                        const closeButton = document.getElementById("ls-comparison-modal-close");
+                        const select = document.getElementById("ls-comparison-version-select");
+                        const status = document.getElementById("ls-comparison-modal-status");
+                        const launchButton = document.getElementById("ls-comparison-launch-btn");
+                        const stopButton = document.getElementById("ls-comparison-stop-btn");
+                        if (!openButton || !modal || !closeButton || !select || !status || !launchButton || !stopButton) { return; }
+
+                        async function postComparison(path, values={}) {
+                            const body = new URLSearchParams();
+                            Object.entries(values).forEach(([key, value]) => body.set(key, String(value ?? "")));
+                            const response = await fetch(path, {
+                                method: "POST",
+                                headers: {"Content-Type": "application/x-www-form-urlencoded"},
+                                body: body.toString(),
+                            });
+                            const data = await response.json();
+                            if (!response.ok || !data.ok) {
+                                throw new Error(data.error || "LS salīdzināšanas pieprasījums neizdevās");
+                            }
+                            return data;
+                        }
+
+                        function setModalOpen(open) {
+                            modal.style.display = open ? "flex" : "none";
+                            modal.setAttribute("aria-hidden", open ? "false" : "true");
+                            document.body.style.overflow = open ? "hidden" : "";
+                        }
+
+                        function renderComparisonState(data) {
+                            const versions = Array.isArray(data.versions) ? data.versions : [];
+                            const previousValue = select.value;
+                            select.innerHTML = "";
+                            versions.forEach((item) => {
+                                const option = document.createElement("option");
+                                option.value = String(item.version || "");
+                                option.textContent = String(item.label || item.version || "");
+                                select.appendChild(option);
+                            });
+                            if (previousValue && versions.some((item) => String(item.version) === previousValue)) {
+                                select.value = previousValue;
+                            }
+                            const running = data.running || {};
+                            stopButton.hidden = !(running.active || running.starting);
+                            if (running.starting) {
+                                status.textContent = "Sagatavo izolētu " + String(running.version || "LS") + " salīdzinājuma kopiju…";
+                            } else if (running.active) {
+                                status.textContent = "Darbojas salīdzinājums: " + running.version + ".";
+                            } else if (running.error) {
+                                status.textContent = String(running.error);
+                            } else if (versions.length) {
+                                status.textContent = "Pieejamās iepriekšējās versijas: " + versions.length + ".";
+                            } else {
+                                status.textContent = "Nav atrasta neviena derīga iepriekšējā pilnā LS app kopija.";
+                            }
+                            launchButton.disabled = versions.length === 0 || Boolean(running.starting);
+                        }
+
+                        function sleepComparison(ms) {
+                            return new Promise((resolve) => window.setTimeout(resolve, ms));
+                        }
+
+                        async function waitForComparisonLaunch(version) {
+                            for (let attempt = 0; attempt < 120; attempt += 1) {
+                                await sleepComparison(500);
+                                const data = await postComparison("/ls-comparison-versions");
+                                renderComparisonState(data);
+                                const running = data.running || {};
+                                if (running.active) { return data; }
+                                if (running.error || (!running.starting && String(running.version || "") === String(version))) {
+                                    throw new Error("comparison-launch-failed");
+                                }
+                            }
+                            throw new Error("comparison-launch-timeout");
+                        }
+
+                        async function refreshComparisonState() {
+                            status.textContent = "Ielādē pieejamās LS versijas…";
+                            const data = await postComparison("/ls-comparison-versions");
+                            renderComparisonState(data);
+                            return data;
+                        }
+
+                        openButton.addEventListener("click", async () => {
+                            const toolsWrap = document.getElementById("ls-sidebar-tools-wrap");
+                            const toolsPopover = document.getElementById("ls-sidebar-tools-popover");
+                            const toolsTrigger = document.getElementById("ls-sidebar-tools-trigger");
+                            if (toolsWrap) { toolsWrap.classList.remove("is-open"); }
+                            if (toolsPopover) { toolsPopover.hidden = true; }
+                            if (toolsTrigger) { toolsTrigger.setAttribute("aria-expanded", "false"); }
+                            setModalOpen(true);
+                            try {
+                                await refreshComparisonState();
+                            } catch (error) {
+                                status.textContent = "Salīdzināšanas darbība neizdevās. Diagnostika saglabāta LS žurnālā.";
+                            }
+                        });
+                        closeButton.addEventListener("click", () => setModalOpen(false));
+                        modal.addEventListener("click", (event) => {
+                            if (event.target === modal) { setModalOpen(false); }
+                        });
+                        launchButton.addEventListener("click", async () => {
+                            const version = String(select.value || "");
+                            if (!version) { return; }
+                            launchButton.disabled = true;
+                            status.textContent = "Sagatavo pilnu izolētu " + version + " kopiju ar pašreizējās DB kopiju…";
+                            try {
+                                const data = await postComparison("/launch-ls-comparison", {version});
+                                renderComparisonState(data);
+                                const running = data.running || {};
+                                if (running.starting) {
+                                    await waitForComparisonLaunch(version);
+                                }
+                                status.textContent = version + " ir atvērts atsevišķā Chrome app logā.";
+                            } catch (error) {
+                                status.textContent = "Salīdzinājumu neizdevās palaist. Diagnostika saglabāta LS žurnālā.";
+                            } finally {
+                                launchButton.disabled = select.options.length === 0;
+                            }
+                        });
+                        stopButton.addEventListener("click", async () => {
+                            stopButton.disabled = true;
+                            status.textContent = "Aptur salīdzinājumu…";
+                            try {
+                                const data = await postComparison("/stop-ls-comparison");
+                                renderComparisonState(data);
+                            } catch (error) {
+                                status.textContent = "Salīdzināšanas darbība neizdevās. Diagnostika saglabāta LS žurnālā.";
+                            } finally {
+                                stopButton.disabled = false;
+                            }
+                        });
+                        document.addEventListener("keydown", (event) => {
+                            if (event.key === "Escape" && modal.style.display === "flex") {
+                                event.preventDefault();
+                                setModalOpen(false);
+                            }
+                        });
+                    });
+                    </script>
+                    <button type="button" class="secondary" id="wav-select-mode-btn">Select WAV</button>
+                    <button type="button" class="secondary" id="compare-this-btn" style="display:none;" disabled>Compare This</button>
+                    <button type="button" class="secondary" id="open-selected" style="display:none;" disabled>Open selected</button>
+                    <div class="ls-filter-top-actions">
+                        <button
+                            type="button"
+                            class="ls-add-filter-button"
+                            id="ls-add-filter-button"
+                            title="#Tags and Flags"
+                            aria-label="#Tags and Flags"
+                        >
+                            <svg class="ls-filter-action-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                                <path d="M10 4.5V15.5M4.5 10H15.5"></path>
+                            </svg>
+                        </button>
+                        @@LS34@@
+                    </div>
+                </div>
+            </form>
+
+            @@LS35@@
+
+            <div class="modal-backdrop" id="ls-comparison-modal" aria-hidden="true" style="display:none;">
+                <div class="modal ls-comparison-modal-card" role="dialog" aria-modal="true" aria-labelledby="ls-comparison-modal-title">
+                    <button type="button" class="modal-close" id="ls-comparison-modal-close">Aizvērt</button>
+                    <h2 id="ls-comparison-modal-title">Salīdzināt LS versijas</h2>
+                    <p class="ls-comparison-modal-note">
+                        Izvēlētā vecākā versija tiek palaista kā pilna, izolēta LocalSunoDb kopija atsevišķā Chrome app logā.
+                        Pirms palaišanas tai tiek izveidota pašreizējās LS datubāzes kopija; pašreizējā LS datubāze netiek mainīta.
+                    </p>
+                    <label for="ls-comparison-version-select"><strong>Iepriekšējā versija</strong></label>
+                    <select id="ls-comparison-version-select" aria-label="Iepriekšējā LS versija"></select>
+                    <div class="ls-comparison-modal-status" id="ls-comparison-modal-status" role="status"></div>
+                    <div class="ls-comparison-modal-actions">
+                        <button type="button" class="primary" id="ls-comparison-launch-btn">Atvērt salīdzinājumu</button>
+                        <button type="button" class="secondary" id="ls-comparison-stop-btn" hidden>Apturēt salīdzinājumu</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-backdrop" id="stats-modal" aria-hidden="true">
+                <div class="modal ls-stats-modal-card" role="dialog" aria-modal="true" aria-labelledby="stats-modal-title">
+                    <button type="button" class="modal-close" id="stats-modal-close">Close</button>
+                    <h2 id="stats-modal-title">Stats</h2>
+                <div class="stats">
+                    Loaded: <strong>@@LS36@@</strong>
+                    |
+                    Active: <strong>@@LS37@@</strong>
+                    |
+                    Missing: <strong>@@LS38@@</strong>
+                    |
+                    Missing stems: <strong>@@LS39@@</strong>
+                    |
+                    New since last sync: <strong>@@LS40@@</strong>
+
+                    <div class="sync-line">
+                        Total DB: <strong>@@LS41@@</strong>,
+                        work items: <strong>@@LS42@@</strong>,
+                        workspaces: <strong>@@LS43@@</strong>,
+                        with Style: <strong>@@LS44@@</strong>,
+                        Liked: <strong>@@LS45@@</strong>,
+                        Not liked: <strong>@@LS46@@</strong>,
+                        Hidden duplicates: <strong>@@LS47@@</strong>,
+                        Has Stems: <strong>@@LS48@@ tracks / @@LS49@@ files</strong>,
+                        Stem metadata: <strong>@@LS50@@</strong>,
+                        Unlinked Stems: <strong>@@LS51@@</strong>.
+                        Last sync: <strong>@@LS52@@</strong>
+                    </div>
+                    <div class="sync-line">
+                        Categories — Song: <strong>@@LS53@@</strong>,
+                        Instrumental: <strong>@@LS54@@</strong>,
+                        SongOrInstrumental: <strong>@@LS55@@</strong>,
+                        Instrumental to review: <strong>@@LS56@@</strong>,
+                        Unclassified: <strong>@@LS57@@</strong>.
+                    </div>
+                </div>
+                </div>
+            </div>
+
+            @@LS58@@
+
+        </div>
+
+        <script>
+        (() => {
+            const root = document.documentElement;
+            const panel = document.querySelector("main > .panel");
+            if (!panel) { return; }
+
+            const syncFilterPanelHeight = () => {
+                const height = Math.ceil(panel.getBoundingClientRect().height);
+                if (height > 0) {
+                    root.style.setProperty("--ls-library-filter-panel-height", `${height}px`);
+                }
+            };
+
+            syncFilterPanelHeight();
+            window.requestAnimationFrame(syncFilterPanelHeight);
+            window.addEventListener("resize", syncFilterPanelHeight, { passive: true });
+
+            if ("ResizeObserver" in window) {
+                const filterPanelResizeObserver = new ResizeObserver(syncFilterPanelHeight);
+                filterPanelResizeObserver.observe(panel);
+            }
+        })();
+        </script>
+
+        <div class="table-wrap">
+            <table id="tracks-table" class="workspace-sorted@@LS59@@">
+                <colgroup>
+                    <col class="num-col">
+                    <col class="check-col">
+                    <col class="title-col">
+                    <col class="workspace-col">
+                    <col class="created-col">
+                    <col class="duration-col">
+                    <col class="style-col">
+                    <col class="kind-col">
+                    <col class="actions-col">
+                </colgroup>
+
+                <thead class="real-table-head">
+                    <tr>
+                        <th>#</th>
+                        <th class="select-cell"><input type="checkbox" id="check-all-table"></th>
+                        <th class="sortable" data-column="2" data-type="text">Title</th>
+                        <th class="sortable sort-asc" data-column="3" data-type="text">Workspace</th>
+                        <th class="sortable" data-column="4" data-type="number">Created</th>
+                        <th class="sortable" data-column="5" data-type="number">Duration</th>
+                        <th class="sortable" data-column="6" data-type="text">Style</th>
+                        <th class="sortable" data-column="7" data-type="text">Kind</th>
+                        <th>Menu</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @@LS60@@
+                </tbody>
+            </table>
+        </div>
+
+        @@LS61@@
+    </main>
+
+    <div
+        class="ls-panel-resizer ls-selected-panel-resizer"
+        id="ls-selected-panel-resizer"
+        role="separator"
+        aria-label="Resize Selected Track panel"
+        aria-orientation="vertical"
+        tabindex="0"
+        title="Drag to resize Selected Track panel"
+    ></div>
+
+    <aside class="selected-track-panel" id="selected-track-panel" aria-label="Selected track">
+        <div class="selected-track-panel-scroll">
+            <div class="selected-track-panel-cover-wrap">
+                <img class="selected-track-panel-cover" id="selected-track-panel-cover" alt="Selected track cover">
+                <div class="selected-track-panel-cover-placeholder" id="selected-track-panel-cover-placeholder">No cover</div>
+            </div>
+
+            <h2 class="selected-track-panel-title" id="selected-track-panel-title">Select a track</h2>
+            <div class="selected-track-panel-meta" id="selected-track-panel-meta"></div>
+
+            <div class="selected-track-status-row">
+                <span class="selected-track-status-chip" id="selected-track-local-status">Local: —</span>
+                <span class="selected-track-status-chip" id="selected-track-stems-status">Stems: —</span>
+            </div>
+
+            <section class="selected-track-block">
+                <div class="selected-track-block-head">
+                    <h3 class="selected-track-block-title">Styles</h3>
+                    <button type="button" class="selected-track-block-action" id="selected-track-open-style">Open</button>
+                </div>
+                <div class="selected-track-block-text empty" id="selected-track-style">Loading...</div>
+            </section>
+
+            <section class="selected-track-block">
+                <div class="selected-track-block-head">
+                    <h3 class="selected-track-block-title">Lyrics</h3>
+                    <button type="button" class="selected-track-block-action" id="selected-track-edit-lyrics">Edit</button>
+                </div>
+                <div class="selected-track-block-text empty" id="selected-track-lyrics">Loading...</div>
+            </section>
+            <div class="ls-flags-tags-dock-slot ls-flags-tags-dock-empty" id="ls-flags-tags-dock-slot" aria-label="Flags and Tags"></div>
+            <script>
+                window.LS_RIGHT_DOCK_BOOTSTRAP = Object.assign(
+                    window.LS_RIGHT_DOCK_BOOTSTRAP || {},
+                    {flagsTagsSlot: document.currentScript.previousElementSibling}
+                );
+            </script>
+            <div class="ls-elza-dock-slot" id="ls-elza-dock-slot" aria-label="LS Elza"></div>
+        </div>
+    </aside>
+
+    @@LS62@@
+
+    <div class="busy-backdrop" id="busy-backdrop">
+        <div class="busy-box">
+            <div class="busy-spinner"></div>
+            <div class="busy-title" id="busy-title">Working...</div>
+            <div class="busy-text" id="busy-text">Please wait. For large LocalSunoDb sync this may take a few minutes.</div>
+            <div
+                class="busy-tip"
+                id="busy-tip"
+                role="link"
+                tabindex="0"
+                title="Open this tip in LS Elza"
+            ><strong>Tip:</strong> Zaļa Play poga nozīmē, ka šim ierakstam ir piesaistīti Stems.</div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop" id="wav-preview-backdrop">
+        <div class="wav-preview-modal" role="dialog" aria-modal="true" aria-labelledby="wav-preview-title">
+            <h2 id="wav-preview-title">Download this Suno track as WAV?</h2>
+
+            <div class="wav-preview-grid">
+                <div class="wav-preview-label">Suno title</div>
+                <div class="wav-preview-value" id="wav-preview-suno-title"></div>
+
+                <div class="wav-preview-label">Local family</div>
+                <div class="wav-preview-value" id="wav-preview-family"></div>
+
+                <div class="wav-preview-label">Category</div>
+                <div class="wav-preview-value" id="wav-preview-category"></div>
+
+                <div class="wav-preview-label">Variant</div>
+                <div class="wav-preview-value" id="wav-preview-variant"></div>
+
+                <div class="wav-preview-label">WAV</div>
+                <div class="wav-preview-value wav-preview-path" id="wav-preview-path"></div>
+
+                <div class="wav-preview-label">Stems folder</div>
+                <div class="wav-preview-value wav-preview-path" id="wav-preview-stems"></div>
+            </div>
+
+            <div class="wav-family-confirmation" id="wav-family-confirmation">
+                <div class="wav-family-status-row">
+                    <span class="wav-family-badge" id="wav-family-badge">Local family not confirmed</span>
+                    <button type="button" class="wav-family-change-btn" id="wav-family-change" style="display:none;">Change family</button>
+                </div>
+
+                <div class="wav-family-choice" id="wav-family-choice">
+                    <div class="wav-family-choice-note" id="wav-family-choice-note">
+                        Confirm which logical Local family this Track ID belongs to before downloading.
+                    </div>
+
+                    <label for="wav-family-existing">Use existing family</label>
+                    <select id="wav-family-existing"></select>
+                    <button type="button" id="wav-family-use-existing">Use existing family</button>
+
+                    <label for="wav-family-new">Create new family</label>
+                    <input type="text" id="wav-family-new" placeholder="Canonical Local family title">
+                    <button type="button" id="wav-family-create-new">Create new family</button>
+
+                    <div class="wav-family-choice-status" id="wav-family-choice-status"></div>
+                </div>
+            </div>
+
+            <div class="wav-preview-note">
+                The Track ID → Local family choice is saved before download. A DB backup is created before the WAV is linked.
+            </div>
+
+            <div class="wav-preview-actions">
+                <button type="button" class="secondary" id="wav-preview-cancel">Cancel</button>
+                <button type="button" class="download-wav-btn" id="wav-preview-confirm">Download WAV</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop" id="wav-result-backdrop">
+        <div class="wav-result-modal" role="dialog" aria-modal="true" aria-labelledby="wav-result-title">
+            <h2 id="wav-result-title">WAV download finished</h2>
+
+            <div class="wav-result-summary">
+                <div class="wav-result-label">Downloaded</div>
+                <div class="wav-result-value" id="wav-result-downloaded"></div>
+
+                <div class="wav-result-label">Already linked</div>
+                <div class="wav-result-value" id="wav-result-skipped"></div>
+
+                <div class="wav-result-label">Errors</div>
+                <div class="wav-result-value" id="wav-result-errors"></div>
+
+                <div class="wav-result-label">Local WAV</div>
+                <div class="wav-result-value wav-result-path" id="wav-result-path"></div>
+
+                <div class="wav-result-label">Report</div>
+                <div class="wav-result-value wav-result-path" id="wav-result-report"></div>
+            </div>
+
+            <div class="wav-result-actions">
+                <button type="button" class="download-wav-btn" id="wav-result-ok">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop" id="compare-this-backdrop">
+        <div class="compare-this-modal" role="dialog" aria-modal="true" aria-labelledby="compare-this-title">
+            <div class="compare-this-head">
+                <h2 id="compare-this-title">Compare This</h2>
+                <button type="button" class="secondary compare-this-close" id="compare-this-close">Close</button>
+            </div>
+            <div class="compare-this-list" id="compare-this-list"></div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop" id="lyrics-editor-modal">
+        <div
+            class="lyrics-editor-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="lyrics-editor-title"
+        >
+            <div class="lyrics-editor-head">
+                <h2 id="lyrics-editor-title">Track text</h2>
+            </div>
+
+            <div class="lyrics-editor-track-title" id="lyrics-editor-track-title"></div>
+
+            <div class="track-text-tabs" id="track-text-tabs">
+                <button type="button" class="track-text-tab" data-text-field="lyrics">Lyrics</button>
+                <button type="button" class="track-text-tab" data-text-field="prompt">Prompt</button>
+                <button type="button" class="track-text-tab" data-text-field="style">Style</button>
+            </div>
+
+            <div class="track-text-source" id="track-text-source"></div>
+
+            <textarea
+                class="lyrics-editor-textarea"
+                id="lyrics-editor-textarea"
+                spellcheck="false"
+                aria-label="Track text"
+            ></textarea>
+
+            <div class="lyrics-editor-footer">
+                <span class="lyrics-editor-status" id="lyrics-editor-status"></span>
+                <button type="button" class="secondary" id="lyrics-editor-cancel">Close</button>
+                <button type="button" class="lyrics-editor-save" id="lyrics-editor-save" disabled>Save Lyrics</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop" id="style-modal">
+        <div class="modal">
+            <button type="button" class="modal-close" id="modal-close">Close</button>
+            <h2 id="modal-title">Style</h2>
+            <pre id="modal-text"></pre>
+        </div>
+    </div>
+
+    <div class="modal-backdrop" id="help-modal">
+        <div class="modal">
+            <button type="button" class="modal-close" id="help-modal-close">Close</button>
+            <h2>LocalSunoDb Help</h2>
+            <div class="help-content" id="help-modal-text">Loading...</div>
+        </div>
+    </div>
+
+
+    <div class="finder-search-box" id="finder-search-box">
+        <div class="finder-search-row">
+            <span class="finder-search-icon">🔎</span>
+            <input type="text" id="finder-search-input" value="@@LS63@@" placeholder="Search title, Track ID, 1+*, #tag..." autocomplete="off">
+            <span class="finder-count" id="finder-search-count">0/0</span>
+            <button type="button" class="finder-mini-btn" id="finder-search-prev" title="Previous result">⌃</button>
+            <button type="button" class="finder-mini-btn" id="finder-search-next" title="Next result">⌄</button>
+            <button type="button" class="finder-close-btn" id="finder-search-close" title="Close">×</button>
+        </div>
+        <div class="finder-options-row">
+            <label><input type="checkbox" id="finder-search-name" @@LS64@@> Name</label>
+            <label><input type="checkbox" id="finder-search-lyrics" @@LS65@@> Lyrics</label>
+            <label><input type="checkbox" id="finder-search-prompt" @@LS66@@> Prompt</label>
+            <label><input type="checkbox" id="finder-search-marks" @@LS67@@> ✶</label>
+            <label><input type="checkbox" id="finder-search-tags" @@LS68@@> #tag</label>
+            <span class="muted">0+* = any Flag · 1+*…5+* = exact Flag · #tag = exact tag · Track ID is always searched · Enter = apply · Esc = close</span>
+        </div>
+    </div>
+
+    <div class="modal-backdrop" id="saved-view-modal">
+        <div class="modal ls-saved-view-modal-card" role="dialog" aria-modal="true" aria-labelledby="saved-view-modal-title">
+            <button type="button" class="modal-close" id="saved-view-modal-close" aria-label="Close">×</button>
+            <h2 id="saved-view-modal-title">Save current view</h2>
+            <p class="muted" id="saved-view-modal-help">The current filters and sorting will be saved. The database is not changed.</p>
+            <label class="ls-saved-view-name-label" for="saved-view-name-input">View name</label>
+            <input type="text" id="saved-view-name-input" maxlength="80" autocomplete="off" placeholder="Example: Liked without local audio">
+            <div class="ls-saved-view-modal-status" id="saved-view-modal-status"></div>
+            <div class="ls-saved-view-modal-actions">
+                <button type="button" class="secondary" id="saved-view-modal-cancel">Cancel</button>
+                <button type="button" class="green" id="saved-view-modal-save">Save view</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop" id="settings-modal">
+        <div class="modal">
+            <button type="button" class="modal-close" id="settings-modal-close">Close</button>
+            <h2>LocalSunoDb Settings</h2>
+            <p><strong>Audio library root folder</strong></p>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <input type="text" id="audio-library-root-input" style="flex:1; min-width:420px;" value="">
+                <button type="button" id="choose-audio-library-root-btn">Choose...</button>
+                <button type="button" id="save-audio-library-root-btn">Save</button>
+            </div>
+            <p style="color:#666; font-size:13px; margin-top:6px;">WAV download structure: Song / Instrumental → Title → 1, 2, 3...</p>
+
+            <p style="margin-top:18px;"><strong>Stem root folder</strong></p>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <input type="text" id="stem-root-input" style="flex:1; min-width:420px;" value="">
+                <button type="button" id="choose-stem-root-btn">Choose...</button>
+                <button type="button" id="save-stem-root-btn">Save</button>
+            </div>
+
+            <p style="margin-top:18px;"><strong>Rows on screen</strong></p>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <select id="default-rows-select" style="min-width:180px;">
+                    <option value="300">Rows 300</option>
+                    <option value="500">Rows 500</option>
+                    <option value="1000">Rows 1000</option>
+                    <option value="all">All rows</option>
+                </select>
+                <button type="button" id="save-default-rows-btn">Save</button>
+                <span style="color:#666; font-size:13px;">Search still scans the whole DB; this only controls how many rows are visible initially.</span>
+            </div>
+
+            <p style="margin-top:18px;"><strong>LS update check interval</strong></p>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <input type="number" id="ls-update-interval-input" min="0" max="3600" step="1" value="10" style="width:110px;">
+                <span>seconds</span>
+                <button type="button" id="save-ls-update-interval-btn">Save</button>
+                <span style="color:#666; font-size:13px;">0 = off; otherwise use 5–3600 seconds. Applies to SUNO Database and Downloader.</span>
+            </div>
+
+            <p style="margin-top:18px;"><strong>Windows audio izejas</strong></p>
+            <div style="display:grid; grid-template-columns:180px minmax(320px, 1fr); gap:8px 10px; align-items:center; max-width:760px;">
+                <label for="audio-output-speakers-select">Skaļruņi</label>
+                <select id="audio-output-speakers-select" style="width:100%; min-width:320px;"></select>
+                <label for="audio-output-headphones-select">Austiņas / UMC</label>
+                <select id="audio-output-headphones-select" style="width:100%; min-width:320px;"></select>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap;">
+                <button type="button" id="save-audio-output-devices-btn">Saglabāt audio izejas</button>
+                <span style="color:#666; font-size:13px;">Abām izvēlēm jābūt atšķirīgām aktīvām Windows atskaņošanas ierīcēm.</span>
+            </div>
+
+            <p style="margin-top:18px;"><strong>Atskaņošana</strong></p>
+            <label style="display:flex; gap:8px; align-items:center; font-size:14px;">
+                <input type="checkbox" id="autoplay-list-checkbox">
+                Atskaņot sarakstu ar P
+            </label>
+            <p style="color:#666; font-size:13px; margin-top:6px;">Kad ieslēgts, pēc Play nospiešanas nākamais ieraksts sarakstā sākas automātiski.</p>
+
+            <p id="settings-status" style="color:#666;"></p>
+        </div>
+    </div>
+
+    <div id="user-tag-panel" class="user-tag-panel hidden" aria-hidden="true" aria-label="Flags and Tags">
+        <div class="user-tag-panel-header">
+            <div>
+                <div class="user-tag-panel-tabs" id="user-tag-panel-tabs" role="tablist" aria-label="Track metadata panel">
+                    <button type="button" class="user-tag-panel-tab active" id="user-tag-tab-flags" role="tab" aria-selected="true">Flags and Tags</button>
+                    <button type="button" class="user-tag-panel-tab" id="user-tag-tab-local-family" role="tab" aria-selected="false">Local Family</button>
+                </div>
+                <div class="user-tag-panel-title" id="user-tag-panel-title">Flags and Tags</div>
+                <div class="user-tag-panel-track" id="user-tag-panel-track">Choose a track</div>
+            </div>
+            <div class="user-tag-panel-header-actions">
+                <span class="user-tag-panel-mode" id="user-tag-panel-mode">TRACK MODE</span>
+                <button type="button" class="user-tag-panel-dock-toggle" title="Dock Flags and Tags" aria-label="Dock Flags and Tags" aria-pressed="false">⇲</button>
+                <button type="button" class="user-tag-panel-close" id="user-tag-panel-close" title="Close">×</button>
+            </div>
+        </div>
+        <div class="user-tag-panel-body">
+            <section class="user-flag-panel-section" aria-labelledby="user-flag-panel-title">
+                <div class="user-tag-section-title user-flag-panel-title" id="user-flag-panel-title">FLAGS</div>
+                <div class="review-stars user-flag-panel-stars" id="user-flag-panel-stars" data-marks="0" title="Five independent LS flags">
+                    <button type="button" class="review-star user-flag-panel-star" data-mask="1" aria-label="Flag 1: Labs ritms" aria-pressed="false" title="1 · Labs ritms"><span class="user-flag-number">1</span><span aria-hidden="true">✶</span></button>
+                    <button type="button" class="review-star user-flag-panel-star" data-mask="2" aria-label="Flag 2: Labs pavadījums" aria-pressed="false" title="2 · Labs pavadījums"><span class="user-flag-number">2</span><span aria-hidden="true">✶</span></button>
+                    <button type="button" class="review-star user-flag-panel-star" data-mask="4" aria-label="Flag 3: Labs solo" aria-pressed="false" title="3 · Labs solo"><span class="user-flag-number">3</span><span aria-hidden="true">✶</span></button>
+                    <button type="button" class="review-star user-flag-panel-star" data-mask="8" aria-label="Flag 4: Interesants" aria-pressed="false" title="4 · Interesants"><span class="user-flag-number">4</span><span aria-hidden="true">✶</span></button>
+                    <button type="button" class="review-star user-flag-panel-star" data-mask="16" aria-label="Flag 5: Pievērst uzmanību vai izcils moments" aria-pressed="false" title="5 · Pievērst uzmanību / izcils moments"><span class="user-flag-number">5</span><span aria-hidden="true">✶</span></button>
+                </div>
+                <div class="user-flag-panel-help">Independent flags · click to add or remove</div>
+            </section>
+            <div class="user-tag-section-divider" aria-hidden="true"></div>
+            <div class="user-tag-section-title user-tag-editor-title">TAGS</div>
+            <div class="user-tag-add-row user-tag-edit-only">
+                <div class="user-tag-input-wrap">
+                    <input type="text" id="user-tag-new-input" placeholder="New tag..." autocomplete="off">
+                    <button type="button" class="user-tag-input-clear" id="user-tag-new-clear" title="Clear text" disabled>×</button>
+                </div>
+                <button type="button" class="user-tag-add-btn" id="user-tag-add-btn">+ Add</button>
+            </div>
+            <div class="user-tag-tools">
+                <div class="user-tag-input-wrap">
+                    <input type="text" id="user-tag-search-input" placeholder="Search tags..." autocomplete="off">
+                    <button type="button" class="user-tag-input-clear" id="user-tag-search-clear" title="Clear text" disabled>×</button>
+                </div>
+                <button type="button" class="user-tag-sort-btn" id="user-tag-sort-btn" title="Toggle A-Z / Z-A">A–Z</button>
+            </div>
+            <div class="user-tag-panel-status" id="user-tag-panel-status"></div>
+            <div class="user-tag-panel-scroll">
+                <div class="user-tag-section-title" id="user-tag-selected-title">SELECTED</div>
+                <div class="user-tag-list" id="user-tag-selected-list"></div>
+                <div class="user-tag-section-title" id="user-tag-pinned-title">PINNED</div>
+                <div class="user-tag-list" id="user-tag-pinned-list"></div>
+                <div class="user-tag-section-title">ALL TAGS</div>
+                <div class="user-tag-list" id="user-tag-all-list"></div>
+            </div>
+            <section class="local-family-panel-section" id="local-family-panel-section" hidden>
+                <div class="user-tag-section-title">LOCAL FAMILY</div>
+                <div class="user-tag-add-row local-family-entry-row">
+                    <div class="user-tag-input-wrap">
+                        <input type="text" id="local-family-search-input" placeholder="3 burti vai jauns Local Family..." autocomplete="off">
+                        <button type="button" class="user-tag-input-clear" id="local-family-search-clear" title="Clear text" disabled>×</button>
+                    </div>
+                    <button type="button" class="user-tag-add-btn local-family-accept" id="local-family-accept" title="Piešķirt Local Family">✓</button>
+                </div>
+                <div class="user-tag-panel-status local-family-current" id="local-family-current"></div>
+                <div class="user-tag-panel-status" id="local-family-status"></div>
+                <div class="user-tag-panel-scroll local-family-scroll">
+                    <div class="user-tag-list" id="local-family-list"></div>
+                </div>
+            </section>
+            <div class="user-tag-filter-actions" id="user-tag-filter-actions">
+                <button type="button" class="user-tag-filter-clear" id="user-tag-filter-clear">Clear</button>
+                <button type="button" class="user-tag-filter-apply" id="user-tag-filter-apply">Apply filters</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        {
+            const flagsTagsPanel = document.currentScript.previousElementSibling;
+            window.LS_RIGHT_DOCK_BOOTSTRAP = Object.assign(
+                window.LS_RIGHT_DOCK_BOOTSTRAP || {},
+                {
+                    flagsTagsPanel,
+                    flagsTagsToggle: flagsTagsPanel.querySelector(".user-tag-panel-dock-toggle")
+                }
+            );
+        }
+    </script>
+
+    <script>
+        const table = document.getElementById("tracks-table");
+        const LS_WAV_PICKER_MODE = new URLSearchParams(window.location.search).get("ls_wav_picker") === "1";
+        const lsWavPickerModeInput = document.getElementById("ls-wav-picker-mode-input");
+        if (lsWavPickerModeInput) {
+            lsWavPickerModeInput.disabled = !LS_WAV_PICKER_MODE;
+        }
+
+@@LS69@@
+@@LS70@@
+@@LS71@@
+@@LS72@@
+
+@@LS73@@
+        const checkAll = document.getElementById("check-all-table");
+        const openSelected = document.getElementById("open-selected");
+        const wavSelectModeButton = document.getElementById("wav-select-mode-btn");
+        const compareThisButton = document.getElementById("compare-this-btn");
+@@LS74@@
+
+@@LS75@@
+
+@@LS76@@
+
+
+@@LS77@@
+
+@@LS78@@@@LS79@@@@LS80@@
+
+@@LS81@@@@LS82@@@@LS83@@
+@@LS84@@
+@@LS85@@
+@@LS86@@
+
+@@LS87@@
+
+@@LS88@@
+@@LS89@@@@LS90@@@@LS91@@@@LS92@@@@LS93@@
+
+@@LS94@@
+@@LS95@@
+    </script>
+    @@LS96@@
+    @@LS97@@
+    @@LS98@@
+</body>
+</html>

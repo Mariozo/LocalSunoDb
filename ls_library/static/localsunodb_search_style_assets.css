@@ -1,0 +1,43 @@
+        /* Repair the v5.19 light/dark CSS collision that made Search labels
+           white on cream.  The complete Ctrl+F surface now uses one Whisker
+           neutral family and keeps Carbon-level selected/focus contrast. */
+        .finder-search-box {
+            background: var(--whisker-gray-900);
+            color: var(--whisker-gray-100);
+            border-color: var(--ls-filter-border);
+            box-shadow: 0 16px 38px rgba(0,0,0,0.48);
+        }
+
+        #finder-search-input {
+            background: var(--whisker-gray-950);
+            color: var(--whisker-gray-100);
+            border-color: var(--whisker-gray-700);
+        }
+
+        #finder-search-input:focus {
+            outline: 2px solid var(--ls-focus-ring);
+            outline-offset: 1px;
+            border-color: transparent;
+        }
+
+        #finder-search-input::placeholder {
+            color: var(--whisker-gray-500);
+        }
+
+        .finder-count,
+        .finder-options-row,
+        .finder-options-row label {
+            color: var(--whisker-gray-100);
+        }
+
+        .finder-options-row .muted {
+            width: 100%;
+            color: var(--whisker-gray-500);
+            font-size: 11px;
+            line-height: 1.35;
+        }
+
+        .finder-options-row input[type="checkbox"] {
+            accent-color: var(--whisker-blue-500);
+        }
+

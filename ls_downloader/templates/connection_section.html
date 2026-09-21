@@ -1,0 +1,58 @@
+            <section class="downloader-column downloader-diagnostics-column" data-downloader-section="connection">
+                    <div class="card connection-main-card">
+                        <div class="connection-main-head">
+                            <div>
+                                <h2>Suno savienojums</h2>
+                                <p class="muted connection-main-intro">Šeit vari pārbaudīt Suno sesiju un vajadzības gadījumā atvērt Suno no jauna.</p>
+                            </div>
+                            <div class="connection-state-pill @@LS0@@" id="suno-connection-state" role="status">
+                                <strong id="suno-connection-title">@@LS1@@</strong>
+                                <span id="suno-connection-note">@@LS2@@</span>
+                            </div>
+                        </div>
+
+                        <div class="connection-primary-actions">
+                            <button type="button" class="orange big-action" id="repair-token-bridge-btn" data-action-label="Salabot Token Bridge" hidden>Salabot Token Bridge</button>
+                            <button type="button" class="btn green big-action" id="renew-suno-login-btn" data-action-label="Atjaunot Suno pieslēgumu">Atjaunot Suno pieslēgumu</button>
+                            <a class="btn secondary big-action" href="https://suno.com/create" target="_blank" rel="noopener" data-action-label="Atvērt Suno Create">Atvērt Suno Create</a>
+                        </div>
+                        <div id="suno-login-renew-status" class="status" style="display:none;"></div>
+                    </div>
+
+                    <details class="card connection-diagnostics-card">
+                        <summary>Papildu savienojuma diagnostika</summary>
+                        <div class="connection-diagnostics-grid">
+                            <div class="connection-diagnostic-block">
+                                <h3>Sesija</h3>
+                                <div class="status @@LS3@@">
+                                    <strong>Tokena statuss:</strong>&nbsp;@@LS4@@
+                                    @@LS5@@
+                                    @@LS6@@
+                                </div>
+                                <button type="button" class="secondary connection-bridge-setup" id="bridge-setup-btn" data-action-label="Token Bridge iestatīšana">Token Bridge iestatīšana</button>
+                                <p class="muted">Izmanto šo tikai tad, ja Chrome paplašinājums jāinstalē, jāpārlādē vai jāpārbauda.</p>
+                            </div>
+
+                            <div class="connection-diagnostic-block">
+                                <h3>Token Bridge</h3>
+                                <div id="bridge-diagnostic-panel" class="bridge-diagnostic @@LS7@@">
+                                    <strong>Tilts: @@LS8@@</strong>
+                                    <pre id="bridge-diagnostic-text">@@LS9@@</pre>
+                                </div>
+                            </div>
+                        </div>
+
+                        <details class="compact-extra connection-manual-token">
+                            <summary>Manuāla API tokena ievade</summary>
+                            <label for="token-input">Suno API token</label>
+                            <textarea id="token-input" placeholder="Ielīmē Bearer tokenu. Drīkst ielīmēt ar vai bez vārda Bearer."></textarea>
+                            <div class="connection-token-actions">
+                                <button type="button" class="green" id="save-token-btn" data-action-label="Saglabāt tokenu">Saglabāt tokenu</button>
+                                <button type="button" class="secondary" id="clear-token-btn" data-action-label="Notīrīt tokenu">Notīrīt</button>
+                            </div>
+                            <p class="muted">Manuāla ievade ir rezerves variants. Ikdienā izmanto Token Bridge.</p>
+                        </details>
+                    </details>
+
+                </section>
+

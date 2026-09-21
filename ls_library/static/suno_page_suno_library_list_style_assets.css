@@ -1,0 +1,473 @@
+        /* ================================================================
+           v5.21 — Suno-style Library list
+
+           The rows are no longer presented as a wide database table.
+           Hidden compatibility cells stay in the DOM so existing sort and
+           row logic keep working.
+           ================================================================ */
+
+        
+
+        .sort-control.sort-asc,
+        .sort-control.sort-desc {
+            color: #FFFFFF;
+            background: rgba(255,255,255,0.10);
+            border-color: rgba(255,255,255,0.18);
+        }
+
+        .table-wrap {
+            overflow-x: hidden;
+            padding: 0 2px 18px;
+        }
+
+        #tracks-table {
+            display: block;
+            width: 100%;
+            min-width: 0;
+            table-layout: auto;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: transparent;
+        }
+
+        #tracks-table colgroup,
+        #tracks-table .real-table-head {
+            display: none;
+        }
+
+        #tracks-table tbody {
+            display: block;
+            width: 100%;
+        }
+
+        #tracks-table tr.track-row {
+            position: relative;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            box-sizing: border-box;
+            margin: 0;
+            padding: 10px 10px 10px 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            border-radius: 0;
+            background: transparent;
+            transition: background 100ms ease;
+        }
+
+        #tracks-table tr.track-row:hover {
+            background: rgba(11, 61, 40, 0.54);
+        }
+
+        #tracks-table tr.track-row.selected-track-current,
+        #tracks-table tr.track-row.player-open,
+        #tracks-table tr.track-row.find-current {
+            background: var(--ls-suno-active);
+        }
+
+        #tracks-table tr.track-row.player-open {
+            background: var(--ls-suno-playing);
+        }
+
+        #tracks-table tr.track-row td {
+            display: block;
+            min-width: 0;
+            padding: 0;
+            border: 0 !important;
+            border-radius: 0 !important;
+            background: transparent !important;
+        }
+
+        #tracks-table .num,
+        #tracks-table .workspace-cell,
+        #tracks-table .created-cell,
+        #tracks-table .duration-cell,
+        #tracks-table .style-cell,
+        #tracks-table .kind-cell {
+            display: none !important;
+        }
+
+        #tracks-table .title-cell {
+            grid-column: 1;
+            min-width: 0;
+        }
+
+        #tracks-table .actions-cell {
+            grid-column: 2;
+            align-self: center;
+            justify-self: end;
+            min-width: 74px;
+        }
+
+        #tracks-table .audio-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 7px;
+            white-space: nowrap;
+        }
+
+        #tracks-table .select-cell {
+            display: none !important;
+        }
+
+        /* Select WAV uses the cover's top-right .ls-track-select-control.
+           The legacy empty select-cell must stay hidden; showing it produced
+           the dark square artifact at the cover's top-left corner. */
+        #tracks-table.selection-mode .select-cell {
+            display: none !important;
+        }
+
+        #tracks-table.selection-mode .title-cell {
+            padding-left: 26px;
+        }
+
+        #tracks-table .title-with-thumb {
+            align-items: center;
+            gap: 10px;
+        }
+
+        #tracks-table .ls-track-cover-control {
+            position: relative;
+            flex: 0 0 58px;
+            width: 58px;
+            height: 74px;
+            border-radius: 9px;
+        }
+
+        #tracks-table .ls-play-status-marker {
+            position: absolute;
+            left: -8px;
+            top: 5px;
+            bottom: 5px;
+            z-index: 6;
+            width: 6px;
+            border-radius: 5px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.48);
+            cursor: help;
+        }
+
+        #tracks-table .ls-play-status-marker.has-stems { background: #16C968; }
+        #tracks-table .ls-play-status-marker.has-local { background: #18A7E5; }
+        #tracks-table .ls-play-status-marker.suno-only { background: #A6AFAB; }
+
+        #tracks-table .ls-track-cover-control .thumb-link,
+        #tracks-table .ls-track-cover-control .thumb-placeholder {
+            display: block;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            border-radius: inherit;
+        }
+
+        #tracks-table .ls-track-cover-control .track-thumb,
+        #tracks-table .ls-track-cover-control .thumb-duration-badge {
+            pointer-events: none;
+        }
+
+        #tracks-table .ls-cover-play-btn {
+            position: absolute;
+            inset: 0;
+            z-index: 3;
+            display: grid;
+            place-items: center;
+            width: 100%;
+            height: 100%;
+            min-width: 0;
+            padding: 0;
+            border: 0;
+            border-radius: inherit;
+            background: rgba(0, 0, 0, 0.34);
+            color: #FFFFFF;
+            font-size: 27px;
+            font-weight: 800;
+            line-height: 1;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.72);
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 120ms ease, background-color 120ms ease;
+        }
+
+        #tracks-table .ls-track-cover-control:hover .ls-cover-play-btn,
+        #tracks-table .ls-cover-play-btn:focus-visible,
+        #tracks-table tr.track-row.player-open .ls-cover-play-btn {
+            opacity: 1;
+        }
+
+        #tracks-table tr.track-row.player-open .ls-cover-play-btn {
+            background: rgba(0, 0, 0, 0.46);
+        }
+
+        #tracks-table .ls-track-select-control {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            z-index: 5;
+            display: grid;
+            place-items: center;
+            width: 23px;
+            height: 23px;
+            margin: 0;
+            border-radius: 50%;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 110ms ease;
+        }
+
+        #tracks-table .ls-track-cover-control:hover .ls-track-select-control,
+        #tracks-table .ls-track-select-control:focus-within,
+        #tracks-table .ls-track-select-control:has(.track-check:checked),
+        #tracks-table.selection-mode .ls-track-select-control {
+            opacity: 1;
+        }
+
+        #tracks-table .ls-track-select-control .track-check {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            margin: 0;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #tracks-table .ls-track-select-circle {
+            display: grid;
+            place-items: center;
+            width: 21px;
+            height: 21px;
+            box-sizing: border-box;
+            border: 2px solid rgba(255,255,255,0.94);
+            border-radius: 50%;
+            background: rgba(9,18,14,0.52);
+            color: transparent;
+            font-size: 13px;
+            font-weight: 900;
+            line-height: 1;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.48);
+        }
+
+        #tracks-table .track-check:checked + .ls-track-select-circle {
+            border-color: #FFFFFF;
+            background: #FFFFFF;
+            color: #142019;
+        }
+
+        #tracks-table .track-check:focus-visible + .ls-track-select-circle {
+            outline: 2px solid #FFFFFF;
+            outline-offset: 2px;
+        }
+
+        #tracks-table.selection-mode .title-cell {
+            padding-left: 0;
+        }
+
+        #tracks-table .thumb-link,
+        #tracks-table .thumb-placeholder {
+            width: 58px;
+            height: 74px;
+            border-radius: 9px;
+        }
+
+        #tracks-table .track-thumb {
+            width: 58px;
+            height: 74px;
+        }
+
+        #tracks-table .thumb-duration-badge {
+            right: 3px;
+            bottom: 3px;
+            padding: 2px 4px;
+            border-radius: 5px;
+            font-size: 10px;
+        }
+
+        #tracks-table .title-stack {
+            flex: 1 1 auto;
+            min-width: 0;
+            gap: 3px;
+        }
+
+        #tracks-table .title-line {
+            min-width: 0;
+            gap: 9px;
+            align-items: center;
+        }
+
+        #tracks-table .title-line .title-link {
+            min-width: 0;
+            overflow: hidden;
+            color: #FFFFFF;
+            font-size: 15px;
+            font-weight: 720;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        #tracks-table .bpm-badge {
+            flex: 0 0 auto;
+            color: #AFC1B7;
+            font-size: 12px;
+            font-weight: 650;
+        }
+
+        #tracks-table .title-meta-line {
+            margin-top: 1px;
+            min-height: 18px;
+        }
+
+        #tracks-table .title-meta {
+            gap: 5px;
+            overflow: hidden;
+            max-width: 100%;
+        }
+
+        #tracks-table .title-badge {
+            flex: 0 0 auto;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-size: 10px;
+        }
+
+        #tracks-table .ls-like-thumb {
+            width: 18px;
+            height: 18px;
+        }
+
+        .ls-library-secondary {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            min-width: 0;
+            color: #9EADA5;
+            font-size: 11px;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .ls-library-secondary-item {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .ls-library-secondary-dot {
+            flex: 0 0 auto;
+            color: #607067;
+        }
+
+        .ls-library-text-preview {
+            min-width: 0;
+            max-width: 100%;
+            overflow: hidden;
+        }
+
+        #tracks-table .ls-library-text-preview .title-prompt-inline {
+            display: flex;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            padding: 1px 0;
+            color: #A9B6AF;
+            font-size: 11px;
+            line-height: 1.25;
+        }
+
+        #tracks-table .ls-library-text-preview .title-prompt-inline:hover,
+        #tracks-table .ls-library-text-preview .title-prompt-inline:focus {
+            padding-left: 4px;
+            padding-right: 4px;
+        }
+
+        #tracks-table .ls-library-text-preview .title-text-field-label {
+            font-size: 8px;
+            border-radius: 3px;
+            padding: 1px 3px;
+        }
+
+        #tracks-table .ls-library-text-preview .title-text-field-preview {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        #tracks-table .small-action.compare-btn {
+            min-height: 30px;
+            padding: 5px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+        }
+
+        #tracks-table .row-menu-btn {
+            width: 32px;
+            min-width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            font-size: 19px;
+        }
+
+        #tracks-table tr.fragment-row {
+            display: block;
+            width: 100%;
+        }
+
+        #tracks-table tr.fragment-row.hidden {
+            display: none !important;
+        }
+
+        #tracks-table tr.fragment-row td {
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px 0 12px;
+            background: var(--ls-suno-active) !important;
+            border: 0 !important;
+        }
+
+        #tracks-table tr.fragment-row.player-open td {
+            background: var(--ls-suno-playing) !important;
+        }
+
+        #tracks-table tr.track-row.workspace-group-start {
+            border-top: 1px solid rgba(255,255,255,0.14);
+        }
+
+        @media (max-width: 1180px) {
+            #tracks-table tr.track-row {
+                gap: 8px;
+                padding-right: 7px;
+            }
+
+            #tracks-table .ls-track-cover-control,
+            #tracks-table .thumb-link,
+            #tracks-table .thumb-placeholder,
+            #tracks-table .track-thumb {
+                width: 54px;
+                height: 68px;
+            }
+            #tracks-table .ls-track-cover-control {
+                flex-basis: 54px;
+            }
+
+            #tracks-table .small-action.compare-btn {
+                padding-left: 8px;
+                padding-right: 8px;
+            }
+        }
+
+        @media (max-width: 1320px) {
+            :root { --ls-selected-panel-width: 290px; }
+        }
+
+        /* Keep compact usability when the browser window becomes narrow. */
+        @media (max-width: 980px) {
+            :root { --ls-suno-sidebar-width: 230px; }
+            header { padding-left: 8px; padding-right: 8px; }
+            .header-tab { font-size: 13px; padding-left: 10px; padding-right: 10px; }
+            main { padding-left: 14px; padding-right: 14px; }
+            .panel { margin-left: -14px; margin-right: -14px; }
+        }
+    
+

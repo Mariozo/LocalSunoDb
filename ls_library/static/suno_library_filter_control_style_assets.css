@@ -1,0 +1,65 @@
+        /* v5.24 - one unified Library row with compact Tools menu */
+        #main-filter-form {
+            display: block;
+            margin: 0;
+        }
+
+        .library-control-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            width: 100%;
+            min-width: 0;
+            flex-wrap: nowrap;
+        }
+
+        .library-filter-select {
+            display: inline-flex;
+            align-items: center;
+            height: 36px;
+            box-sizing: border-box;
+            padding: 0 7px 0 11px;
+            gap: 6px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 999px;
+            background: rgba(255,255,255,0.075);
+            color: #F2F4F3;
+            white-space: nowrap;
+        }
+
+        .library-filter-label {
+            color: #FFFFFF;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .library-select-shell {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            min-width: 0;
+        }
+
+        .library-filter-select select {
+            width: auto;
+            max-width: 190px;
+            min-width: 76px;
+            height: 28px;
+            margin: 0;
+            padding: 0 21px 0 3px;
+            border: 0;
+            outline: 0;
+            appearance: none;
+            -webkit-appearance: none;
+            background: transparent;
+            color: #D5DAD7;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .library-filter-select select option {
+            background: #17191A;
+            color: #FFFFFF;
+        }
+

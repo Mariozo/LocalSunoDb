@@ -1,0 +1,79 @@
+@@LSCSS@@
+
+    <header>
+        <div class="header-row">
+            <div class="header-title-box">
+                <h1>
+                    <span class="ls-sidebar-title-full">LS</span>
+                    <span class="ls-sidebar-title-compact">LS</span>
+                </h1>
+                <button
+                    type="button"
+                    class="ls-sidebar-collapse-btn"
+                    id="ls-sidebar-collapse-btn"
+                    title="Close navigation panel"
+                    aria-label="Close navigation panel"
+                    aria-expanded="true"
+                >
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M14.5 6.5 9 12l5.5 5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="profile-menu-wrap ls-sidebar-profile">
+                <button type="button" class="profile-btn" id="profile-menu-btn" title="Open My Suno menu">
+                    <img class="profile-avatar" src="/profile-image" alt="My Suno" onerror="this.hidden=true; this.nextElementSibling.hidden=false;">
+                    <span class="profile-avatar-fallback" hidden aria-hidden="true">🦋</span>
+                    <span class="ls-sidebar-profile-copy">
+                        <strong>My Suno</strong>
+                        <small class="ls-sidebar-profile-credits" title="Credits Remaining">@@LS1@@</small>
+                    </span>
+                    <svg class="ls-sidebar-profile-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                        <path d="m6 8 4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+                <div class="top-dropdown hidden" id="profile-menu">
+                    <div class="profile-card">
+                        <div class="profile-card-title">My Suno</div>
+                        <div class="profile-card-sub ls-profile-card-credits" title="Credits Remaining">@@LS2@@ Credits Remaining</div>
+                    </div>
+                    <div class="top-menu-separator"></div>
+                    <a class="top-menu-item" href="https://suno.com/create" target="_blank" rel="noopener">Open Suno Create</a>
+                    <a class="top-menu-item" href="https://suno.com/me" target="_blank" rel="noopener">Open Suno Library</a>
+                </div>
+            </div>
+
+            <nav class="header-tabs" aria-label="Main sections">
+                <a class="@@LS3@@" href="@@LS4@@" title="Suno Library">
+                    <span class="ls-sidebar-icon" aria-hidden="true">♪</span>
+                    <span class="ls-sidebar-label">Suno Library</span>
+                </a>
+                <a class="@@LS5@@" href="@@LS6@@" title="Imports">
+                    <span class="ls-sidebar-icon" aria-hidden="true">⇩</span>
+                    <span class="ls-sidebar-label">Imports</span>
+                </a>
+                @@LS5@@
+            </nav>
+
+            <div class="header-actions">
+                @@LS6@@
+                <button type="button" class="autoplay-top-btn" id="autoplay-top-btn" title="Atskaņot redzamo sarakstu automātiski. Toggle: P">
+                    <span class="ls-sidebar-icon" aria-hidden="true">▶</span>
+                    <span class="ls-sidebar-label">Auto</span>
+                </button>
+                <button type="button" class="ls-sidebar-bottom-item" id="secondary-settings-btn" title="Settings" data-suno-view-url="@@LS5@@">
+                    <span class="ls-sidebar-icon" aria-hidden="true">⚙</span>
+                    <span class="ls-sidebar-label">Settings</span>
+                </button>
+                <a class="ls-sidebar-bottom-item" href="/help" target="_blank" rel="noopener" title="Help">
+                    <span class="ls-sidebar-icon" aria-hidden="true">?</span>
+                    <span class="ls-sidebar-label">Help</span>
+                </a>
+            </div>
+        </div>
+    </header>
+    @@LSJS@@
+    @@LS6@@
+    @@LS5@@
+    

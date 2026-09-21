@@ -1,0 +1,300 @@
+        /* ================================================================
+           v5.20 — real three-panel SUNO Library shell
+
+           Left:     existing LocalSunoDb navigation
+           Center:   SUNO Library work area
+           Right:    persistent Selected Track panel
+
+           The right panel is filled from the selected row. Selection is a
+           UI-only state and never writes to the database.
+           ================================================================ */
+
+        :root {
+            --ls-selected-panel-width: 330px;
+        }
+
+        html,
+        body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        main {
+            margin-right: var(--ls-selected-panel-width);
+            width: auto;
+            min-width: 0;
+            height: 100vh;
+            min-height: 0;
+            overflow-x: hidden;
+            overflow-y: auto;
+            scrollbar-color: rgba(255,255,255,0.42) #0E4F34;
+            scrollbar-width: auto;
+        }
+
+        main::-webkit-scrollbar {
+            width: 11px;
+        }
+
+        main::-webkit-scrollbar-track {
+            background: #0E4F34;
+        }
+
+        main::-webkit-scrollbar-thumb {
+            min-height: 44px;
+            border: 3px solid transparent;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.42);
+            background-clip: padding-box;
+        }
+
+        main::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.62);
+            background-clip: padding-box;
+        }
+
+        .selected-track-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: var(--ls-selected-panel-width);
+            box-sizing: border-box;
+            z-index: 1200;
+            display: flex;
+            flex-direction: column;
+            background: var(--ls-suno-active);
+            color: var(--ls-suno-text);
+            border-left: 1px solid var(--ls-suno-line);
+            overflow: hidden;
+        }
+
+        .ls-panel-resizer {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 9px;
+            z-index: 20;
+            cursor: col-resize;
+            touch-action: none;
+            outline: none;
+            pointer-events: auto;
+            background: transparent;
+        }
+
+        .ls-panel-resizer::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 4px;
+            width: 1px;
+            background: transparent;
+            transition: background-color .14s ease, box-shadow .14s ease;
+        }
+
+        .ls-panel-resizer:hover::after,
+        .ls-panel-resizer:focus-visible::after,
+        body.ls-panel-resizing .ls-panel-resizer.active::after {
+            background: rgba(255, 255, 255, .62);
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, .28);
+        }
+
+        .ls-sidebar-resizer {
+            right: 0;
+        }
+
+        .ls-selected-panel-resizer {
+            position: fixed;
+            top: 0;
+            right: calc(var(--ls-selected-panel-width) - 7px);
+            bottom: 0;
+            left: auto;
+            width: 14px;
+            z-index: 1301;
+        }
+
+        .ls-selected-panel-resizer::after {
+            left: 7px;
+        }
+
+        body.ls-panel-resizing,
+        body.ls-panel-resizing * {
+            cursor: col-resize !important;
+            user-select: none !important;
+        }
+
+        .selected-track-panel-scroll {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 18px 16px 26px;
+            scrollbar-color: rgba(255,255,255,0.42) transparent;
+        }
+
+        .selected-track-panel-cover-wrap {
+            display: flex;
+            justify-content: center;
+            padding: 2px 0 14px;
+        }
+
+        .selected-track-panel-cover {
+            width: 124px;
+            height: 124px;
+            display: none;
+            object-fit: cover;
+            border-radius: 15px;
+            background: #171918;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.24);
+        }
+
+        .selected-track-panel-cover-placeholder {
+            width: 124px;
+            height: 124px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 15px;
+            background:
+                radial-gradient(circle at 10% 10%, rgba(190,65,231,.96) 0 17%, transparent 45%),
+                radial-gradient(circle at 88% 88%, rgba(168,65,218,.92) 0 16%, transparent 43%),
+                linear-gradient(135deg, #bd43e3 0%, #f24475 38%, #ff3b13 68%, #f23d1b 100%);
+            color: rgba(255,255,255,.78);
+            font-size: 13px;
+        }
+
+        .selected-track-panel-title {
+            margin: 0;
+            color: #FFFFFF;
+            font-size: 20px;
+            line-height: 1.24;
+            font-weight: 750;
+            overflow-wrap: anywhere;
+        }
+
+        .selected-track-panel-meta {
+            margin-top: 7px;
+            color: #B3C4BB;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .selected-track-panel-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin: 16px 0 12px;
+        }
+
+        .selected-track-panel-actions a,
+        .selected-track-panel-actions button {
+            min-height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            padding: 8px 10px;
+            border-radius: 19px;
+            border: 1px solid rgba(255,255,255,0.10);
+            background: #1B1D1C;
+            color: #FFFFFF;
+            text-decoration: none;
+            font-weight: 650;
+            font-size: 13px;
+            text-align: center;
+        }
+
+        .selected-track-panel-actions a:hover,
+        .selected-track-panel-actions button:hover:not(:disabled) {
+            background: #292C2A;
+        }
+
+        .selected-track-panel-actions button:disabled {
+            opacity: 0.40;
+            cursor: default;
+        }
+
+        .selected-track-status-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 0 0 12px;
+        }
+
+        .selected-track-status-chip {
+            display: inline-flex;
+            align-items: center;
+            min-height: 24px;
+            padding: 2px 8px;
+            box-sizing: border-box;
+            border-radius: 999px;
+            background: rgba(0,0,0,0.22);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #D5E1DB;
+            font-size: 11px;
+            font-weight: 650;
+        }
+
+        .selected-track-block {
+            margin-top: 12px;
+            padding: 13px 13px 14px;
+            border-radius: 14px;
+            background: rgba(10, 19, 15, 0.64);
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .selected-track-block-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .selected-track-block-title {
+            margin: 0;
+            color: #FFFFFF;
+            font-size: 13px;
+            font-weight: 750;
+        }
+
+        .selected-track-block-action {
+            min-height: 28px;
+            padding: 4px 9px;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.06);
+            color: #DCE8E2;
+            font-size: 11px;
+        }
+
+        .selected-track-block-text {
+            color: #D9E2DD;
+            font-size: 12px;
+            line-height: 1.48;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            max-height: 250px;
+            overflow-y: auto;
+            scrollbar-color: rgba(255,255,255,0.34) transparent;
+        }
+
+        .selected-track-block-text.empty {
+            color: #91A198;
+            font-style: italic;
+        }
+
+        tr.track-row.selected-track-current td {
+            background: var(--ls-suno-active) !important;
+            border-top-color: var(--ls-suno-active) !important;
+            border-bottom-color: var(--ls-suno-active) !important;
+        }
+
+        tr.track-row.selected-track-current {
+            outline: none;
+        }
+
+        tr.track-row {
+            cursor: default;
+        }
+
+

@@ -1,0 +1,32 @@
+        .finder-search-box {
+            position: fixed;
+            top: 68px;
+            right: 18px;
+            width: 380px;
+            max-width: calc(100vw - 36px);
+            background: #fffef5;
+            border: 1px solid #d7d7c2;
+            border-radius: 12px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.24);
+            padding: 10px 11px 9px 11px;
+            z-index: 5000;
+            display: none;
+        }
+        .finder-search-row { display: flex; align-items: center; gap: 8px; }
+        .finder-search-icon { font-size: 18px; line-height: 1; }
+        #finder-search-input {
+            flex: 1; min-width: 150px; padding: 6px 7px; font-size: 14px;
+            border: 1px solid #b6cbb0; border-radius: 4px; background: #f0ffe8;
+        }
+        .finder-count { min-width: 48px; text-align: center; font-weight: 700; color: #111; font-size: 13px; }
+        .finder-mini-btn { background: transparent; color: #777; border: 0; padding: 4px 6px; font-size: 16px; }
+        .finder-mini-btn:hover { background: #f1f3f4; opacity: 1; }
+        .finder-close-btn { width: 28px; height: 28px; padding: 0; border-radius: 50%; background: transparent; color: #555; font-size: 20px; }
+        .finder-close-btn:hover { background: #eeeeee; opacity: 1; }
+        .finder-options-row { margin-top: 8px; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; font-size: 14px; }
+        .finder-options-row label { display: inline-flex; align-items: center; gap: 6px; user-select: none; }
+        .finder-options-row input[type="checkbox"] { width: 15px; height: 15px; }
+        tr.track-row.find-current td { background: #fff4ce !important; }
+        .find-current .title-link { background: #fff176; box-shadow: 0 0 0 2px #fff176; border-radius: 3px; }
+
+

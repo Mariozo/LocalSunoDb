@@ -1,0 +1,38 @@
+        /* ================================================================
+           v5.19 — Suno-inspired visual shell (SUNO Database, CSS-first pass)
+
+           Design rule:
+             sidebar        #04170F
+             main surface   #061F14
+             active/details #0B3D28
+             sidebar text   #A3A3A3
+
+           This pass intentionally changes presentation only. Existing DB,
+           search, playback, Compare, Downloader, Elza and row actions keep
+           their current HTML/JS behaviour.
+           ================================================================ */
+
+        :root {
+            --ls-suno-sidebar: #04170F;
+            --ls-suno-main: #061F14;
+            --ls-suno-active: #0B3D28;
+            --ls-suno-playing: #10593B;
+            --ls-suno-sidebar-text: #A3A3A3;
+            --ls-suno-text: #F1F3F2;
+            --ls-suno-muted: #8D9992;
+            --ls-suno-control: #191A1B;
+            --ls-suno-control-hover: #26292A;
+            --ls-suno-line: rgba(255, 255, 255, 0.09);
+            --ls-suno-sidebar-width: 260px;
+        }
+
+        html {
+            background: var(--ls-suno-main);
+        }
+
+        body {
+            background: var(--ls-suno-main);
+            color: var(--ls-suno-text);
+            min-height: 100vh;
+        }
+

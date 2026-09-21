@@ -1,0 +1,186 @@
+
+        .help-content {
+            white-space: pre-wrap;
+            font-family: Segoe UI, Arial, sans-serif;
+            font-size: 14.5px;
+            line-height: 1.42;
+        }
+
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .modal {
+            width: min(860px, 90vw);
+            max-height: 80vh;
+            overflow: auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 6px 30px rgba(0,0,0,0.35);
+            padding: 20px;
+        }
+
+        .modal h2 {
+            margin-top: 0;
+            font-size: 20px;
+        }
+
+        .modal pre {
+            white-space: pre-wrap;
+            font-family: Segoe UI, Arial, sans-serif;
+            font-size: 15px;
+            line-height: 1.45;
+        }
+
+        .modal-close {
+            float: right;
+            background: #444;
+        }
+
+        .lyrics-editor-dialog {
+            width: min(520px, 88vw);
+            height: min(630px, 84vh);
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 8px 38px rgba(0,0,0,0.42);
+            padding: 20px;
+        }
+
+        .lyrics-editor-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 10px;
+        }
+
+        .lyrics-editor-head h2 {
+            margin: 0;
+            font-size: 23px;
+        }
+
+        .track-text-tabs {
+            display: flex;
+            gap: 8px;
+            margin: 0 0 12px 0;
+            flex-wrap: wrap;
+        }
+
+        .track-text-tab {
+            min-width: 84px;
+            border: 1px solid #aeb7c2;
+            border-radius: 7px;
+            background: #f3f5f7;
+            color: #333;
+            padding: 6px 10px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .track-text-tab.active {
+            border-color: #174ea6;
+            background: #e8f0fe;
+            color: #174ea6;
+        }
+
+        .track-text-tab.empty {
+            opacity: 0.48;
+        }
+
+        .track-text-source {
+            margin: -4px 0 10px 0;
+            min-height: 18px;
+            color: #6b7280;
+            font-size: 12px;
+            font-family: Consolas, "Courier New", monospace;
+        }
+
+        .lyrics-editor-track-title {
+            margin: 0 0 12px 0;
+            color: #555;
+            font-size: 14px;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .lyrics-editor-textarea {
+            flex: 1 1 auto;
+            width: 100%;
+            min-height: 300px;
+            resize: none;
+            box-sizing: border-box;
+            border: 1px solid #aeb7c2;
+            border-radius: 9px;
+            padding: 14px 16px;
+            background: #fff;
+            color: #111;
+            font-family: "Segoe UI", Arial, sans-serif;
+            font-size: 16px;
+            line-height: 1.48;
+            white-space: pre-wrap;
+            tab-size: 4;
+        }
+
+        .lyrics-editor-textarea:focus {
+            outline: 2px solid #8ab4f8;
+            border-color: #5f8fd8;
+        }
+
+        .lyrics-editor-textarea[readonly] {
+            background: #f7f8fa;
+            color: #202124;
+            cursor: text;
+        }
+
+        .lyrics-editor-footer {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .lyrics-editor-status {
+            margin-right: auto;
+            min-height: 20px;
+            color: #555;
+            font-size: 13px;
+        }
+
+        .lyrics-editor-footer button {
+            min-width: 110px;
+            padding: 9px 18px;
+            font-size: 15px;
+        }
+
+        .lyrics-editor-save {
+            background: #c7c7c7;
+            color: #fff;
+            cursor: default;
+        }
+
+        .lyrics-editor-save.changed {
+            background: #188038;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .lyrics-editor-save.changed:hover {
+            background: #137333;
+        }
+
+        .lyrics-editor-save:disabled {
+            background: #c7c7c7;
+            color: #fff;
+            cursor: default;
+        }
+

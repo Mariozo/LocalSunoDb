@@ -1,0 +1,98 @@
+        .fragment-row td {
+            background: #f2f2f2;
+            padding: 6px 22px 8px 84px;
+        }
+
+        .fragment-player {
+            max-width: 980px;
+        }
+
+        .player-block {
+            margin-bottom: 8px;
+        }
+
+        .player-title {
+            margin-bottom: 2px;
+            font-size: 13px;
+        }
+
+        .audio-line {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            max-width: 70%;
+        }
+
+        .edit-audio-btn {
+            background: #188038;
+            min-width: 58px;
+            height: 28px;
+            padding: 4px 10px;
+            font-size: 12px;
+            flex: 0 0 auto;
+        }
+
+        .loop-audio-btn {
+            background: #5f6368;
+            color: white;
+            min-width: 58px;
+            height: 28px;
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1;
+            flex: 0 0 auto;
+            border-radius: 6px;
+        }
+
+        .loop-audio-btn.active {
+            background: #188038;
+            color: white;
+        }
+
+        .loop-audio-btn:hover {
+            background: #3c4043;
+        }
+
+        .loop-audio-btn.active:hover {
+            background: #137333;
+        }
+
+        .audio-player {
+            width: 100%;
+            height: 32px;
+            margin-bottom: 4px;
+        }
+
+        .fragment-controls {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            margin-bottom: 5px;
+        }
+
+        .small-btn {
+            padding: 4px 8px;
+            font-size: 12px;
+            background: #444;
+        }
+
+        .small-btn.active-control {
+            background: #fbbc04;
+            color: #111;
+            box-shadow: 0 0 0 2px rgba(251, 188, 4, 0.35) inset;
+        }
+
+        .time-readout {
+            font-size: 14px;
+            color: #333;
+            font-variant-numeric: tabular-nums;
+            margin-left: 6px;
+        }
+
+        .wave-status {
+            font-size: 13px;
+            color: #777;
+            margin-left: 10px;
+        }
+

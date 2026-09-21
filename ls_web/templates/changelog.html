@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="lv">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LocalSunoDb — Izmaiņu žurnāls</title>
+    <link rel="stylesheet" href="@@LS3@@">
+    <script src="/ls-static/ls_web/static/ls_app_session.js?v=@@LS0@@" defer></script>
+</head>
+<body id="top">
+    <header class="topbar">
+        <div class="topbar-group">
+            <a class="action" href="/">← SUNO Database</a>
+            <div class="brand">⭐ LocalSunoDb — Izmaiņu žurnāls</div>
+            <span class="version">@@LS0@@</span>
+        </div>
+        <button class="action" type="button" onclick="window.print()">🖨 Drukāt</button>
+    </header>
+
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-title">🧭 Saturs</div>
+            <nav class="toc">@@LS1@@</nav>
+            <div class="sidebar-note">Meklēšana žurnālā: <strong>Ctrl+F</strong></div>
+        </aside>
+
+        <main>
+            <article class="document">
+                @@LS2@@
+                <footer class="footer">
+                    Lokāls avots: <code>LS_CHANGELOG.md</code><br>
+                    <a href="#top">↑ Uz lapas sākumu</a>
+                </footer>
+            </article>
+        </main>
+    </div>
+</body>
+</html>

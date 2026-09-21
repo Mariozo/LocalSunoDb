@@ -1,0 +1,2 @@
+/* Shared WEB shell layer. Feature-specific rules remain in their owning block. */
+:root { --ls-architecture-generation: 1; }

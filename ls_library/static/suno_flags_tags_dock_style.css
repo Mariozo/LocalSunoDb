@@ -1,0 +1,29 @@
+#ls-library .ls-flags-tags-dock-slot {
+    width: 100%;
+    margin: 0 0 16px;
+    box-sizing: border-box;
+}
+
+#ls-library .ls-flags-tags-dock-slot.ls-flags-tags-dock-empty {
+    display: none;
+}
+
+#ls-library .user-tag-panel.user-tag-panel-docked {
+    position: static;
+    inset: auto;
+    width: 100%;
+    max-height: 78vh;
+    z-index: auto;
+    box-shadow: none;
+}
+
+#ls-library .user-tag-panel-dock-toggle {
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    padding: 0;
+    margin: 0;
+    border-radius: 50%;
+    font-size: 16px;
+    line-height: 1;
+}

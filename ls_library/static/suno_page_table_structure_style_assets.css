@@ -1,0 +1,161 @@
+        .real-table-head {
+            display: none;
+        }
+
+        .table-wrap {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            min-width: 1300px;
+            table-layout: fixed;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        col.num-col { width: 2.4%; }
+        col.check-col { width: 2.2%; }
+        col.title-col { width: 64.4%; }
+        col.workspace-col { width: 10.5%; }
+        col.created-col { width: 8.2%; }
+        col.duration-col { width: 4.5%; }
+        col.style-col { width: 26.5%; }
+                col.kind-col { width: 5.2%; }
+        col.actions-col { width: 14.5%; }
+
+        th {
+            background: #e9e9e9;
+            text-align: left;
+            padding: 9px 8px;
+            font-size: 13px;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        th.sortable,
+        .sort-control {
+            cursor: pointer;
+        }
+
+        th.sortable:hover,
+        .sort-control:hover {
+            background: #dcdcdc;
+        }
+
+        th.sortable::after,
+        .sort-control::after {
+            content: " ↕";
+            color: #777;
+            font-weight: normal;
+        }
+
+        th.sort-asc::after,
+        .sort-control.sort-asc::after {
+            content: " ↑";
+            color: #111;
+        }
+
+        th.sort-desc::after,
+        .sort-control.sort-desc::after {
+            content: " ↓";
+            color: #111;
+        }
+
+        td {
+            border-top: 1px solid #ddd;
+            padding: 8px;
+            vertical-align: top;
+            font-size: 13.5px;
+            overflow-wrap: anywhere;
+        }
+
+        tr.track-row.player-open td {
+            background: #e4e4e4;
+            border-top-color: #e4e4e4;
+        }
+
+        tr.fragment-row.player-open td {
+            background: #e4e4e4;
+            border-top: 0;
+            padding-top: 10px;
+        }
+
+        table.workspace-sorted tbody tr.track-row.workspace-group-start:not(.player-open) td {
+            border-top: 4px solid #9aa0a6;
+        }
+
+        .num {
+            color: #777;
+            text-align: right;
+        }
+
+        .select-cell {
+            text-align: center;
+        }
+
+        /* Row selection stays hidden until Select WAV mode is enabled.
+           Stem-player checkboxes remain visible and unchanged. */
+        .select-cell,
+        col.check-col,
+        #open-selected {
+            display: none;
+        }
+
+        #tracks-table.selection-mode .select-cell {
+            display: table-cell;
+        }
+
+        #tracks-table.selection-mode col.check-col {
+            display: table-column;
+        }
+
+        /* v3.64: show Style as a subtitle under the title, not as a separate table column. */
+        .style-cell,
+        col.style-col {
+            display: none;
+        }
+
+        /* v3.66: show Kind as a badge near the title, not as a separate table column. */
+        .kind-cell,
+        col.kind-col {
+            display: none;
+        }
+
+        /* v3.68: show duration as a badge on the cover image, not as a separate table column. */
+        .duration-cell,
+        col.duration-col {
+            display: none;
+        }
+
+        .wav-picker-mode .select-cell {
+            min-width: 78px;
+        }
+        .wav-picker-choose {
+            position: absolute;
+            left: 4px;
+            bottom: 4px;
+            z-index: 6;
+            margin-left: 0;
+            padding: 4px 7px;
+            border: 1px solid #316e4b;
+            border-radius: 7px;
+            background: #316e4b;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 750;
+            cursor: pointer;
+        }
+        .wav-picker-choose:hover {
+            filter: brightness(1.06);
+        }
+        .track-check {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+

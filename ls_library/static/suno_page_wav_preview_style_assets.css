@@ -1,0 +1,180 @@
+        .wav-preview-modal {
+            width: min(980px, 94vw);
+            max-height: 88vh;
+            overflow: auto;
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 8px 36px rgba(0,0,0,0.38);
+            padding: 24px;
+        }
+
+        .wav-preview-modal h2 {
+            margin: 0 0 18px 0;
+            font-size: 24px;
+        }
+
+        .wav-preview-grid {
+            display: grid;
+            grid-template-columns: 155px minmax(0, 1fr);
+            gap: 10px 16px;
+            align-items: start;
+            font-size: 16px;
+            line-height: 1.45;
+        }
+
+        .wav-preview-label {
+            font-weight: 700;
+            color: #333;
+        }
+
+        .wav-preview-value {
+            min-width: 0;
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+
+        .wav-preview-path {
+            font-family: Consolas, "Courier New", monospace;
+            background: #f5f6f7;
+            border: 1px solid #d9dde2;
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+
+        .wav-family-confirmation {
+            margin-top: 18px;
+            border: 1px solid #d7dbe0;
+            border-radius: 10px;
+            background: #f8f9fa;
+            padding: 14px;
+        }
+
+        .wav-family-confirmation.confirmed {
+            border-color: #9fd2aa;
+            background: #eef8f0;
+        }
+
+        .wav-family-status-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .wav-family-badge {
+            display: inline-flex;
+            align-items: center;
+            min-height: 28px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 800;
+            background: #fce8e6;
+            color: #b3261e;
+        }
+
+        .wav-family-confirmation.confirmed .wav-family-badge {
+            background: #d9f0df;
+            color: #137333;
+        }
+
+        .wav-family-choice {
+            margin-top: 12px;
+            display: grid;
+            grid-template-columns: 170px minmax(0, 1fr) auto;
+            gap: 9px 10px;
+            align-items: center;
+        }
+
+        .wav-family-choice label {
+            font-weight: 700;
+            color: #3c4043;
+        }
+
+        .wav-family-choice select,
+        .wav-family-choice input {
+            width: 100%;
+            min-width: 0;
+            height: 36px;
+            border: 1px solid #aeb4b9;
+            border-radius: 7px;
+            padding: 6px 9px;
+            background: white;
+            font: inherit;
+        }
+
+        .wav-family-choice button,
+        .wav-family-change-btn {
+            min-height: 36px;
+            border: 0;
+            border-radius: 7px;
+            padding: 7px 12px;
+            background: #5f6368;
+            color: white;
+            font-weight: 750;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .wav-family-choice button:disabled {
+            opacity: .5;
+            cursor: default;
+        }
+
+        .wav-family-choice-note {
+            grid-column: 1 / -1;
+            color: #5f6368;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .wav-family-choice-status {
+            grid-column: 1 / -1;
+            min-height: 20px;
+            color: #5f6368;
+            font-size: 13px;
+            font-weight: 650;
+        }
+
+        .wav-family-choice-status.error {
+            color: #b3261e;
+        }
+
+        @media (max-width: 760px) {
+            .wav-family-choice {
+                grid-template-columns: 1fr;
+            }
+            .wav-family-choice-note,
+            .wav-family-choice-status {
+                grid-column: 1;
+            }
+        }
+
+        .wav-preview-note {
+            margin-top: 18px;
+            padding: 12px 14px;
+            border: 1px solid #b7dfc0;
+            background: #e6f4ea;
+            border-radius: 9px;
+            font-size: 15px;
+            line-height: 1.45;
+        }
+
+        .wav-preview-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 22px;
+            position: sticky;
+            bottom: -24px;
+            background: white;
+            padding: 14px 0 2px 0;
+        }
+
+        .wav-preview-actions button {
+            min-width: 120px;
+            font-size: 16px;
+            padding: 10px 18px;
+        }
+

@@ -1,0 +1,107 @@
+            <section class="downloader-column downloader-downloads-column" data-downloader-section="audio">
+                <div class="card audio-actions-card audio-workflow-card">
+                    <div class="audio-workflow-head">
+                        <div>
+                            <h2>WAV imports</h2>
+                            <p class="muted">Izvēlies vienu dziesmu LS Suno bibliotēkā. Pēc izvēles LS automātiski atgriezīsies šeit.</p>
+                        </div>
+                        <div class="audio-family-pill" title="Rezerves priekšlikums tiek izmantots tikai tad, ja šim Track ID nav apstiprinātas lokālās saimes.">
+                            <span>Lokālās saimes priekšlikums</span>
+                            <strong>@@LS0@@</strong>
+                        </div>
+                    </div>
+
+                    <div class="audio-compact-actions">
+                        <a class="btn green big-action" href="/?ls_wav_picker=1" data-action-label="Izvēlēties dziesmu LS Suno bibliotēkā">Izvēlēties dziesmu LS Suno bibliotēkā</a>
+                    </div>
+
+                    <div class="audio-mini-map" aria-label="WAV importa soļi">
+                        <div class="audio-step">
+                            <span class="audio-step-number">1</span>
+                            <div>
+                                <div class="audio-step-title">Izvēlēties dziesmu</div>
+                                <div class="audio-step-note">Tiks atvērta LS Suno bibliotēka vienas dziesmas izvēles režīmā.</div>
+                            </div>
+                        </div>
+                        <div class="audio-step">
+                            <span class="audio-step-number">2</span>
+                            <div>
+                                <div class="audio-step-title">Apstiprināt lokālo saimi</div>
+                                <div class="audio-step-note">Zemāk būs redzama izvēlētā dziesma, LS priekšlikums un precīzs saglabāšanas ceļš.</div>
+                            </div>
+                        </div>
+                        <div class="audio-step">
+                            <span class="audio-step-number">3</span>
+                            <div>
+                                <div class="audio-step-title">Importēt WAV</div>
+                                <div class="audio-step-note">LS saņem WAV no Suno, saglabā to lokāli un piesaista tam pašam Track ID.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="downloader-wav-selection-panel" id="downloader-wav-selection-panel" hidden>
+                        <div class="downloader-wav-selection-head">
+                            <div>
+                                <span class="audio-path-label">Izvēlētā dziesma</span>
+                                <strong id="downloader-wav-track-title"></strong>
+                                <code id="downloader-wav-track-id"></code>
+                            </div>
+                            <a class="btn secondary" href="/?ls_wav_picker=1" data-action-label="Izvēlēties citu dziesmu">Izvēlēties citu dziesmu</a>
+                        </div>
+
+                        <div class="downloader-wav-proposal">
+                            <span>LS iesaka lokālo saimi</span>
+                            <strong id="downloader-wav-proposed-family"></strong>
+                            <button type="button" class="green" id="downloader-wav-use-proposed" data-action-label="Izmantot ieteikto lokālo saimi">Izmantot šo lokālo saimi</button>
+                            <span class="downloader-wav-family-state" id="downloader-wav-family-state"></span>
+                        </div>
+
+                        <details class="compact-extra downloader-wav-alternatives" id="downloader-wav-alternatives">
+                            <summary>Izvēlēties citu lokālo saimi</summary>
+                            <div class="downloader-wav-alternative-grid">
+                                <label for="downloader-wav-existing-family">Esoša lokālā saime</label>
+                                <select id="downloader-wav-existing-family"></select>
+                                <button type="button" class="secondary" id="downloader-wav-use-existing" data-action-label="Izmantot esošu lokālo saimi">Izmantot esošo saimi</button>
+
+                                <label for="downloader-wav-new-family">Jauna lokālā saime</label>
+                                <input type="text" id="downloader-wav-new-family" placeholder="Lokālās saimes nosaukums">
+                                <button type="button" class="secondary" id="downloader-wav-create-new" data-action-label="Izveidot jaunu lokālo saimi">Izveidot jaunu saimi</button>
+                            </div>
+                        </details>
+
+                        <div class="downloader-wav-path-grid">
+                            <span>Kategorija</span><strong id="downloader-wav-category"></strong>
+                            <span>Variants</span><strong id="downloader-wav-variant"></strong>
+                            <span>WAV</span><code id="downloader-wav-target-path"></code>
+                            <span>Stemi</span><code id="downloader-wav-stems-path"></code>
+                        </div>
+
+                        <div class="status" id="downloader-wav-status">Ielādē izvēlēto dziesmu…</div>
+                        <div class="downloader-wav-actions">
+                            <button type="button" class="green big-action" id="downloader-wav-download" data-action-label="Importēt WAV" disabled>Importēt WAV</button>
+                        </div>
+
+                        <div class="downloader-wav-result" id="downloader-wav-result" hidden>
+                            <strong id="downloader-wav-result-title"></strong>
+                            <span id="downloader-wav-result-text"></span>
+                            <code id="downloader-wav-result-path"></code>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card downloader-status-card audio-log-card audio-destination-card">
+                    <div class="audio-destination-head">
+                        <div>
+                            <h2>Saglabāšanas vieta</h2>
+                            <p class="muted">Sākotnējais Suno ieraksts netiek mainīts.</p>
+                        </div>
+                    </div>
+
+                    <div class="audio-path-preview" title="Pēc dziesmas izvēles būs redzama precīza kategorija, lokālā saime un nākamais variants.">
+                        <span class="audio-path-label">Audio bibliotēka</span>
+                        <code>Song / Instrumental → lokālā saime → 1, 2, 3... → Nosaukums.wav</code>
+                        <span class="audio-path-note">Stemu mape paliek tajā pašā numurētajā variantā.</span>
+                    </div>
+
+                </div>
+            </section>

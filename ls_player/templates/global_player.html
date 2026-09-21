@@ -1,0 +1,159 @@
+
+    <section id="ls-global-player" class="ls-global-player player-block is-inactive" aria-label="Global audio player">
+        <div class="ls-global-player-drawer" id="ls-global-player-drawer" aria-hidden="true">
+            <div
+                class="stem-block ls-global-player-stem-panel hidden"
+                id="ls-global-player-stem-panel"
+                data-loaded="false"
+                data-track-id=""
+            >
+                <div class="stem-controls">
+                    <button type="button" class="small-btn stem-play-all" data-stem-command="play-selected" title="Play/Pause selected Stems at the shared song position. Ctrl+Space performs the same action while Stems is open.">▶ Play selected</button>
+                    <button type="button" class="small-btn stem-pause-all" data-stem-command="pause" title="Pause Stem playback">Pause</button>
+                    <button type="button" class="small-btn stem-stop-all" data-stem-command="stop" title="Stop Stems and return to start">Stop</button>
+                    <button type="button" class="small-btn stem-rewind-all" data-stem-command="rewind" title="Rewind included Stems to start">⏮ Rewind</button>
+                    <button type="button" class="small-btn stem-select-toggle" data-stem-command="select-toggle" title="Select all / Clear Include selections">Select all / Clear</button>
+                    <button type="button" class="small-btn stem-open-audacity" data-stem-command="audacity" title="Open included Stems in Audacity">To Audacity</button>
+                    <span class="stem-status"></span>
+                </div>
+                <div class="ls-stems-ruler-left" aria-hidden="true">TRACKS</div>
+                <div class="ls-stems-timeline-ruler" aria-hidden="true">
+                    <span>1</span><span>5</span><span>9</span><span>13</span><span>17</span><span>21</span>
+                    <span>25</span><span>29</span><span>33</span><span>37</span><span>41</span><span>45</span>
+                    <span>49</span><span>53</span><span>57</span><span>61</span><span>65</span><span>69</span>
+                </div>
+                <div class="stem-list">Select a track with Stems.</div>
+            </div>
+
+            <div class="ls-global-player-wave-panel" id="ls-global-player-wave-panel">
+                <div class="ls-global-player-wave-layout">
+                    <div class="ls-global-player-wave-side">
+                        <div class="ls-stems-main-track" aria-label="Main track">
+                            <span class="stem-index">1</span>
+                            <button type="button" class="ls-stems-main-sound" tabindex="-1" aria-label="Main track audio">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10h4l5-4v12l-5-4H4z"></path><path d="M16 9c2 2 2 4 0 6"></path></svg>
+                            </button>
+                            <button type="button" tabindex="-1" aria-label="Main track solo indicator">S</button>
+                            <button type="button" tabindex="-1" aria-label="Main track source">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 14.5 14.5 9.5"></path><path d="M7.2 17.1 5.9 18.4a3.5 3.5 0 0 1-5-5l3-3a3.5 3.5 0 0 1 5 0"></path><path d="m16.8 6.9 1.3-1.3a3.5 3.5 0 0 1 5 5l-3 3a3.5 3.5 0 0 1-5 0"></path></svg>
+                            </button>
+                            <span class="ls-stems-main-title" id="ls-stems-main-title">Main track</span>
+                            <button type="button" tabindex="-1" aria-label="Main track menu">⋮</button>
+                        </div>
+                        <div class="ls-global-player-control-groups">
+                            <div class="ls-global-player-loop-controls">
+                                <button type="button" class="small-btn ls-global-player-loop-drawer" id="ls-global-player-loop-drawer" disabled title="Loop whole track or A/B section" aria-pressed="false">Loop</button>
+                            </div>
+                            <div class="ls-global-player-control-divider" aria-hidden="true"></div>
+                            <div class="ls-global-player-ab-controls" aria-label="A/B loop controls">
+                                <button type="button" class="small-btn ab-set-a-btn" disabled title="Set A at current position">Set A</button>
+                                <button type="button" class="small-btn ab-set-b-btn" disabled title="Set B at current position">Set B</button>
+                                <button type="button" class="small-btn ab-clear-btn ls-global-player-ab-clear" disabled title="Clear A/B loop" aria-label="Clear A/B loop">×</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="waveform-row">
+                        <div class="waveform-box" data-clip-label="MAIN TRACK" title="Click = seek; Ctrl+wheel = visual zoom; double-click = reset zoom">
+                            <div class="wave-loading">Select a track</div>
+                            <img class="waveform-image" alt="waveform">
+                            <div class="ab-region"></div>
+                            <div class="ab-marker ab-marker-a"><span>A</span></div>
+                            <div class="ab-marker ab-marker-b"><span>B</span></div>
+                            <div class="big-progress-fill"></div>
+                            <div class="big-progress-knob"></div>
+                        </div>
+                    </div>
+                    <div class="ls-global-player-wave-meta" aria-live="polite">
+                        <span class="ab-readout"></span>
+                        <span class="zoom-readout"></span>
+                        <span class="wave-status">player inactive</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="ls-global-player-compact">
+            <div class="ls-global-player-track">
+                <button type="button" class="ls-global-player-cover-wrap" id="ls-global-player-cover-open" disabled title="Atvērt pilna izmēra vāciņu jaunā cilnē">
+                    <img class="ls-global-player-cover" id="ls-global-player-cover" alt="Current track cover">
+                    <span class="ls-global-player-cover-placeholder" id="ls-global-player-cover-placeholder" aria-hidden="true">♪</span>
+                </button>
+                <div class="ls-global-player-track-copy">
+                    <div class="ls-global-player-title" id="ls-global-player-title">No track selected</div>
+                    <div class="ls-global-player-source-label" id="ls-global-player-source-label">Player inactive</div>
+                </div>
+            </div>
+
+            <div class="ls-global-player-transport">
+                <div class="ls-player-volume-control" id="ls-player-volume-control">
+                    <button
+                        type="button"
+                        class="ls-audio-output-toggle is-unknown"
+                        id="ls-audio-output-toggle"
+                        disabled
+                        title="Nolasa Windows audio izeju..."
+                        aria-label="Nolasa Windows audio izeju"
+                        aria-pressed="false"
+                    >
+                        <svg class="ls-output-speakers-icon" viewBox="0 0 32 32" aria-hidden="true">
+                            <path d="M5 13h6l7-6v18l-7-6H5z"></path>
+                            <path d="M22 12c2 2 2 6 0 8"></path>
+                            <path d="M25 9c4 4 4 10 0 14"></path>
+                        </svg>
+                        <svg class="ls-output-headphones-icon" viewBox="0 0 32 32" aria-hidden="true">
+                            <path d="M6 17v-2a10 10 0 0 1 20 0v2"></path>
+                            <path d="M6 17h5v9H8a2 2 0 0 1-2-2z"></path>
+                            <path d="M26 17h-5v9h3a2 2 0 0 0 2-2z"></path>
+                        </svg>
+                    </button>
+                    <div class="ls-player-volume-popover" id="ls-player-volume-popover" title="LS atskaņotāja skaļums. Šajā zonā darbojas arī peles rullītis.">
+                        <input type="range" class="ls-global-player-volume" id="ls-global-player-volume" min="0" max="1" step="0.01" value="1" aria-label="LS atskaņotāja skaļums">
+                        <button type="button" class="ls-player-volume-mute" id="ls-player-volume-mute" title="Izslēgt LS atskaņotāja skaņu" aria-label="Izslēgt LS atskaņotāja skaņu" aria-pressed="false">
+                            <svg class="ls-volume-audible-icon" viewBox="0 0 32 32" aria-hidden="true">
+                                <path d="M5 13h6l7-6v18l-7-6H5z"></path>
+                                <path d="M22 12c2 2 2 6 0 8"></path>
+                            </svg>
+                            <svg class="ls-volume-muted-icon" viewBox="0 0 32 32" aria-hidden="true">
+                                <path d="M5 13h6l7-6v18l-7-6H5z"></path>
+                                <path d="M22 12l7 8"></path>
+                                <path d="M29 12l-7 8"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <button type="button" class="ls-global-player-transport-small" id="ls-global-player-restart" disabled title="Uz dziesmas sākumu" aria-label="Uz dziesmas sākumu">↤</button>
+                <button type="button" class="ls-global-player-transport-small" id="ls-global-player-previous" disabled title="Iepriekšējā dziesma" aria-label="Iepriekšējā dziesma">⏮</button>
+                <button type="button" class="ls-global-player-play" id="ls-global-player-play" data-space-player="true" disabled title="Play / Pause">▶</button>
+                <button type="button" class="ls-global-player-transport-small" id="ls-global-player-next" disabled title="Nākamā dziesma" aria-label="Nākamā dziesma">⏭</button>
+                <button type="button" class="ls-global-player-loop" id="ls-global-player-loop" disabled title="Loop whole track or A/B section" aria-pressed="false">↻</button>
+            </div>
+
+            <div class="ls-global-player-middle">
+                <div class="ls-global-player-progress-wrap">
+                    <input type="range" class="ls-global-player-progress" id="ls-global-player-progress" min="0" max="100" step="0.1" value="0" disabled aria-label="Playback position">
+                    <span class="time-readout ls-global-player-time">0:00 / 0:00</span>
+                </div>
+                <div
+                    class="ls-global-player-flags-tags-host"
+                    id="ls-global-player-flags-tags-host"
+                    aria-label="Flags and Tags"
+                ></div>
+            </div>
+
+            <div class="ls-global-player-actions">
+                <button type="button" id="ls-global-player-compare" disabled>Compare</button>
+                <button type="button" id="ls-global-player-stems" disabled title="Show Stems">Stems</button>
+                <button type="button" id="ls-global-player-edit" disabled>Edit</button>
+                <button type="button" class="ls-global-player-expand" id="ls-global-player-expand" disabled title="Expand player" aria-expanded="false">▲</button>
+            </div>
+        </div>
+
+        <div class="ls-suno-hosted-player" id="ls-suno-hosted-player" hidden aria-live="polite">
+            <div class="ls-suno-hosted-player-mount" id="ls-suno-hosted-player-mount"></div>
+            <div class="ls-suno-hosted-player-error" id="ls-suno-hosted-player-error" hidden>
+                <span id="ls-suno-hosted-player-error-text"></span>
+                <a id="ls-suno-hosted-player-open" href="https://suno.com/" target="_blank" rel="noopener noreferrer">Atvērt Suno</a>
+            </div>
+        </div>
+        <audio class="audio-player ls-global-player-audio" preload="metadata" tabindex="-1"></audio>
+    </section>

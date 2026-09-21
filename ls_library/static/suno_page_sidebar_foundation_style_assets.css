@@ -1,0 +1,91 @@
+        /* Existing top header becomes a fixed Suno-like left rail. */
+        header {
+            position: fixed;
+            inset: 0 auto 0 0;
+            width: var(--ls-suno-sidebar-width);
+            height: 100vh;
+            box-sizing: border-box;
+            padding: 18px 12px 16px;
+            background: var(--ls-suno-sidebar);
+            color: var(--ls-suno-sidebar-text);
+            box-shadow: none;
+            border-right: 1px solid var(--ls-suno-line);
+            z-index: 1300;
+            overflow: visible;
+        }
+
+        .header-row {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            justify-content: flex-start;
+            gap: 0;
+        }
+
+        .header-title-box {
+            flex: 0 0 auto;
+            min-width: 0;
+            min-height: 42px;
+            padding: 3px 5px 8px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+        }
+
+        h1 {
+            color: #FFFFFF;
+            font-size: 19px;
+            line-height: 1.2;
+            letter-spacing: -0.2px;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .ls-sidebar-title-compact {
+            display: none;
+        }
+
+        .ls-sidebar-collapse-btn {
+            flex: 0 0 auto;
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 0;
+            border-radius: 50%;
+            background: transparent;
+            color: var(--ls-suno-sidebar-text);
+            cursor: pointer;
+        }
+
+        .ls-sidebar-collapse-btn:hover {
+            background: rgba(255,255,255,.09);
+            color: #FFFFFF;
+        }
+
+        .ls-sidebar-icon {
+            flex: 0 0 auto;
+            width: 22px;
+            height: 22px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ls-sidebar-icon svg {
+            width: 22px;
+            height: 22px;
+            display: block;
+        }
+
+        .ls-sidebar-label {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+

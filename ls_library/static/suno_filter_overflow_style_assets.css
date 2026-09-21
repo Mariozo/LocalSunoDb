@@ -1,0 +1,45 @@
+        .ls-filter-overflow {
+            position: relative;
+            flex: 0 0 auto;
+        }
+
+        .ls-filter-overflow > summary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 28px;
+            box-sizing: border-box;
+            padding: 0 9px;
+            border: 1px solid var(--ls-filter-border);
+            border-radius: 999px;
+            background: rgba(255,255,255,0.07);
+            color: var(--ls-filter-text);
+            cursor: pointer;
+            list-style: none;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .ls-filter-overflow > summary::-webkit-details-marker { display: none; }
+
+        .ls-filter-overflow-menu {
+            position: absolute;
+            top: calc(100% + 7px);
+            right: 0;
+            z-index: 1900;
+            display: grid;
+            gap: 7px;
+            min-width: 220px;
+            padding: 9px;
+            border: 1px solid var(--ls-filter-border);
+            border-radius: 12px;
+            background: var(--ls-filter-surface);
+            box-shadow: 0 16px 34px rgba(0,0,0,0.42);
+        }
+
+        .ls-filter-overflow-menu .ls-filter-chip {
+            width: 100%;
+            max-width: 320px;
+            justify-content: space-between;
+        }
+

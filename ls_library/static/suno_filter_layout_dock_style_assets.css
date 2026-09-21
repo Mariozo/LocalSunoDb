@@ -1,0 +1,101 @@
+        @media (max-width: 1120px) {
+            .ls-active-filter-bar { align-items: flex-start; flex-wrap: wrap; }
+            .ls-active-filter-main { align-items: flex-start; }
+            .ls-active-filter-chips { flex-wrap: wrap; }
+            .ls-active-filter-meta {
+                width: 100%;
+                justify-content: flex-start;
+                flex-wrap: wrap;
+            }
+            .ls-saved-views-menu { right: auto; left: 0; }
+        }
+
+        @media (max-width: 1420px) {
+            .library-control-row {
+                flex-wrap: wrap;
+            }
+        }
+
+        /* v5 layout: selection row contains only filters, sorting and Select WAV. */
+        .library-control-row {
+            gap: 6px;
+            align-items: center;
+        }
+        .library-control-row > .library-filter-select,
+        .library-control-row > .library-multi-filter { flex: 0 1 auto; min-width: 0; }
+        .library-control-row > .library-sort-group { flex: 0 1 auto; }
+        .library-control-row > #wav-select-mode-btn { flex: 0 0 auto; white-space: nowrap; }
+        .ls-sidebar-explore {
+            margin-top: 30px;
+        }
+        .ls-sidebar-elza {
+            margin-top: 0;
+        }
+        .ls-sidebar-question-icon {
+            font-size: 20px;
+            font-weight: 400;
+            line-height: 1;
+            text-align: center;
+        }
+        .ls-sidebar-tools-wrap {
+            position: relative;
+            width: 100%;
+            overflow: visible;
+        }
+        .ls-sidebar-tools-trigger {
+            width: 100%;
+            box-sizing: border-box;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            box-shadow: none;
+            cursor: pointer;
+            text-align: left;
+        }
+        .ls-sidebar-tools-trigger:hover,
+        .ls-sidebar-tools-wrap.is-open .ls-sidebar-tools-trigger {
+            background: rgba(255,255,255,0.07);
+            color: #FFFFFF;
+        }
+        .ls-sidebar-tools-popover {
+            position: absolute;
+            left: calc(100% + 10px);
+            top: 0;
+            right: auto;
+            bottom: auto;
+            z-index: 6000;
+            min-width: 220px;
+        }
+        .ls-sidebar-tools-popover[hidden] { display: none !important; }
+        html.ls-sidebar-collapsed .ls-sidebar-explore { margin-top: 30px; }
+        html.ls-sidebar-collapsed .ls-sidebar-tools-wrap { width: 44px; }
+        html.ls-sidebar-collapsed .ls-sidebar-tools-popover { left: calc(100% + 8px); }
+        .ls-stats-modal-card { width: min(760px, calc(100vw - 40px)); max-height: calc(100vh - 70px); overflow: auto; }
+        .ls-stats-modal-card .stats { margin-top: 12px; }
+        @media (max-width: 1420px) {
+            .library-control-row { flex-wrap: wrap; }
+        }
+
+        /* Library filter panel viewport dock. */
+        :root {
+            --ls-library-filter-panel-height: 56px;
+        }
+
+        main {
+            margin-top: var(--ls-library-filter-panel-height, 56px);
+            height: calc(100vh - var(--ls-library-filter-panel-height, 56px));
+            padding-top: 10px;
+        }
+
+        main > .panel {
+            position: fixed;
+            top: 0;
+            left: var(--ls-suno-sidebar-width);
+            right: var(--ls-selected-panel-width);
+            width: auto;
+            margin: 0;
+            box-sizing: border-box;
+            z-index: 1250;
+        }
+        /* End Library filter panel viewport dock. */
+

@@ -1,0 +1,144 @@
+        .actions-cell {
+            white-space: normal;
+            overflow-wrap: normal;
+        }
+
+        .audio-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            align-items: center;
+            max-width: 100%;
+        }
+
+        .row-menu-wrap {
+            position: relative;
+            display: inline-flex;
+        }
+
+        .row-menu-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            border-radius: 50%;
+            background: #666;
+            font-size: 18px;
+            line-height: 1;
+        }
+
+        .row-menu {
+            /* v4.69: viewport-fixed popup. The menu used to live as an absolute
+               child of a table row, so the following grey player row could paint
+               over it. Fixed positioning keeps it above the whole table/player UI. */
+            position: fixed;
+            left: 0;
+            top: 0;
+            right: auto;
+            bottom: auto;
+            min-width: 220px;
+            background: white;
+            border: 1px solid #cfcfcf;
+            border-radius: 8px;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.22);
+            padding: 5px;
+            z-index: 20000;
+        }
+
+        .row-menu.row-menu-up {
+            /* Kept for backward compatibility; v4.69 calculates exact fixed coordinates. */
+        }
+
+        .row-menu-item {
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: white;
+            color: #222;
+            border-radius: 6px;
+            padding: 7px 9px;
+            font-size: 13px;
+        }
+
+        .row-menu-item:hover {
+            background: #eeeeee;
+            opacity: 1;
+        }
+
+        .row-menu-item.danger {
+            color: #a50e0e;
+        }
+
+        .icon-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 30px;
+            padding: 0;
+            margin-right: 0;
+            border-radius: 50%;
+            background: #1a73e8;
+            color: white;
+            font-size: 14px;
+            line-height: 1;
+        }
+
+        .icon-btn.active {
+            background: #0b57d0;
+        }
+
+        .icon-btn.has-stems-play {
+            background: #00c853;
+        }
+
+        .icon-btn.has-stems-play.active {
+            background: #00a844;
+        }
+
+
+        .icon-btn.no-local-play {
+            background: #9aa0a6;
+            color: white;
+        }
+
+        .icon-btn.no-local-play.active {
+            background: #6f7479;
+        }
+
+        .local-link,
+        .small-action {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 30px;
+            padding: 5px 8px;
+            border-radius: 7px;
+            border: 0;
+            background: #666;
+            color: white;
+            text-decoration: none;
+            font-size: 12px;
+            line-height: 1;
+            box-sizing: border-box;
+        }
+
+        .compare-btn {
+            background: #1a73e8;
+        }
+
+        .muted {
+            color: #999;
+            font-size: 12px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .row-hidden {
+            display: none;
+        }
+

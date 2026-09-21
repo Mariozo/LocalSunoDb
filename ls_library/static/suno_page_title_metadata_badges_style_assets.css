@@ -1,0 +1,242 @@
+        .title-meta-line {
+            margin-top: 5px;
+            min-height: 20px;
+        }
+
+        .title-meta {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+            flex: 0 0 auto;
+        }
+
+        .title-badge {
+            display: inline-flex;
+            align-items: center;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1;
+            border-radius: 5px;
+            padding: 3px 6px;
+        }
+
+
+        .ls-local-family-badge {
+            color: #fff !important;
+            background: #198539 !important;
+            border: 1px solid #B5E61D !important;
+        }
+
+        .suno-ui-badge {
+            color: #444;
+            background: #f1f3f4;
+            border: 1px solid #d8d8d8;
+        }
+
+        .intent-audit-badge {
+            color: #0f62fe;
+            background: #edf5ff;
+            border: 1px solid #78a9ff;
+            font: inherit;
+            cursor: pointer;
+        }
+
+        .intent-audit-badge:hover {
+            background: #d0e2ff;
+            border-color: #0f62fe;
+        }
+
+        .intent-audit-decision-status {
+            position: fixed;
+            top: 18px;
+            left: 50%;
+            z-index: 10050;
+            transform: translate(-50%, -12px);
+            padding: 9px 14px;
+            border: 1px solid #42be65;
+            border-radius: 7px;
+            color: #082b16;
+            background: #defbe6;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, .24);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .16s ease, transform .16s ease;
+        }
+
+        .intent-audit-decision-status.show {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+
+        .suno-ui-badge-song,
+        .suno-ui-badge-instrumental {
+            color: #6b4f00;
+            background: #fff8db;
+            border-color: #e6c85c;
+        }
+
+        .suno-ui-badge-upload,
+        .suno-ui-badge-cover,
+        .suno-ui-badge-mashup,
+        .suno-ui-badge-extend {
+            color: #0b57d0;
+            background: #eef5ff;
+            border-color: #9ec1ff;
+        }
+
+        .main-category-badge {
+            border: 1px solid transparent;
+        }
+
+        .main-category-toggle-btn {
+            cursor: pointer;
+        }
+
+        .main-category-toggle-btn:hover {
+            filter: brightness(0.96);
+            transform: translateY(-1px);
+        }
+
+        .main-category-toggle-btn.saving {
+            opacity: 0.55;
+            cursor: wait;
+        }
+
+        .main-category-song.main-category-confidence-strong {
+            color: #5f4300;
+            background: #ffd45c;
+            border-color: #d39b00;
+        }
+
+        .main-category-song.main-category-confidence-medium {
+            color: #6b4f00;
+            background: #fff0a8;
+            border-color: #e6c85c;
+        }
+
+        .main-category-song.main-category-confidence-weak {
+            color: #7a6424;
+            background: #fff8db;
+            border-color: #eadf9a;
+        }
+
+        .main-category-instrumental.main-category-confidence-strong {
+            color: #073763;
+            background: #8fd6ff;
+            border-color: #2898d8;
+        }
+
+        .main-category-instrumental.main-category-confidence-medium {
+            color: #174a6a;
+            background: #c8ecff;
+            border-color: #7ec5e8;
+        }
+
+        .main-category-instrumental.main-category-confidence-weak {
+            color: #536b76;
+            background: #eef8fd;
+            border-color: #c9dfe9;
+        }
+
+        .main-category-confidence-special {
+            color: #555;
+            background: #eeeeee;
+            border-color: #cccccc;
+        }
+
+        .main-category-uncertain {
+            color: #5f4a00;
+            background: #fff2b8;
+            border-color: #d5b94c;
+        }
+
+        .stems-title-badge {
+            color: #188038;
+            background: #e6f4ea;
+            border: 1px solid #188038;
+        }
+
+        .title-like-badge {
+            cursor: pointer;
+        }
+
+        .ls-like-thumb {
+            width: 24px;
+            height: 24px;
+            display: block;
+        }
+
+        .ls-like-thumb-path {
+            fill: #ffffff;
+            stroke: #111111;
+            stroke-width: 4.2;
+            stroke-linejoin: round;
+            stroke-linecap: round;
+        }
+
+        .like-toggle-btn.liked .ls-like-thumb-path {
+            fill: #ffcc24;
+            stroke: #111111;
+        }
+
+        .bpm-badge {
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            background: transparent;
+            border: 0;
+            font-size: 18px;
+            font-weight: 700;
+            line-height: 1.15;
+            padding-left: 0;
+            padding-right: 0;
+            white-space: nowrap;
+        }
+
+        .bpm-badge-known {
+            color: #555;
+        }
+
+        .bpm-badge-empty {
+            color: #b6b6b6;
+        }
+
+        .model-badge {
+            min-width: 0;
+            justify-content: center;
+            border: 1px solid transparent;
+            border-radius: 5px;
+            padding: 2px 5px;
+            font-size: 15px;
+            font-weight: 700;
+            line-height: 1;
+            box-sizing: border-box;
+        }
+
+        .model-badge-red {
+            color: #ff1f2d;
+            background: #fff6f6;
+            border-color: #ff1f2d;
+        }
+
+        .model-badge-green {
+            color: #a7ad91;
+            background: #eef3df;
+            border-color: #8f9871;
+        }
+
+        .model-badge-guess {
+            color: #c0392b;
+            background: #fff2f0;
+            border-color: #f0b8b2;
+        }
+
+        .model-badge-empty {
+            color: #c9cdd1;
+            background: #f8f9fa;
+            border-color: #eceff1;
+            min-width: 22px;
+        }
+
+        .created-cell,
+        .duration-cell,

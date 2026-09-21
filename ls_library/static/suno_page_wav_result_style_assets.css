@@ -1,0 +1,60 @@
+        .wav-result-modal {
+            width: min(920px, 94vw);
+            max-height: 88vh;
+            overflow: auto;
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 8px 36px rgba(0,0,0,0.38);
+            padding: 24px;
+        }
+
+        .wav-result-modal h2 {
+            margin: 0 0 18px 0;
+            font-size: 24px;
+        }
+
+        .wav-result-summary {
+            display: grid;
+            grid-template-columns: 170px minmax(0, 1fr);
+            gap: 10px 16px;
+            align-items: start;
+            font-size: 16px;
+            line-height: 1.45;
+        }
+
+        .wav-result-label {
+            font-weight: 700;
+            color: #333;
+        }
+
+        .wav-result-value {
+            min-width: 0;
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+
+        .wav-result-path {
+            font-family: Consolas, "Courier New", monospace;
+            background: #f5f6f7;
+            border: 1px solid #d9dde2;
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+
+        .wav-result-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 22px;
+            position: sticky;
+            bottom: -24px;
+            background: white;
+            padding: 14px 0 2px 0;
+        }
+
+        .wav-result-actions button {
+            min-width: 120px;
+            font-size: 16px;
+            padding: 10px 18px;
+        }
+

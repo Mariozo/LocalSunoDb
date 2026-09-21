@@ -1,0 +1,113 @@
+
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 0 0 auto;
+            margin-left: auto;
+        }
+
+        .autoplay-top-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 82px;
+            height: 32px;
+            padding: 0 10px;
+            border-radius: 16px;
+            background: #5f6368;
+            color: #f1f3f4;
+            font-size: 13px;
+            font-weight: 700;
+            border: 1px solid rgba(255,255,255,0.22);
+        }
+
+        .autoplay-top-btn.active {
+            background: #188038;
+            color: white;
+            border-color: #34a853;
+        }
+
+        .top-menu-wrap,
+        .profile-menu-wrap {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .profile-btn {
+            width: 38px;
+            height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            padding: 0;
+            overflow: hidden;
+            background: #3c4043;
+            border: 1px solid rgba(255,255,255,0.30);
+            color: white;
+            font-weight: 700;
+        }
+
+        .profile-btn img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .top-dropdown {
+            position: absolute;
+            right: 0;
+            top: 44px;
+            min-width: 210px;
+            background: white;
+            color: #222;
+            border: 1px solid #cfcfcf;
+            border-radius: 10px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.26);
+            padding: 7px;
+            z-index: 1600;
+        }
+
+        .top-menu-item {
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: white;
+            color: #222;
+            border-radius: 7px;
+            padding: 8px 10px;
+            font-size: 14px;
+            text-decoration: none;
+            box-sizing: border-box;
+        }
+
+        .top-menu-item:hover {
+            background: #eeeeee;
+            opacity: 1;
+        }
+
+        .top-menu-separator {
+            height: 1px;
+            background: #e0e0e0;
+            margin: 6px 4px;
+        }
+
+        .profile-card {
+            padding: 10px;
+            min-width: 230px;
+        }
+
+        .profile-card-title {
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .profile-card-sub {
+            color: #666;
+            font-size: 13px;
+            line-height: 1.35;
+        }

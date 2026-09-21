@@ -1,0 +1,47 @@
+# Runtime / user data
+suno_finder_v4.db
+suno_finder_v4.db-*
+error.log
+Logs/
+Reports/
+Backup/
+Temp/
+Tools/
+exports/
+
+# Runtime-created Data files; keep the shared F&T catalog in Git
+Data/*
+!Data/localsunodb_tags.txt
+
+# Generated release/update metadata
+LS_CHANGELOG.md
+LS_VERSION.json
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local / generated audio
+*.wav
+*.mp3
+*.m4a
+*.aac
+*.flac
+*.ogg
+*.opus
+*.wma
+*.aif
+*.aiff
+
+# Archives / generated packages
+*.zip
+
+# Review / migration notes
+FT_TAG_REVIEW.txt

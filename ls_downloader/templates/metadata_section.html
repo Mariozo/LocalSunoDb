@@ -1,0 +1,23 @@
+            <section class="downloader-column downloader-metadata-column" data-downloader-section="metadata">
+
+                    <div class="card metadata-actions-card">
+                        <h2>Metadati</h2>
+                        <div class="metadata-compact-actions">
+                            <button type="button" class="secondary big-action" id="check-selected-metadata-btn" data-action-label="Pārbaudīt izvēlētās dziesmas metadatus">Pārbaudīt izvēlētās dziesmas metadatus</button>
+                            <button type="button" class="purple big-action" id="refresh-tracklist-btn" data-action-label="Atjaunot dziesmu sarakstu">Atjaunot dziesmu sarakstu</button>
+                            <button type="button" class="orange big-action" id="update-preview-btn" data-action-label="Pārbaudīt DB metadatus">Pārbaudīt DB metadatus</button>
+                            <button type="button" class="green big-action" id="auto-metadata-backfill-btn" data-action-label="Pārbaudīt atlikušos metadatus automātiski">Pārbaudīt atlikušos metadatus automātiski</button>
+                        </div>
+                        <div id="auto-metadata-backfill-status" class="status" style="display:none;"></div>
+                        <p class="muted">
+                            Izvēlētās dziesmas metadatu pārbaude ir tikai priekšskatījums — LS DB netiek mainīta.
+                            Dziesmu saraksta atjaunošana ir drošs priekšskatījums. DB metadatu pārbaude atrod ierakstus ar trūkstošiem metadatu laukiem.
+                            Automātiskais režīms izveido vienu DB rezerves kopiju un papildina tikai droši apstrādājamus laukus.
+                        </p>
+                    </div>
+                <div class="card downloader-status-card metadata-log-card">
+                    <h2>Statuss / žurnāls</h2>
+                    <div id="meta-status" class="status">Gatavs. Spied “Pārbaudīt DB metadatus” — LS atradīs DB ierakstus ar trūkstošiem metadatu laukiem.</div>
+                    <div id="meta-result"></div>
+                </div>
+            </section>

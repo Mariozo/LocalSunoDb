@@ -1,0 +1,51 @@
+{
+  "manifest_version": 3,
+  "name": "LS Suno Token Bridge",
+  "version": "2.4.2",
+  "description": "Captures Suno API authorization from Suno page fetch/XHR calls and relays it only to the local LocalSunoDb on 127.0.0.1:8765.",
+  "minimum_chrome_version": "120",
+  "permissions": [
+    "alarms",
+    "tabs",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://suno.com/*",
+    "http://127.0.0.1:8765/*"
+  ],
+  "background": {
+    "service_worker": "service_worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://suno.com/*"
+      ],
+      "js": [
+        "page_capture.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://suno.com/*"
+      ],
+      "js": [
+        "content_bridge.js"
+      ],
+      "run_at": "document_start",
+      "world": "ISOLATED"
+    },
+    {
+      "matches": [
+        "http://127.0.0.1:8765/*"
+      ],
+      "js": [
+        "local_probe.js"
+      ],
+      "run_at": "document_start",
+      "world": "ISOLATED"
+    }
+  ]
+}

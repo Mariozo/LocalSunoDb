@@ -1,0 +1,653 @@
+:root {
+            --ls-popup-overlay: rgba(1, 9, 5, .66);
+            --ls-popup-surface: #26372E;
+            --ls-popup-raised: #30453A;
+            --ls-popup-field: #18261F;
+            --ls-popup-hover: #3B5145;
+            --ls-popup-secondary: #394A40;
+            --ls-popup-secondary-hover: #465A4D;
+            --ls-popup-disabled: #2D3932;
+            --ls-popup-border: rgba(236, 246, 240, .20);
+            --ls-popup-border-strong: rgba(236, 246, 240, .34);
+            --ls-popup-text: #F7FAF8;
+            --ls-popup-muted: #BDC8C1;
+            --ls-popup-primary: #188038;
+            --ls-popup-primary-hover: #147044;
+            --ls-popup-focus: #83B6FF;
+            --ls-popup-success: #A6E8BE;
+            --ls-popup-warning: #FFD27A;
+            --ls-popup-danger: #FFB3B3;
+            --ls-popup-radius: 16px;
+            --ls-popup-shadow: 0 22px 64px rgba(0, 0, 0, .50);
+        }
+
+        .modal-backdrop,
+        .busy-backdrop,
+        .ls-refresh-wait,
+        .ls-popup-overlay {
+            background: var(--ls-popup-overlay) !important;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal,
+        .lyrics-editor-dialog,
+        .wav-preview-modal,
+        .wav-result-modal,
+        .compare-this-modal,
+        .compare-this-review-editor,
+        .busy-box,
+        .ls-refresh-box,
+        .user-tag-panel,
+        .ls-popup-dialog {
+            background: var(--ls-popup-surface) !important;
+            color: var(--ls-popup-text) !important;
+            border: 1px solid var(--ls-popup-border) !important;
+            border-radius: var(--ls-popup-radius) !important;
+            box-shadow: var(--ls-popup-shadow) !important;
+            box-sizing: border-box;
+            color-scheme: dark;
+        }
+
+        .modal h1, .modal h2, .modal h3,
+        .lyrics-editor-dialog h1, .lyrics-editor-dialog h2,
+        .wav-preview-modal h1, .wav-preview-modal h2,
+        .wav-result-modal h1, .wav-result-modal h2,
+        .compare-this-modal h1, .compare-this-modal h2,
+        .user-tag-panel h1, .user-tag-panel h2,
+        .ls-popup-dialog h1, .ls-popup-dialog h2 {
+            color: var(--ls-popup-text) !important;
+        }
+
+        .user-tag-panel {
+            background: #10593B !important;
+        }
+
+        .user-tag-panel.filter-mode {
+            background: #0B3D28 !important;
+        }
+
+        .modal .muted,
+        .lyrics-editor-track-title,
+        .lyrics-editor-status,
+        .track-text-source,
+        .user-tag-panel-track,
+        .user-tag-panel-status,
+        .user-flag-panel-help,
+        .user-tag-section-title,
+        .user-tag-empty,
+        .wav-family-choice-note,
+        .wav-family-choice-status,
+        .busy-text,
+        .ls-refresh-subtitle,
+        .ls-refresh-counter,
+        .ls-refresh-tip,
+        .profile-card-sub {
+            color: var(--ls-popup-muted) !important;
+        }
+
+        .modal p[style*="color:#666"],
+        .modal span[style*="color:#666"] {
+            color: var(--ls-popup-muted) !important;
+        }
+
+        .modal input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+        .modal textarea,
+        .modal select,
+        .lyrics-editor-dialog input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+        .lyrics-editor-dialog textarea,
+        .lyrics-editor-dialog select,
+        .wav-preview-modal input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+        .wav-preview-modal textarea,
+        .wav-preview-modal select,
+        .wav-result-modal input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+        .wav-result-modal textarea,
+        .wav-result-modal select,
+        .compare-this-modal input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+        .compare-this-modal textarea,
+        .compare-this-modal select,
+        .user-tag-panel input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+        .user-tag-panel textarea,
+        .user-tag-panel select {
+            background: var(--ls-popup-field) !important;
+            color: var(--ls-popup-text) !important;
+            caret-color: var(--ls-popup-text) !important;
+            border-color: var(--ls-popup-border-strong) !important;
+            color-scheme: dark;
+        }
+
+        .modal input::placeholder,
+        .modal textarea::placeholder,
+        .lyrics-editor-dialog input::placeholder,
+        .lyrics-editor-dialog textarea::placeholder,
+        .wav-preview-modal input::placeholder,
+        .wav-preview-modal textarea::placeholder,
+        .user-tag-panel input::placeholder,
+        .user-tag-panel textarea::placeholder {
+            color: #95A49B !important;
+            opacity: 1;
+        }
+
+        .modal input:focus, .modal textarea:focus, .modal select:focus,
+        .lyrics-editor-dialog input:focus, .lyrics-editor-dialog textarea:focus, .lyrics-editor-dialog select:focus,
+        .wav-preview-modal input:focus, .wav-preview-modal textarea:focus, .wav-preview-modal select:focus,
+        .wav-result-modal input:focus, .wav-result-modal textarea:focus, .wav-result-modal select:focus,
+        .compare-this-modal input:focus, .compare-this-modal textarea:focus, .compare-this-modal select:focus,
+        .user-tag-panel input:focus, .user-tag-panel textarea:focus, .user-tag-panel select:focus {
+            border-color: var(--ls-popup-focus) !important;
+            outline: 2px solid rgba(101, 162, 243, .26) !important;
+            outline-offset: 1px;
+        }
+
+        .modal select option,
+        .lyrics-editor-dialog select option,
+        .wav-preview-modal select option,
+        .wav-result-modal select option,
+        .compare-this-modal select option,
+        .user-tag-panel select option {
+            background: var(--ls-popup-field);
+            color: var(--ls-popup-text);
+        }
+
+        .modal input[type="checkbox"], .modal input[type="radio"], .modal input[type="range"],
+        .lyrics-editor-dialog input[type="checkbox"], .lyrics-editor-dialog input[type="radio"], .lyrics-editor-dialog input[type="range"],
+        .wav-preview-modal input[type="checkbox"], .wav-preview-modal input[type="radio"], .wav-preview-modal input[type="range"],
+        .wav-result-modal input[type="checkbox"], .wav-result-modal input[type="radio"], .wav-result-modal input[type="range"],
+        .compare-this-modal input[type="checkbox"], .compare-this-modal input[type="radio"], .compare-this-modal input[type="range"],
+        .user-tag-panel input[type="checkbox"], .user-tag-panel input[type="radio"], .user-tag-panel input[type="range"],
+        .ls-elza-dialog input[type="checkbox"], .ls-elza-dialog input[type="radio"], .ls-elza-dialog input[type="range"] {
+            accent-color: var(--ls-popup-primary);
+        }
+
+        .modal button,
+        .lyrics-editor-dialog button,
+        .wav-preview-modal button,
+        .wav-result-modal button,
+        .compare-this-modal button,
+        .user-tag-panel button,
+        .ls-popup-dialog button {
+            background: var(--ls-popup-secondary);
+            color: var(--ls-popup-text);
+            border-color: var(--ls-popup-border-strong);
+        }
+
+        .modal button:hover,
+        .lyrics-editor-dialog button:hover,
+        .wav-preview-modal button:hover,
+        .wav-result-modal button:hover,
+        .compare-this-modal button:hover,
+        .user-tag-panel button:hover,
+        .ls-popup-dialog button:hover {
+            background: var(--ls-popup-secondary-hover);
+            color: #FFFFFF;
+            opacity: 1;
+        }
+
+        .modal button.green,
+        .modal button.primary,
+        .lyrics-editor-save.changed,
+        .ls-popup-primary {
+            background: var(--ls-popup-primary) !important;
+            color: #FFFFFF !important;
+            border-color: #35AF73 !important;
+        }
+
+        .modal button.green:hover,
+        .modal button.primary:hover,
+        .lyrics-editor-save.changed:hover,
+        .ls-popup-primary:hover {
+            background: var(--ls-popup-primary-hover) !important;
+        }
+
+        .modal button:disabled,
+        .lyrics-editor-dialog button:disabled,
+        .wav-preview-modal button:disabled,
+        .wav-result-modal button:disabled,
+        .compare-this-modal button:disabled,
+        .user-tag-panel button:disabled,
+        .ls-popup-dialog button:disabled {
+            background: var(--ls-popup-disabled) !important;
+            color: #819087 !important;
+            border-color: rgba(255,255,255,.08) !important;
+            opacity: 1 !important;
+            cursor: default;
+        }
+
+        .modal-close,
+        .user-tag-panel-close,
+        .compare-this-close,
+        .ls-popup-secondary {
+            background: var(--ls-popup-secondary) !important;
+            color: var(--ls-popup-text) !important;
+            border-color: var(--ls-popup-border) !important;
+        }
+
+        .modal-close:hover,
+        .user-tag-panel-close:hover,
+        .compare-this-close:hover,
+        .ls-popup-secondary:hover {
+            background: var(--ls-popup-secondary-hover) !important;
+        }
+
+        .top-dropdown {
+            background: var(--ls-popup-surface) !important;
+            color: var(--ls-popup-text) !important;
+            border-color: var(--ls-popup-border) !important;
+            border-radius: 12px !important;
+            box-shadow: 0 16px 42px rgba(0,0,0,.46) !important;
+        }
+
+        .ls-saved-views-menu,
+        .ls-filter-overflow-menu,
+        .library-multi-menu,
+        .library-tools-popover,
+        .row-menu,
+        .compare-this-review-editor {
+            background: var(--ls-popup-surface) !important;
+            color: var(--ls-popup-text) !important;
+            border: 1px solid var(--ls-popup-border) !important;
+            border-radius: 12px !important;
+            box-shadow: 0 16px 42px rgba(0,0,0,.46) !important;
+            color-scheme: dark;
+        }
+
+        .row-menu-item,
+        .library-tools-popover button,
+        .library-tools-popover .btn {
+            background: transparent !important;
+            color: var(--ls-popup-text) !important;
+            border-color: transparent !important;
+        }
+
+        .row-menu-item:hover,
+        .library-multi-option:hover,
+        .library-tools-popover button:hover,
+        .library-tools-popover .btn:hover,
+        .ls-saved-view-row:hover {
+            background: var(--ls-popup-hover) !important;
+            color: #FFFFFF !important;
+            opacity: 1;
+        }
+
+        .row-menu-item.danger,
+        .ls-saved-view-delete {
+            color: var(--ls-popup-danger) !important;
+        }
+
+        .library-multi-option,
+        .ls-saved-view-link {
+            color: var(--ls-popup-text) !important;
+        }
+
+        .top-menu-item {
+            background: transparent !important;
+            color: var(--ls-popup-text) !important;
+        }
+
+        .top-menu-item:hover {
+            background: var(--ls-popup-hover) !important;
+        }
+
+        .top-menu-separator,
+        .user-tag-panel-header,
+        .user-tag-section-divider,
+        .user-tag-filter-actions {
+            border-color: var(--ls-popup-border) !important;
+        }
+
+        .top-menu-separator,
+        .user-tag-section-divider {
+            background: var(--ls-popup-border) !important;
+        }
+
+        .busy-spinner {
+            border-color: #52665A !important;
+            border-top-color: var(--ls-popup-primary-hover) !important;
+        }
+
+        .busy-tip {
+            background: var(--ls-popup-raised) !important;
+            color: var(--ls-popup-muted) !important;
+            border-color: var(--ls-popup-border) !important;
+        }
+
+        .busy-tip strong {
+            color: var(--ls-popup-text) !important;
+        }
+
+        .ls-refresh-spinner {
+            border-color: #52665A !important;
+            border-top-color: var(--ls-popup-primary-hover) !important;
+        }
+
+        .ls-refresh-title {
+            color: var(--ls-popup-text) !important;
+        }
+
+        .ls-refresh-tip {
+            border-color: var(--ls-popup-border) !important;
+            background: var(--ls-popup-raised) !important;
+        }
+
+        .track-text-tab,
+        .user-flag-panel-star,
+        .user-tag-pin,
+        .user-tag-toggle,
+        .user-tag-filter-clear {
+            background: var(--ls-popup-raised) !important;
+            color: var(--ls-popup-muted) !important;
+            border-color: var(--ls-popup-border) !important;
+        }
+
+        .track-text-tab.active,
+        .user-tag-toggle.active {
+            background: rgba(28, 139, 86, .30) !important;
+            color: #BDF5D3 !important;
+            border-color: #35AF73 !important;
+        }
+
+        .user-flag-panel-star.filled {
+            background: rgba(242, 179, 61, .16) !important;
+            color: #F2B33D !important;
+            border-color: rgba(242, 179, 61, .48) !important;
+        }
+
+        .user-flag-number {
+            color: var(--ls-popup-muted) !important;
+        }
+
+        .user-tag-input-clear {
+            background: var(--ls-popup-secondary) !important;
+            color: var(--ls-popup-text) !important;
+        }
+
+        .user-tag-delete {
+            background: rgba(255, 104, 104, .14) !important;
+            color: var(--ls-popup-danger) !important;
+        }
+
+        .user-tag-filter-apply {
+            background: var(--ls-popup-primary) !important;
+            color: #FFFFFF !important;
+        }
+
+        .wav-preview-path,
+        .wav-result-path,
+        .wav-family-confirmation {
+            background: var(--ls-popup-raised) !important;
+            color: var(--ls-popup-text) !important;
+            border-color: var(--ls-popup-border) !important;
+        }
+
+        .wav-preview-label,
+        .wav-result-label,
+        .wav-family-choice label {
+            color: var(--ls-popup-text) !important;
+        }
+
+        .wav-family-confirmation.confirmed,
+        .wav-preview-note {
+            background: rgba(42, 130, 79, .18) !important;
+            color: #C9F5D8 !important;
+            border-color: rgba(86, 194, 125, .42) !important;
+        }
+
+        .wav-family-badge {
+            background: rgba(255, 104, 104, .14) !important;
+            color: var(--ls-popup-danger) !important;
+        }
+
+        .wav-family-confirmation.confirmed .wav-family-badge {
+            background: rgba(42, 130, 79, .24) !important;
+            color: var(--ls-popup-success) !important;
+        }
+
+        .wav-family-choice-status.error {
+            color: var(--ls-popup-danger) !important;
+        }
+
+        .wav-preview-actions,
+        .wav-result-actions {
+            background: linear-gradient(180deg, rgba(38,55,46,0), var(--ls-popup-surface) 32%) !important;
+        }
+
+        .wav-preview-modal .download-wav-btn,
+        .wav-result-modal .download-wav-btn {
+            background: var(--ls-popup-primary) !important;
+            color: #FFFFFF !important;
+            border-color: #35AF73 !important;
+        }
+
+        .wav-preview-modal .download-wav-btn:hover,
+        .wav-result-modal .download-wav-btn:hover {
+            background: var(--ls-popup-primary-hover) !important;
+        }
+
+        .ls-saved-view-modal-card,
+        .ls-saved-view-modal-card h2 {
+            background: var(--ls-popup-surface) !important;
+            color: var(--ls-popup-text) !important;
+        }
+
+        .ls-saved-view-modal-card .muted,
+        .ls-saved-view-name-label {
+            color: var(--ls-popup-muted) !important;
+        }
+
+        #saved-view-name-input {
+            background: var(--ls-popup-field) !important;
+            color: var(--ls-popup-text) !important;
+            caret-color: var(--ls-popup-text) !important;
+            border-color: var(--ls-popup-border-strong) !important;
+        }
+
+        #saved-view-name-input::placeholder {
+            color: #95A49B !important;
+        }
+
+        .ls-saved-view-modal-status,
+        .lyrics-editor-status.error {
+            color: var(--ls-popup-danger);
+        }
+
+        .finder-search-box {
+            background: var(--ls-popup-surface) !important;
+            color: var(--ls-popup-text) !important;
+            border-color: var(--ls-popup-border) !important;
+            border-radius: 12px !important;
+            box-shadow: 0 16px 42px rgba(0,0,0,.46) !important;
+        }
+
+        #finder-search-input {
+            background: var(--ls-popup-field) !important;
+            color: var(--ls-popup-text) !important;
+            caret-color: var(--ls-popup-text) !important;
+            border-color: var(--ls-popup-border-strong) !important;
+        }
+
+        #finder-search-input::placeholder {
+            color: #95A49B !important;
+        }
+
+        .finder-count,
+        .finder-options-row,
+        .finder-options-row label {
+            color: var(--ls-popup-text) !important;
+        }
+
+        .finder-mini-btn,
+        .finder-close-btn {
+            color: var(--ls-popup-muted) !important;
+        }
+
+        .finder-mini-btn:hover,
+        .finder-close-btn:hover {
+            background: var(--ls-popup-hover) !important;
+            color: #FFFFFF !important;
+        }
+
+        #ls-global-backfill-alert {
+            background: #5A2E2D !important;
+            color: #FFE1DE !important;
+            border-color: #FF8E87 !important;
+            border-radius: 12px !important;
+            box-shadow: 0 18px 48px rgba(0,0,0,.50) !important;
+        }
+
+        #ls-global-backfill-alert-close,
+        #ls-global-backfill-alert-progress {
+            color: #FFD0CC !important;
+        }
+
+        .refresh-message.ok {
+            background: rgba(42, 130, 79, .18) !important;
+            color: #C9F5D8 !important;
+            border-color: rgba(86, 194, 125, .42) !important;
+        }
+
+        .refresh-message.error {
+            background: rgba(255, 104, 104, .14) !important;
+            color: #FFD0D0 !important;
+            border-color: rgba(255, 122, 122, .45) !important;
+        }
+
+        .refresh-summary {
+            background: var(--ls-popup-field) !important;
+            color: var(--ls-popup-text) !important;
+            border-color: var(--ls-popup-border) !important;
+        }
+
+        .ls-elza-dialog {
+            background: rgb(38 55 46 / var(--ls-elza-opacity)) !important;
+            color: var(--ls-popup-text) !important;
+            border-color: var(--ls-popup-border-strong) !important;
+            border-radius: var(--ls-popup-radius) !important;
+            box-shadow: var(--ls-popup-shadow) !important;
+            color-scheme: dark;
+        }
+
+        .ls-elza-head {
+            background: #203128 !important;
+            border-bottom-color: var(--ls-popup-border) !important;
+        }
+
+        .ls-elza-settings-panel,
+        .ls-elza-history,
+        .ls-elza-compose {
+            background: rgb(38 55 46 / var(--ls-elza-opacity)) !important;
+            color: var(--ls-popup-text) !important;
+            border-color: var(--ls-popup-border) !important;
+        }
+
+        .ls-elza-empty,
+        .ls-elza-message-label,
+        .ls-elza-settings-status,
+        .ls-elza-status,
+        .ls-elza-hint,
+        .ls-elza-attachment-name {
+            color: var(--ls-popup-muted) !important;
+        }
+
+        .ls-elza-status.error,
+        .ls-elza-copy-btn.copy-failed {
+            color: var(--ls-popup-danger) !important;
+        }
+
+        .ls-elza-bubble {
+            background: var(--ls-popup-raised) !important;
+            color: var(--ls-popup-text) !important;
+            border-color: var(--ls-popup-border) !important;
+            box-shadow: 0 2px 10px rgba(0,0,0,.20) !important;
+        }
+
+        .ls-elza-message-user .ls-elza-bubble {
+            background: #25543A !important;
+            border-color: rgba(81, 208, 138, .48) !important;
+        }
+
+        .ls-elza-copy-btn {
+            color: var(--ls-popup-muted) !important;
+        }
+
+        .ls-elza-copy-btn:hover {
+            background: var(--ls-popup-hover) !important;
+            color: #FFFFFF !important;
+        }
+
+        .ls-elza-copy-btn.copied {
+            background: rgba(42, 130, 79, .24) !important;
+            color: var(--ls-popup-success) !important;
+        }
+
+        .ls-elza-bubble code {
+            background: var(--ls-popup-field) !important;
+            color: #E7EFEA !important;
+            border-color: var(--ls-popup-border) !important;
+        }
+
+        .ls-elza-bubble pre code {
+            background: transparent !important;
+            color: inherit !important;
+            border: 0 !important;
+        }
+
+        .ls-elza-bubble blockquote {
+            background: rgba(101, 162, 243, .10) !important;
+            color: #C9D9EE !important;
+        }
+
+        .ls-elza-view-action-secondary,
+        .ls-elza-view-action-secondary:hover {
+            background: var(--ls-popup-secondary) !important;
+            color: var(--ls-popup-text) !important;
+            border-color: var(--ls-popup-border-strong) !important;
+        }
+
+        .ls-elza-view-action-secondary:disabled,
+        .ls-elza-view-action-secondary:disabled:hover {
+            background: var(--ls-popup-disabled) !important;
+            color: #829087 !important;
+            border-color: var(--ls-popup-border) !important;
+        }
+
+        .ls-elza-input,
+        .ls-elza-attachment {
+            background: var(--ls-popup-field) !important;
+            color: var(--ls-popup-text) !important;
+            caret-color: var(--ls-popup-text) !important;
+            border-color: var(--ls-popup-border-strong) !important;
+        }
+
+        .ls-elza-input {
+            background: #316E4B !important;
+        }
+
+        .ls-elza-input::placeholder {
+            color: #95A49B !important;
+        }
+
+        .ls-elza-input:focus {
+            border-color: var(--ls-popup-focus) !important;
+            outline: 2px solid rgba(101, 162, 243, .26) !important;
+            outline-offset: 1px;
+        }
+
+        .ls-elza-attachment-remove {
+            background: var(--ls-popup-secondary) !important;
+            color: var(--ls-popup-text) !important;
+            border-color: var(--ls-popup-border-strong) !important;
+        }
+
+        @media (forced-colors: active) {
+            .modal,
+            .lyrics-editor-dialog,
+            .wav-preview-modal,
+            .wav-result-modal,
+            .compare-this-modal,
+            .busy-box,
+            .user-tag-panel,
+            .ls-elza-dialog,
+            .top-dropdown,
+            .finder-search-box {
+                border: 1px solid CanvasText !important;
+            }
+        }

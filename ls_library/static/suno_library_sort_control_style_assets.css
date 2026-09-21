@@ -1,0 +1,72 @@
+        .library-sort-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            flex: 0 0 auto;
+        }
+
+        .library-sort-control {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            height: 40px;
+            padding: 0 12px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 999px;
+            background: rgba(255,255,255,0.055);
+            color: #AEB7B2;
+            font-size: 12px;
+            font-weight: 650;
+            line-height: 1;
+            white-space: nowrap;
+        }
+
+        .library-sort-control:hover {
+            background: rgba(255,255,255,0.09);
+            color: #FFFFFF;
+        }
+
+        .library-sort-control::after {
+            content: none !important;
+        }
+
+        .library-sort-control.sort-asc,
+        .library-sort-control.sort-desc {
+            color: #FFFFFF;
+            background: rgba(255,255,255,0.105);
+            border-color: rgba(255,255,255,0.16);
+        }
+
+        .library-sort-icon {
+            display: inline-flex;
+            width: 12px;
+            height: 18px;
+            color: #708078;
+        }
+
+        .library-sort-icon svg {
+            width: 12px;
+            height: 18px;
+            overflow: visible;
+        }
+
+        .library-sort-icon path {
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 1.45;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            transition: opacity 100ms ease, stroke 100ms ease;
+        }
+
+        .library-sort-control.sort-asc .library-sort-icon,
+        .library-sort-control.sort-desc .library-sort-icon {
+            color: #FFFFFF;
+        }
+
+        .library-sort-control.sort-asc .sort-down,
+        .library-sort-control.sort-desc .sort-up {
+            opacity: 0;
+        }
+

@@ -1,0 +1,170 @@
+        .downloader-elza-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: var(--ls-downloader-elza-width, 330px);
+            box-sizing: border-box;
+            z-index: 1200;
+            display: flex;
+            flex-direction: column;
+            background: var(--ls-suno-active);
+            color: var(--ls-suno-text);
+            border-left: 1px solid var(--ls-suno-line);
+            overflow: hidden;
+        }
+        body.ls-downloader-elza-hidden .downloader-elza-panel,
+        body.ls-elza-floating-active .downloader-elza-panel {
+            display: none;
+        }
+        .downloader-elza-panel-inner {
+            position: relative;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 18px 16px 26px;
+            scrollbar-color: rgba(255,255,255,0.42) transparent;
+        }
+        .downloader-elza-resizer {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            width: 9px;
+            z-index: 5;
+            cursor: col-resize;
+            touch-action: none;
+            outline: none;
+            background: transparent;
+        }
+        .downloader-elza-resizer::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 4px;
+            width: 1px;
+            background: transparent;
+            transition: background-color .14s ease, box-shadow .14s ease;
+        }
+        .downloader-elza-resizer:hover::after,
+        .downloader-elza-resizer:focus-visible::after,
+        body.ls-downloader-elza-resizing .downloader-elza-resizer::after {
+            background: rgba(255, 255, 255, .62);
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, .28);
+        }
+        .downloader-elza-panel .ls-elza-dock-slot {
+            margin: 0;
+            padding: 0;
+            border: 0;
+            background: transparent;
+        }
+        .downloader-elza-panel .ls-elza-modal.ls-elza-docked .ls-elza-dialog {
+            height: calc(100vh - 36px);
+            max-height: none;
+            border-radius: 14px;
+        }
+        .downloader-elza-panel .ls-elza-modal.ls-elza-docked .ls-elza-head {
+            cursor: default;
+        }
+        .downloader-column {
+            min-width: 0;
+        }
+        .downloader-column .card {
+            margin-bottom: 16px;
+        }
+        .downloader-head {
+            justify-content: space-between;
+        }
+        .card {
+            background: white;
+            color: #202124;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+            margin-bottom: 16px;
+        }
+        .card h1,
+        .card h2,
+        .card h3 {
+            color: #202124;
+        }
+        h1 { margin: 0 0 14px 0; font-size: 26px; }
+        h2 { margin: 0 0 12px 0; font-size: 20px; }
+        h3 { margin: 16px 0 8px 0; font-size: 16px; }
+        label { display: block; margin: 10px 0 5px 0; font-weight: 650; }
+        input[type="text"], input[type="password"], textarea, select {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 9px 11px;
+            border: 1px solid #aaa;
+            border-radius: 7px;
+            font-size: 14px;
+            font-family: Segoe UI, Arial, sans-serif;
+        }
+        textarea {
+            min-height: 86px;
+            resize: vertical;
+            font-family: Consolas, "Courier New", monospace;
+        }
+        button, .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 9px 12px;
+            border-radius: 8px;
+            border: 0;
+            background: #1a73e8;
+            color: white;
+            text-decoration: none;
+            font-size: 14px;
+            cursor: pointer;
+            margin: 4px 6px 4px 0;
+        }
+        button:hover, .btn:hover { opacity: .9; }
+        .secondary { background: #5f6368; }
+        .green { background: #188038; }
+        .purple { background: #7e57c2; }
+        .orange { background: #fb8c00; }
+        .big-action {
+            width: 100%;
+            max-width: 100%;
+            min-height: 44px;
+            box-sizing: border-box;
+            margin: 8px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 700;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            line-height: 1.15;
+        }
+        .select-table input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+        }
+        .select-table .missing-list {
+            color: #7a4b00;
+            font-weight: 650;
+        }
+        .update-action-bar {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px;
+            margin: 8px 0 10px 0;
+            background: #ffffff;
+            border: 1px solid #dadce0;
+            border-radius: 9px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+        }
+        .update-action-bar button {
+            margin: 0;
+        }

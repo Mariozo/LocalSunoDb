@@ -1,0 +1,434 @@
+        .audio-log-card h2 {
+            margin-bottom: 8px;
+        }
+        .connection-actions-card .status,
+        .connection-log-card .status,
+        .metadata-actions-card .status,
+        .metadata-log-card .status,
+        .audio-actions-card .status,
+        .audio-log-card .status {
+            margin: 6px 0 8px 0;
+        }
+        .connection-actions-card .big-action,
+        .metadata-actions-card .big-action,
+        .audio-actions-card .big-action {
+            min-height: 42px;
+            margin: 6px 0;
+        }
+        .connection-compact-actions,
+        .audio-compact-actions {
+            display: grid;
+            gap: 8px;
+        }
+        .connection-compact-actions .secondary,
+        .audio-compact-actions .secondary {
+            width: 100%;
+            min-height: 42px;
+            margin: 0;
+            font-weight: 750;
+        }
+        .audio-compact-actions .btn.big-action {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            box-sizing: border-box;
+            text-decoration: none;
+            font-weight: 800;
+        }
+        .audio-mini-map {
+            display: grid;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .audio-step {
+            display: grid;
+            grid-template-columns: 30px minmax(0, 1fr);
+            gap: 10px;
+            align-items: start;
+            padding: 10px 11px;
+            border: 1px solid #dde2e7;
+            border-radius: 10px;
+            background: #f8fafc;
+        }
+        .audio-step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 26px;
+            height: 26px;
+            border-radius: 999px;
+            background: #e8f0fe;
+            color: #174ea6;
+            font-weight: 850;
+            font-size: 13px;
+        }
+        .audio-step-title {
+            font-weight: 800;
+            color: #202124;
+            margin-bottom: 2px;
+        }
+        .audio-step-note {
+            color: #5f6368;
+            font-size: 13px;
+            line-height: 1.35;
+        }
+        .audio-term-list {
+            display: grid;
+            grid-template-columns: minmax(110px, 160px) minmax(0, 1fr);
+            gap: 7px 12px;
+            margin: 12px 0 0 0;
+            padding: 0;
+            font-size: 13px;
+            line-height: 1.35;
+        }
+        .audio-term-list dt {
+            margin: 0;
+            font-weight: 850;
+            color: #202124;
+        }
+        .audio-term-list dd {
+            margin: 0;
+            color: #5f6368;
+        }
+        .audio-log-card {
+            align-self: start;
+            overflow: visible;
+        }
+        .audio-workflow-card,
+        .audio-destination-card {
+            min-width: 0;
+        }
+        .audio-workflow-head {
+            display: grid;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .audio-workflow-head h2,
+        .audio-destination-head h2 {
+            margin: 0;
+        }
+        .audio-workflow-head .muted,
+        .audio-destination-head .muted {
+            margin: 4px 0 0 0;
+        }
+        .audio-family-pill {
+            display: grid;
+            gap: 2px;
+            padding: 9px 10px;
+            border: 1px solid #c9ded0;
+            border-radius: 9px;
+            background: #eef8f1;
+            color: #174f2a;
+            line-height: 1.3;
+        }
+        .audio-family-pill span {
+            font-size: 11px;
+            font-weight: 750;
+            text-transform: uppercase;
+            letter-spacing: 0.035em;
+            opacity: 0.78;
+        }
+        .audio-family-pill strong {
+            font-size: 13px;
+            overflow-wrap: anywhere;
+        }
+        .audio-destination-card {
+            display: grid;
+            gap: 12px;
+        }
+        .audio-path-preview {
+            display: grid;
+            gap: 7px;
+            padding: 12px;
+            border: 1px solid #d7dde3;
+            border-radius: 10px;
+            background: #f8fafc;
+        }
+        .audio-path-label,
+        .audio-result-heading {
+            font-size: 12px;
+            font-weight: 850;
+            color: #3c4043;
+            text-transform: uppercase;
+            letter-spacing: 0.035em;
+        }
+        .audio-path-preview code {
+            display: block;
+            padding: 9px 10px;
+            border-radius: 8px;
+            background: #ffffff;
+            border: 1px solid #e1e5e9;
+            color: #27313a;
+            font-size: 13px;
+            line-height: 1.4;
+            overflow-wrap: anywhere;
+            white-space: normal;
+        }
+        .audio-path-note {
+            color: #5f6368;
+            font-size: 12px;
+            line-height: 1.35;
+        }
+        .audio-result-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+        }
+        .audio-result-item {
+            display: grid;
+            gap: 2px;
+            min-width: 0;
+            padding: 10px;
+            border-radius: 9px;
+            border: 1px solid #d7dde3;
+            background: #f8fafc;
+        }
+        .audio-result-item.ok {
+            border-color: #b9ddc4;
+            background: #edf8f0;
+            color: #146c2e;
+        }
+        .audio-result-item.fail {
+            border-color: #efc0bc;
+            background: #fff1f0;
+            color: #a12a22;
+        }
+        .audio-result-item strong {
+            font-size: 13px;
+        }
+        .audio-result-item span {
+            font-size: 11px;
+            color: inherit;
+            opacity: 0.82;
+        }
+        .audio-result-details {
+            margin-top: 0;
+        }
+        .audio-result-details .audio-term-list {
+            margin-top: 4px;
+        }
+        .connection-main-card,
+        .connection-diagnostics-card {
+            grid-column: 1 / -1;
+        }
+        .connection-main-card {
+            display: grid;
+            gap: 12px;
+        }
+        .connection-main-head {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
+            gap: 16px;
+            align-items: start;
+        }
+        .connection-main-head h2,
+        .connection-diagnostic-block h3 {
+            margin: 0;
+        }
+        .connection-main-intro {
+            margin: 5px 0 0 0;
+        }
+        .connection-state-pill {
+            display: grid;
+            gap: 3px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            line-height: 1.35;
+        }
+        .connection-state-pill strong {
+            font-size: 14px;
+        }
+        .connection-state-pill span {
+            font-size: 12px;
+            color: inherit;
+            opacity: 0.88;
+        }
+        .connection-primary-actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+        .connection-primary-actions .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            min-height: 44px;
+            box-sizing: border-box;
+            margin: 0;
+            text-decoration: none;
+            font-weight: 800;
+        }
+        .connection-primary-actions .btn.secondary {
+            background: #f1f3f4;
+            color: #202124;
+            border: 1px solid #c8ccd1;
+        }
+        .connection-diagnostics-card {
+            padding: 0;
+        }
+        .connection-diagnostics-card > summary {
+            cursor: pointer;
+            list-style-position: inside;
+            padding: 11px 14px;
+            font-weight: 800;
+            color: #202124;
+        }
+        .connection-diagnostics-card[open] {
+            padding: 0 14px 14px 14px;
+        }
+        .connection-diagnostics-card[open] > summary {
+            padding-left: 0;
+            padding-right: 0;
+        }
+        .connection-diagnostics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+        .connection-diagnostic-block {
+            min-width: 0;
+            padding: 11px;
+            border: 1px solid #dde2e7;
+            border-radius: 10px;
+            background: #f8fafc;
+        }
+        .connection-diagnostic-block h3 {
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .connection-bridge-setup {
+            width: 100%;
+            min-height: 40px;
+            margin: 2px 0 0 0;
+            font-weight: 750;
+        }
+        .connection-manual-token {
+            margin-top: 12px;
+        }
+        .connection-token-actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+        .connection-token-actions button {
+            width: 100%;
+            margin: 0;
+        }
+        .connection-main-card #suno-login-renew-status {
+            margin: 0;
+        }
+        .connection-log-card {
+            align-self: start;
+            overflow: visible;
+        }
+        .connection-log-card #suno-login-renew-status {
+            display: none;
+        }
+        .connection-log-card #suno-login-renew-status[style*="block"] {
+            display: block;
+        }
+        .bridge-diagnostic {
+            margin: 0;
+        }
+        .bridge-diagnostic pre {
+            max-height: 190px;
+            overflow: auto;
+            scrollbar-width: thin;
+        }
+        .compact-extra {
+            margin-top: 10px;
+            padding: 0;
+            border: 1px solid #dadce0;
+            border-radius: 9px;
+            background: #f8f9fa;
+        }
+        .compact-extra summary {
+            cursor: pointer;
+            list-style-position: inside;
+            padding: 9px 10px;
+            font-weight: 750;
+            color: #202124;
+        }
+        .compact-extra[open] {
+            padding: 0 10px 10px 10px;
+        }
+        .compact-extra[open] summary {
+            padding-left: 0;
+            padding-right: 0;
+        }
+        .advanced-tools-card {
+            grid-column: 1 / -1;
+            margin-top: -2px;
+            padding: 0;
+        }
+        .advanced-tools-card > summary {
+            cursor: pointer;
+            list-style-position: inside;
+            padding: 11px 14px;
+            font-weight: 800;
+            color: #202124;
+        }
+        .advanced-tools-card[open] {
+            padding: 0 14px 14px 14px;
+        }
+        .advanced-tools-card[open] > summary {
+            padding-left: 0;
+            padding-right: 0;
+        }
+        .advanced-tools-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+        .advanced-tools-grid .big-action {
+            margin: 0;
+            min-height: 38px;
+            font-size: 14px;
+        }
+        .metadata-actions-card .muted {
+            margin: 8px 0;
+        }
+        .metadata-compact-actions {
+            display: grid;
+            gap: 8px;
+        }
+        .metadata-log-card {
+            align-self: start;
+            overflow: visible;
+        }
+        .metadata-log-card #meta-status {
+            display: block;
+        }
+        .metadata-log-card #meta-result {
+            max-height: none;
+            overflow: visible;
+            scrollbar-width: auto;
+        }
+        .metadata-log-card .preview-table {
+            table-layout: auto;
+        }
+        .metadata-log-card .preview-table th,
+        .metadata-log-card .preview-table td {
+            overflow-wrap: anywhere;
+            word-break: normal;
+        }
+        .metadata-log-card .update-preview-scroll {
+            max-height: none;
+            min-height: 0;
+            overflow: visible;
+        }
+        @media (max-width: 1080px) {
+            .downloader-diagnostics-column,
+            .downloader-metadata-column,
+            .downloader-downloads-column {
+                grid-template-columns: 1fr;
+            }
+            .connection-main-head,
+            .connection-diagnostics-grid,
+            .connection-primary-actions,
+            .audio-result-grid {
+                grid-template-columns: 1fr;
+            }
+        }

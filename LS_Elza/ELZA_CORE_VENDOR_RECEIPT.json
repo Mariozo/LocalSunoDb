@@ -1,0 +1,29 @@
+{
+  "artifact_sha256": "f47330ee746e21992de72de4c5fd5e5f785c4d428ebe189e6eb6fbbc1402feac",
+  "contract_version": "1",
+  "core_version": "1.3.0",
+  "git_commit": "610dcbd2481751fc5cef6a45f115c239be0e2282",
+  "schema_version": 1,
+  "vendored_files": {
+    "__init__.py": "5113a6569ca1e453ffff84fe06930dc0eba70576c6067fcc0f00464ea79c8ff8",
+    "api.py": "370541b54b5829fa19b81f1dbf92639a961ffe14248e194a4b17df688882f3ad",
+    "attachments.py": "e344c12949bb2043ee199308473c2a2ce99ed4dab3afb380e3628ce0bb39e431",
+    "context.py": "c3172553f6a9eca425e7b1508d59c25d7062d423c1990dfb97d84b0f1b2c1cee",
+    "contract.py": "2006c39911ed6de566bf6a79c3a0fac85c71e5caa67ba39cc950ec9a9706bdee",
+    "conversation.py": "3f74b270f7b06eff0e46c1cf47fe6b4037c5dc54492d43cc8affe68475f05c10",
+    "errors.py": "e55a45dc5b68d2d0e8159e08b12415f02a44e1a737f37876f66a647162211f27",
+    "history.py": "342ca4e209ce22bf81860a18caf8225386d6eb104850e04278faefbd7856efeb",
+    "model.py": "fe168a1ea6f0948d22a463bda9084ee578f7984c49b89e500f08e77c3ede0fbf",
+    "operations.py": "5d799db1982bb660a3cfbee86166f70e9c96a58f7c86262c4efe747e81ef3987",
+    "provenance.py": "515e40c16713a9f9122b7bf8da1f3d79869a98ea54b1cabb81795f3e30761220",
+    "providers/__init__.py": "8fc5178c515e1b8bdb1a44af69dca661ddc3bd9cea6411eb83a775454ea15268",
+    "providers/base.py": "bc8868239c1594287eef4ddd5f558a45baf057e1599390eae32f87db762cf9ad",
+    "providers/fake.py": "294d5875a48d12beb5c10f78f3dec9f50cf319fb97fe52de730813b1f0ebfeee",
+    "routing.py": "777ae9f98ba7c39165229beb721ee697c06806a02fab0f36ffab7d8f16e051d6",
+    "settings.py": "0c7d8644ef6e5ac216e3e320a6c3c22be859d0ca19cdd2af3ecef6f9231a51c8",
+    "tools/__init__.py": "44efaee4403add234dec2eda4d7607fc396a4286493fb75bdb5a9d2be2e28285",
+    "tools/contracts.py": "266f83f0ba42ddeff9e6a0c8c777a0065ac8ef65995946fe2a5491ff3e2665c7",
+    "tools/runtime.py": "aee6e9e4c681add2cb8b9b7393f4be8ade81c2f076d627de7037507e6accc3c8",
+    "voice.py": "879dd4794a4018a1c957cc27e5c6bd802511f1db0c64b1fb483bafdb43511591"
+  }
+}

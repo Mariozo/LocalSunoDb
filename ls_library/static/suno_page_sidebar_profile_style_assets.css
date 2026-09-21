@@ -1,0 +1,100 @@
+        .ls-sidebar-profile {
+            position: relative;
+            display: block;
+            flex: 0 0 auto;
+            margin: 10px 4px 0;
+        }
+
+        .ls-sidebar-profile .profile-btn {
+            width: 100%;
+            height: 54px;
+            padding: 7px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 9px;
+            border: 1px solid transparent;
+            border-radius: 12px;
+            background: #151817;
+            color: #FFFFFF;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .ls-sidebar-profile .profile-btn:hover {
+            background: #1D211F;
+            border-color: rgba(255,255,255,.08);
+        }
+
+        .ls-sidebar-profile .profile-avatar {
+            flex: 0 0 auto;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: #303532;
+        }
+
+        .ls-sidebar-profile .profile-avatar-fallback {
+            flex: 0 0 38px;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #FFFFFF;
+            background: linear-gradient(135deg, #7C3AED, #06B6D4);
+            font-size: 18px;
+        }
+
+        .ls-sidebar-profile .profile-avatar-fallback[hidden] {
+            display: none !important;
+        }
+
+        .ls-sidebar-profile-copy {
+            min-width: 0;
+            display: flex;
+            flex: 1 1 auto;
+            flex-direction: column;
+            gap: 2px;
+            line-height: 1.1;
+        }
+
+        .ls-sidebar-profile-copy strong {
+            overflow: hidden;
+            color: #FFFFFF;
+            font-size: 13px;
+            font-weight: 650;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .ls-sidebar-profile-copy small {
+            overflow: hidden;
+            color: var(--ls-suno-sidebar-text);
+            font-size: 11px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .ls-sidebar-profile-copy .ls-sidebar-profile-credits {
+            color: #C9CECB;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: .02em;
+        }
+
+        .ls-sidebar-profile-chevron {
+            flex: 0 0 auto;
+            width: 14px;
+            height: 14px;
+            color: var(--ls-suno-sidebar-text);
+        }
+
+        .ls-sidebar-profile .top-dropdown {
+            top: calc(100% + 7px);
+            bottom: auto;
+        }
+

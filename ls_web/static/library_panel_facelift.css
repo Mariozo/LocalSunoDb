@@ -1,0 +1,394 @@
+/* MiniEdit UI Facelift: unified Search / Flags & Tags / LS Elza dock controls. */
+
+.ls-panel-dock-toggle {
+    width: 30px !important;
+    height: 30px !important;
+    min-width: 30px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 50% !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: var(--ls-popup-secondary, #394A40) !important;
+    color: var(--ls-popup-text, #F7FAF8) !important;
+    border: 1px solid var(--ls-popup-border, rgba(236,246,240,.20)) !important;
+    font-size: 16px !important;
+    line-height: 1 !important;
+}
+
+.ls-panel-dock-toggle:hover {
+    background: var(--ls-popup-secondary-hover, #465A4D) !important;
+    color: #FFFFFF !important;
+}
+
+.ls-panel-dock-toggle[aria-pressed="true"] {
+    background: rgba(28, 139, 86, .30) !important;
+    color: #BDF5D3 !important;
+    border-color: #35AF73 !important;
+}
+
+.ls-finder-search-dock-slot {
+    width: 100%;
+    margin: 0 0 16px;
+    box-sizing: border-box;
+}
+
+.ls-finder-search-dock-slot.ls-finder-search-dock-empty {
+    display: none;
+}
+
+.finder-search-box.ls-search-facelift {
+    top: 78px;
+    right: 22px;
+    width: min(440px, calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
+    padding: 0;
+    border-radius: var(--ls-popup-radius, 16px) !important;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.finder-search-box.ls-search-facelift.finder-search-box-docked {
+    position: static;
+    inset: auto;
+    width: 100%;
+    max-width: none;
+    z-index: auto;
+    box-shadow: none !important;
+}
+
+.finder-search-box.ls-search-facelift .finder-search-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 52px;
+    padding: 10px 12px 9px 14px;
+    background: #203128;
+    border-bottom: 1px solid var(--ls-popup-border, rgba(236,246,240,.20));
+    box-sizing: border-box;
+}
+
+.finder-search-box.ls-search-facelift .finder-search-title {
+    color: var(--ls-popup-text, #F7FAF8);
+    font-size: 18px;
+    line-height: 1.15;
+    font-weight: 800;
+}
+
+.finder-search-box.ls-search-facelift .finder-search-subtitle {
+    margin-top: 2px;
+    color: var(--ls-popup-muted, #BDC8C1);
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 700;
+    letter-spacing: .25px;
+}
+
+.finder-search-box.ls-search-facelift .finder-search-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+
+.finder-search-box.ls-search-facelift .finder-search-body {
+    padding: 12px 14px 13px;
+}
+
+.finder-search-box.ls-search-facelift .finder-search-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.finder-search-box.ls-search-facelift .finder-search-icon {
+    flex: 0 0 auto;
+    width: 24px;
+    text-align: center;
+    color: var(--ls-popup-muted, #BDC8C1);
+    font-size: 22px;
+    line-height: 1;
+}
+
+.finder-search-box.ls-search-facelift .finder-search-input-wrap {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.finder-search-box.ls-search-facelift #finder-search-input {
+    width: 100%;
+    min-width: 0;
+    height: 38px;
+    padding: 7px 34px 7px 10px;
+    box-sizing: border-box;
+    border-radius: 10px;
+    transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+
+.finder-search-box.ls-search-facelift #finder-search-input:focus {
+    border-color: var(--ls-popup-focus, #83B6FF) !important;
+    outline: 2px solid rgba(131,182,255,.26) !important;
+    outline-offset: 1px;
+}
+
+.finder-search-box.ls-search-facelift .finder-input-clear {
+    position: absolute;
+    top: 50%;
+    right: 5px;
+    width: 27px;
+    height: 27px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    color: var(--ls-popup-muted, #BDC8C1);
+    font-size: 18px;
+    line-height: 1;
+}
+
+.finder-search-box.ls-search-facelift .finder-input-clear:hover {
+    background: var(--ls-popup-hover, #3B5145);
+    color: #FFFFFF;
+}
+
+.finder-search-box.ls-search-facelift .finder-input-clear:disabled {
+    visibility: hidden;
+}
+
+.finder-search-box.ls-search-facelift .finder-count {
+    flex: 0 0 auto;
+    min-width: 44px;
+    height: 30px;
+    padding: 0 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    border: 1px solid var(--ls-popup-border, rgba(236,246,240,.20));
+    border-radius: 999px;
+    background: var(--ls-popup-raised, #30453A);
+    font-weight: 800;
+    font-size: 12px;
+}
+
+.finder-search-box.ls-search-facelift .finder-mini-btn,
+.finder-search-box.ls-search-facelift .finder-close-btn {
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    padding: 0;
+    margin: 0;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ls-popup-secondary, #394A40) !important;
+    color: var(--ls-popup-muted, #BDC8C1) !important;
+    border: 1px solid var(--ls-popup-border, rgba(236,246,240,.20));
+    font-size: 17px;
+    line-height: 1;
+}
+
+.finder-search-box.ls-search-facelift .finder-close-btn {
+    font-size: 20px;
+}
+
+.finder-search-box.ls-search-facelift .finder-mini-btn:hover,
+.finder-search-box.ls-search-facelift .finder-close-btn:hover {
+    background: var(--ls-popup-hover, #3B5145) !important;
+    color: #FFFFFF !important;
+}
+
+.finder-search-box.ls-search-facelift .finder-options-row {
+    margin-top: 10px;
+    gap: 12px 16px;
+    font-size: 13px;
+}
+
+.finder-search-box.ls-search-facelift .finder-options-row .muted {
+    width: 100%;
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+.user-tag-panel.user-tag-panel-docked,
+.ls-elza-modal.ls-elza-docked .ls-elza-dialog {
+    box-shadow: none !important;
+}
+
+@media (max-width: 720px) {
+    .finder-search-box.ls-search-facelift:not(.finder-search-box-docked) {
+        right: 12px;
+        top: 64px;
+        width: calc(100vw - 24px);
+        max-width: calc(100vw - 24px);
+    }
+
+    .finder-search-box.ls-search-facelift .finder-search-row {
+        flex-wrap: wrap;
+    }
+
+    .finder-search-box.ls-search-facelift .finder-search-input-wrap {
+        flex-basis: calc(100% - 32px);
+    }
+
+    .finder-search-box.ls-search-facelift .finder-count {
+        margin-left: 32px;
+    }
+}
+
+/* MiniEdit 14.aug.2026 — LS Elza message-meta alignment fix. */
+.ls-elza-message-user .ls-elza-message-label.ls-mini-label-hidden {
+    display: none !important;
+}
+
+.ls-elza-message-user .ls-elza-message-head.ls-mini-question-head-empty {
+    min-height: 0 !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+}
+
+.ls-mini-question-prefix {
+    display: inline;
+    margin-right: 5px;
+    color: inherit;
+    font-size: 14px;
+    font-weight: 800;
+    line-height: inherit;
+}
+
+.ls-mini-message-time {
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+    opacity: .82 !important;
+}
+
+.ls-mini-answer-meta {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 5px;
+    min-height: 28px;
+    margin-top: 6px;
+}
+
+.ls-mini-answer-meta .ls-elza-copy-btn {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
+    margin: 0 !important;
+}
+
+.ls-mini-answer-meta .ls-elza-copy-btn svg {
+    width: 17px !important;
+    height: 17px !important;
+}
+
+/* MiniEdit 15.aug.2026 — Q/A inline meta + unified Float resize. */
+.ls-elza-message .ls-elza-message-label.ls-mini-label-hidden {
+    display: none !important;
+}
+
+.ls-elza-message .ls-elza-message-head.ls-mini-message-head-empty,
+.ls-elza-message-user .ls-elza-message-head.ls-mini-question-head-empty {
+    min-height: 0 !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+}
+
+.ls-mini-inline-role,
+.ls-mini-question-prefix.ls-mini-inline-role {
+    display: inline;
+    margin-right: 5px;
+    color: inherit;
+    font-size: inherit;
+    font-weight: 800;
+    line-height: inherit;
+}
+
+.ls-mini-answer-meta .ls-mini-message-time,
+.ls-mini-message-time.ls-mini-meta-control {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    box-sizing: border-box !important;
+    line-height: 28px !important;
+    margin: 0 !important;
+}
+
+.ls-mini-answer-meta .ls-elza-copy-btn.ls-mini-meta-control,
+.ls-elza-copy-btn.ls-mini-meta-control {
+    height: 28px !important;
+    min-height: 28px !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+.finder-search-box.ls-search-facelift.ls-mini-float-resizable:not(.finder-search-box-docked),
+.user-tag-panel.ls-mini-float-resizable:not(.user-tag-panel-docked),
+.ls-elza-modal:not(.ls-elza-docked) .ls-elza-dialog.ls-mini-float-resizable {
+    resize: both !important;
+    overflow: hidden !important;
+    min-width: 300px;
+    min-height: 150px;
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100vh - 16px) !important;
+}
+
+.finder-search-box.ls-search-facelift.ls-mini-float-resizable.finder-search-box-docked,
+.user-tag-panel.ls-mini-float-resizable.user-tag-panel-docked,
+.ls-elza-modal.ls-elza-docked .ls-elza-dialog.ls-mini-float-resizable {
+    resize: none !important;
+}
+
+/* MiniEdit 15.aug.2026 — Float drag parity + timestamp visual height. */
+.finder-search-box.ls-search-facelift:not(.finder-search-box-docked) .finder-search-header.ls-mini-float-drag-handle,
+.user-tag-panel:not(.user-tag-panel-docked) .user-tag-panel-header.ls-mini-float-drag-handle {
+    cursor: move !important;
+    user-select: none !important;
+    touch-action: none !important;
+}
+
+.finder-search-box.ls-search-facelift:not(.finder-search-box-docked) .finder-search-header.ls-mini-float-drag-handle button,
+.user-tag-panel:not(.user-tag-panel-docked) .user-tag-panel-header.ls-mini-float-drag-handle button {
+    cursor: pointer !important;
+    user-select: auto !important;
+    touch-action: auto !important;
+}
+
+.finder-search-box.ls-search-facelift.ls-mini-float-dragging,
+.user-tag-panel.ls-mini-float-dragging {
+    transition: none !important;
+}
+
+.ls-mini-answer-meta .ls-mini-message-time,
+.ls-mini-message-time.ls-mini-meta-control {
+    height: 28px !important;
+    min-height: 28px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    line-height: 17px !important;
+    margin: 0 !important;
+}
+
+.ls-mini-answer-meta .ls-elza-copy-btn svg,
+.ls-elza-copy-btn.ls-mini-meta-control svg {
+    width: 17px !important;
+    height: 17px !important;
+}

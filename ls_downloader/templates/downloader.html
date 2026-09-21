@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="lv">
+<head>
+    <meta charset="utf-8">
+    <title>LS @@LS0@@ — Imports</title>
+    <link rel="icon" type="image/x-icon" href="/ls-static/ls_web/static/LS.ico?v=@@LS0@@">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <script src="/ls-static/ls_web/static/ls_pwa_install.js?v=@@LS0@@" defer></script>
+@@LS1@@
+    <script src="/ls-static/ls_web/static/ls_app_session.js?v=@@LS0@@" defer></script>
+</head>
+<body id="ls-downloader">
+    @@LS2@@
+@@LS3@@    <main>
+        <div class="downloader-head">
+            <h1>Imports</h1>
+        </div>
+        <div class="downloader-layout">
+            <div class="downloader-column-grid">
+@@LS4@@@@LS5@@@@LS6@@            </div>
+        </div>
+    </main>
+
+    <div hidden aria-hidden="true">
+        <input id="track-id-input" type="text">
+        <button id="preview-meta-btn" type="button" tabindex="-1">Metadatu priekšskatījuma tilts</button>
+    </div>
+
+@@LS7@@    <script>
+        const tokenInput = document.getElementById("token-input");
+        const renewSunoLoginBtn = document.getElementById("renew-suno-login-btn");
+        const bridgeSetupBtn = document.getElementById("bridge-setup-btn");
+        const sunoLoginRenewStatus = document.getElementById("suno-login-renew-status");
+        const downloaderTipToast = document.getElementById("downloader-tip-toast");
+        const downloaderTipTitle = document.getElementById("downloader-tip-title");
+        const downloaderTipText = document.getElementById("downloader-tip-text");
+        let downloaderTipTimer = null;
+        let downloaderTipPromptText = "";
+        const bridgeDiagnosticPanel = document.getElementById("bridge-diagnostic-panel");
+        const bridgeDiagnosticText = document.getElementById("bridge-diagnostic-text");
+        const saveTokenBtn = document.getElementById("save-token-btn");
+        const clearTokenBtn = document.getElementById("clear-token-btn");
+        const trackIdInput = document.getElementById("track-id-input");
+        const previewMetaBtn = document.getElementById("preview-meta-btn");
+        const checkSelectedMetadataBtn = document.getElementById("check-selected-metadata-btn");
+        const updatePreviewBtn = document.getElementById("update-preview-btn");
+        const autoMetadataBackfillBtn = document.getElementById("auto-metadata-backfill-btn");
+        const repairProvenDbBtn = null;
+        const autoMetadataBackfillStatus = document.getElementById("auto-metadata-backfill-status");
+        const refreshTracklistBtn = document.getElementById("refresh-tracklist-btn");
+        const metaStatus = document.getElementById("meta-status");
+        const metaResult = document.getElementById("meta-result");
+        const refreshWait = document.getElementById("ls-refresh-wait");
+        const refreshWaitText = document.getElementById("ls-refresh-wait-text");
+        const refreshWaitCounter = document.getElementById("ls-refresh-counter");
+        const refreshWaitTip = document.getElementById("ls-refresh-tip");
+        const downloaderElzaPanel = document.getElementById("downloader-elza-panel");
+        const downloaderElzaResizer = document.getElementById("downloader-elza-resizer");
+        const downloaderElzaWidthKey = "ls_downloader_elza_width_v1";
+        const downloaderSectionKey = "ls_downloader_active_section_v2";
+        const downloaderSectionNames = new Set(["connection", "metadata", "audio"]);
+
+@@LS8@@
+@@LS9@@@@LS10@@@@LS11@@
+        let lastRefreshReportHtml = "";
+        let refreshWaitTimer = null;
+        let refreshWaitHoldUntil = 0;
+        let refreshWaitHideDelayTimer = null;
+@@LS12@@
+@@LS13@@@@LS14@@
+@@LS15@@
+@@LS16@@
+@@LS17@@
+@@LS18@@
+        if (checkSelectedMetadataBtn) {
+            checkSelectedMetadataBtn.addEventListener("click", () => {
+                const params = new URLSearchParams(window.location.search);
+                const selectedTrackId = String(
+                    (typeof downloaderWavRow !== "undefined" && downloaderWavRow && downloaderWavRow.track_id)
+                    || params.get("selected_wav_track_id")
+                    || ""
+                ).trim();
+                if (!selectedTrackId) {
+                    setStatus("Vispirms WAV importā izvēlies dziesmu, pēc tam pārbaudi tās metadatus.", "warn");
+                    return;
+                }
+                trackIdInput.value = selectedTrackId;
+                previewMetaBtn.click();
+            });
+        }
+    </script>
+    @@LS19@@
+    @@LS20@@
+    @@LS21@@
+    <script src="/ls-static/ls_downloader/static/downloader_lv_followup_script.js?v=@@LS0@@"></script>
+</body>
+</html>

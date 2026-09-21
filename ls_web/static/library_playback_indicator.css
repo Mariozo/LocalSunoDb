@@ -1,0 +1,97 @@
+/* MiniEdit: Suno-style Library cover playback state. */
+#ls-library .ls-cover-playback-indicator {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    border-radius: inherit;
+    pointer-events: none;
+}
+
+#ls-library tr.track-row.ls-cover-audio-playing .ls-cover-playback-indicator,
+#ls-library tr.track-row.ls-cover-audio-paused .ls-cover-playback-indicator {
+    display: flex;
+}
+
+#ls-library tr.track-row.ls-cover-audio-playing .ls-cover-play-btn,
+#ls-library tr.track-row.ls-cover-audio-paused .ls-cover-play-btn {
+    color: transparent;
+    text-shadow: none;
+}
+
+#ls-library .ls-cover-playback-bar {
+    display: block;
+    width: 3px;
+    height: 25px;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.78);
+    transform: scaleY(0.46);
+    transform-origin: center;
+}
+
+#ls-library tr.track-row.ls-cover-audio-playing .ls-cover-playback-bar {
+    animation: ls-cover-audio-pulse 760ms ease-in-out infinite alternate;
+}
+
+#ls-library tr.track-row.ls-cover-audio-playing .ls-cover-playback-bar:nth-child(1) {
+    animation-delay: -540ms;
+}
+
+#ls-library tr.track-row.ls-cover-audio-playing .ls-cover-playback-bar:nth-child(2) {
+    animation-delay: -300ms;
+}
+
+#ls-library tr.track-row.ls-cover-audio-playing .ls-cover-playback-bar:nth-child(3) {
+    animation-delay: -680ms;
+}
+
+#ls-library tr.track-row.ls-cover-audio-playing .ls-cover-playback-bar:nth-child(4) {
+    animation-delay: -160ms;
+}
+
+#ls-library tr.track-row.ls-cover-audio-playing .ls-cover-playback-bar:nth-child(5) {
+    animation-delay: -430ms;
+}
+
+#ls-library tr.track-row.ls-cover-audio-paused .ls-cover-playback-bar:nth-child(1) {
+    transform: scaleY(0.34);
+}
+
+#ls-library tr.track-row.ls-cover-audio-paused .ls-cover-playback-bar:nth-child(2) {
+    transform: scaleY(0.72);
+}
+
+#ls-library tr.track-row.ls-cover-audio-paused .ls-cover-playback-bar:nth-child(3) {
+    transform: scaleY(1);
+}
+
+#ls-library tr.track-row.ls-cover-audio-paused .ls-cover-playback-bar:nth-child(4) {
+    transform: scaleY(0.66);
+}
+
+#ls-library tr.track-row.ls-cover-audio-paused .ls-cover-playback-bar:nth-child(5) {
+    transform: scaleY(0.4);
+}
+
+@keyframes ls-cover-audio-pulse {
+    0% { transform: scaleY(0.26); }
+    38% { transform: scaleY(0.92); }
+    66% { transform: scaleY(0.48); }
+    100% { transform: scaleY(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #ls-library tr.track-row.ls-cover-audio-playing .ls-cover-playback-bar {
+        animation: none;
+    }
+
+    #ls-library tr.track-row.ls-cover-audio-playing .ls-cover-playback-bar:nth-child(1) { transform: scaleY(0.34); }
+    #ls-library tr.track-row.ls-cover-audio-playing .ls-cover-playback-bar:nth-child(2) { transform: scaleY(0.72); }
+    #ls-library tr.track-row.ls-cover-audio-playing .ls-cover-playback-bar:nth-child(3) { transform: scaleY(1); }
+    #ls-library tr.track-row.ls-cover-audio-playing .ls-cover-playback-bar:nth-child(4) { transform: scaleY(0.66); }
+    #ls-library tr.track-row.ls-cover-audio-playing .ls-cover-playback-bar:nth-child(5) { transform: scaleY(0.4); }
+}

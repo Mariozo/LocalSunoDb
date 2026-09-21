@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "app": {
+    "name": "LocalSunoDb",
+    "version": "v1.16",
+    "based_on": "v1.15",
+    "entrypoint": "LocalSunoDb.py",
+    "architecture_generation": 2,
+    "release_note": "v1.16: keep the one-icon direct Chrome shortcut unchanged; backend bootstrap moves from the Startup-folder shortcut to the native per-user HKCU Run entry, with a one-time installer that immediately starts and verifies the version-matched backend."
+  },
+  "blocks": [
+    {
+      "id": "CORE",
+      "python_globs": [
+        "ls_core/**/*.py"
+      ]
+    },
+    {
+      "id": "DATA",
+      "python_globs": [
+        "ls_data/**/*.py"
+      ]
+    },
+    {
+      "id": "SUNO",
+      "python_globs": [
+        "ls_suno/**/*.py"
+      ]
+    },
+    {
+      "id": "AUDIO",
+      "python_globs": [
+        "ls_audio/**/*.py"
+      ]
+    },
+    {
+      "id": "LIBRARY",
+      "python_globs": [
+        "ls_library/**/*.py"
+      ]
+    },
+    {
+      "id": "MEDIA",
+      "python_globs": [
+        "ls_media/**/*.py"
+      ]
+    },
+    {
+      "id": "PLAYER",
+      "python_globs": [
+        "ls_player/**/*.py"
+      ]
+    },
+    {
+      "id": "STEMS",
+      "python_globs": [
+        "ls_stems/**/*.py"
+      ]
+    },
+    {
+      "id": "DOWNLOADER",
+      "python_globs": [
+        "ls_downloader/**/*.py"
+      ]
+    },
+    {
+      "id": "TOOLS",
+      "python_globs": [
+        "ls_tools/**/*.py"
+      ]
+    },
+    {
+      "id": "WEB",
+      "python_globs": [
+        "ls_web/**/*.py"
+      ]
+    },
+    {
+      "id": "ELZA",
+      "python_globs": [
+        "LS_Elza/**/*.py"
+      ],
+      "external_optional": true
+    },
+    {
+      "id": "UPGRADE",
+      "python_globs": [
+        "ls_upgrade/**/*.py"
+      ]
+    },
+    {
+      "id": "MAIN",
+      "python_globs": [
+        "LocalSunoDb.py"
+      ]
+    }
+  ]
+}

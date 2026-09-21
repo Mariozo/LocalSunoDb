@@ -1,0 +1,106 @@
+        .tracklist-action-strip {
+            position: sticky;
+            top: 0;
+            z-index: 22;
+            display: block;
+            padding: 0;
+            margin: 10px 0 12px 0;
+            background: transparent;
+            border: 0;
+            box-shadow: none;
+        }
+        .tracklist-tools {
+            margin: 0;
+            padding: 0;
+            border: 1px solid #dadce0;
+            border-radius: 10px;
+            background: #ffffff;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.12);
+        }
+        .tracklist-tools summary {
+            cursor: pointer;
+            padding: 10px 12px;
+            font-weight: 800;
+            color: #202124;
+            list-style-position: inside;
+        }
+        .tracklist-tools[open] {
+            padding: 0 10px 10px 10px;
+        }
+        .tracklist-tools[open] summary {
+            padding-left: 0;
+            padding-right: 0;
+        }
+        .tracklist-action-groups {
+            display: grid;
+            gap: 10px;
+        }
+        .tracklist-primary-actions {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+        }
+        .tracklist-primary-actions button {
+            margin: 0;
+            min-height: 44px;
+            font-weight: 800;
+            line-height: 1.15;
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+        .tracklist-secondary-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .tracklist-secondary-actions button {
+            margin: 0;
+            min-height: 34px;
+            padding: 7px 10px;
+            font-size: 13px;
+        }
+        .tracklist-action-help {
+            margin: 0;
+            padding: 0;
+            line-height: 1.35;
+        }
+        @media (max-width: 780px) {
+            .tracklist-primary-actions {
+                grid-template-columns: 1fr;
+            }
+        }
+        .inline-limit-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin: 0;
+            font-weight: 650;
+            color: #444;
+        }
+        .inline-limit-label select {
+            width: auto;
+            min-width: 88px;
+            padding: 6px 8px;
+        }
+
+        .suno-open-play-btn {
+            width: 34px;
+            height: 34px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            border: 1px solid #c7cdd4;
+            background: #f8f9fa;
+            color: #202124;
+            text-decoration: none;
+            font-size: 15px;
+            line-height: 1;
+            box-sizing: border-box;
+        }
+        .suno-open-play-btn:hover,
+        .suno-open-play-btn:focus-visible {
+            background: #e8f0fe;
+            border-color: #7baaf7;
+            outline: none;
+        }

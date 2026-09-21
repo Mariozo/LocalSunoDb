@@ -1,0 +1,95 @@
+        .kind-cell {
+            white-space: nowrap;
+        }
+
+        .kind-cell {
+            font-weight: 650;
+        }
+
+        .style-cell {
+            color: #333;
+            line-height: 1.25;
+        }
+
+        .style-edit-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 7px;
+        }
+
+        .style-edit {
+            width: 100%;
+            min-height: 54px;
+            resize: vertical;
+            box-sizing: border-box;
+            border: 1px solid #bbb;
+            border-radius: 7px;
+            padding: 6px;
+            font-family: Segoe UI, Arial, sans-serif;
+            font-size: 13px;
+            line-height: 1.25;
+            flex: 1;
+        }
+
+        .style-save-box {
+            width: 54px;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 5px;
+        }
+
+        .style-save {
+            padding: 5px 8px;
+            background: #188038;
+            font-size: 12px;
+        }
+
+        .style-save:disabled {
+            background: #b8b8b8;
+            color: #f4f4f4;
+            cursor: default;
+            opacity: 1;
+        }
+
+        .style-save-status {
+            font-size: 11px;
+            color: #777;
+            text-align: center;
+            min-height: 14px;
+        }
+
+        .like-cell {
+            text-align: center;
+            font-size: 18px;
+            color: #b3261e;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .like-toggle-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 26px;
+            height: 22px;
+            min-height: 22px;
+            padding: 0;
+            margin: 0 1px;
+            border: 0;
+            background: transparent;
+            color: #111111;
+            line-height: 1;
+            vertical-align: middle;
+        }
+
+        .like-toggle-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .like-toggle-btn:disabled {
+            opacity: 0.55;
+            cursor: default;
+        }
+
+

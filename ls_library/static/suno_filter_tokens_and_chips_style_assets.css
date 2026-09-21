@@ -1,0 +1,262 @@
+        /* ================================================================
+           v5.50 — Carbon filter behavior + Whisker semantic color tokens
+
+           Whisker supplies stepped neutral/accent families.  LS consumes
+           them through semantic tokens so later palette changes do not
+           require repainting individual components.
+           ================================================================ */
+        :root {
+            --whisker-gray-950: #101714;
+            --whisker-gray-900: #17211C;
+            --whisker-gray-800: #27342E;
+            --whisker-gray-700: #46554D;
+            --whisker-gray-500: #89968F;
+            --whisker-gray-300: #C5CEC9;
+            --whisker-gray-100: #EEF2F0;
+
+            --whisker-green-700: #087A4B;
+            --whisker-green-500: #22B573;
+            --whisker-green-a18: rgba(34, 181, 115, 0.18);
+            --whisker-green-a32: rgba(34, 181, 115, 0.32);
+
+            --whisker-blue-700: #2468C9;
+            --whisker-blue-500: #4B8FEA;
+            --whisker-blue-a18: rgba(75, 143, 234, 0.18);
+            --whisker-blue-a34: rgba(75, 143, 234, 0.34);
+
+            --whisker-purple-500: #7A63E8;
+            --whisker-purple-a18: rgba(122, 99, 232, 0.18);
+            --whisker-yellow-500: #F2B33D;
+            --whisker-yellow-a18: rgba(242, 179, 61, 0.18);
+            --whisker-pink-500: #E25794;
+            --whisker-pink-a18: rgba(226, 87, 148, 0.18);
+            --whisker-light-blue-500: #35A9D6;
+            --whisker-light-blue-a18: rgba(53, 169, 214, 0.18);
+            --whisker-red-500: #E45252;
+
+            --ls-filter-surface: var(--whisker-gray-900);
+            --ls-filter-border: rgba(255, 255, 255, 0.11);
+            --ls-filter-text: var(--whisker-gray-100);
+            --ls-filter-muted: var(--whisker-gray-500);
+            --ls-focus-ring: var(--whisker-blue-500);
+        }
+
+        .ls-active-filter-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            min-height: 44px;
+            margin-top: 10px;
+            padding: 7px 8px 0;
+            border-top: 1px solid var(--ls-filter-border);
+            color: var(--ls-filter-text);
+            box-sizing: border-box;
+        }
+
+        .ls-active-filter-main {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            min-width: 0;
+            flex: 1 1 auto;
+        }
+
+        .ls-active-filter-title {
+            flex: 0 0 auto;
+            color: var(--ls-filter-muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .ls-active-filter-chips {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            min-width: 0;
+            flex: 1 1 auto;
+        }
+
+        .ls-filter-chip {
+            display: inline-flex;
+            align-items: center;
+            min-width: 0;
+            max-width: 250px;
+            height: 28px;
+            box-sizing: border-box;
+            overflow: hidden;
+            border: 1px solid var(--ls-filter-border);
+            border-radius: 999px;
+            background: rgba(255,255,255,0.07);
+            color: var(--ls-filter-text);
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1;
+            white-space: nowrap;
+        }
+
+        .ls-filter-chip-label {
+            min-width: 0;
+            overflow: hidden;
+            padding: 0 5px 0 10px;
+            text-overflow: ellipsis;
+        }
+
+        .ls-filter-chip-remove {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 25px;
+            align-self: stretch;
+            color: currentColor;
+            text-decoration: none;
+            font-size: 17px;
+            font-weight: 500;
+            opacity: 0.74;
+        }
+
+        .ls-filter-chip-remove:hover {
+            background: rgba(255,255,255,0.12);
+            color: #FFFFFF;
+            opacity: 1;
+        }
+
+        .ls-filter-chip-remove:focus-visible,
+        .ls-filter-clear-all:focus-visible,
+        .ls-filter-overflow > summary:focus-visible {
+            outline: 2px solid var(--ls-focus-ring);
+            outline-offset: -2px;
+        }
+
+        .ls-filter-chip-neutral {
+            background: rgba(137, 150, 143, 0.16);
+            border-color: rgba(197, 206, 201, 0.24);
+        }
+        .ls-filter-chip-category {
+            background: var(--whisker-green-a18);
+            border-color: var(--whisker-green-a32);
+        }
+        .ls-filter-chip-type {
+            background: var(--whisker-purple-a18);
+            border-color: rgba(122, 99, 232, 0.34);
+        }
+        .ls-filter-chip-local {
+            background: var(--whisker-light-blue-a18);
+            border-color: rgba(53, 169, 214, 0.34);
+        }
+        .ls-filter-chip-search {
+            background: var(--whisker-blue-a18);
+            border-color: var(--whisker-blue-a34);
+        }
+        .ls-filter-chip-mark {
+            background: var(--whisker-yellow-a18);
+            border-color: rgba(242, 179, 61, 0.34);
+        }
+        .ls-filter-chip-tag {
+            background: var(--whisker-pink-a18);
+            border-color: rgba(226, 87, 148, 0.34);
+        }
+        .ls-filter-chip-selected {
+            background: var(--whisker-green-a18);
+            border-color: var(--whisker-green-a32);
+        }
+
+        .ls-filter-empty {
+            color: var(--ls-filter-muted);
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .ls-active-filter-meta {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            flex: 0 0 auto;
+            white-space: nowrap;
+        }
+
+        .ls-filter-result-count {
+            color: var(--ls-filter-text);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .ls-filter-clear-all {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 33px;
+            height: 33px;
+            min-width: 33px;
+            padding: 0;
+            border: 0;
+            border-radius: 50%;
+            background: #EF4444;
+            color: #FFFFFF;
+            text-decoration: none;
+            font-size: 20px;
+            font-weight: 500;
+            line-height: 1;
+            box-sizing: border-box;
+        }
+
+        .ls-filter-clear-all:hover {
+            background: #EF4444;
+            color: #FFFFFF;
+            filter: brightness(1.1);
+        }
+
+        .ls-filter-action-icon {
+            display: block;
+            width: 18px;
+            height: 18px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2.6;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            pointer-events: none;
+        }
+
+        .ls-add-filter-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 33px;
+            height: 33px;
+            min-width: 33px;
+            padding: 0;
+            margin: 0;
+            border: 0;
+            border-radius: 50%;
+            background: #22C55E;
+            color: #FFFFFF;
+            font-size: 21px;
+            font-weight: 500;
+            line-height: 1;
+            box-sizing: border-box;
+        }
+
+        .ls-add-filter-button:hover {
+            background: #22C55E;
+            border-color: rgba(255,255,255,0.24);
+            filter: brightness(1.1);
+            opacity: 1;
+        }
+
+        .ls-add-filter-button:focus-visible {
+            outline: 2px solid var(--ls-focus-ring);
+            outline-offset: 1px;
+        }
+
+        .ls-filter-top-actions {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            margin-left: auto;
+            flex: 0 0 auto;
+        }
+

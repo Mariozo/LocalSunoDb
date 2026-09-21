@@ -1,0 +1,93 @@
+        .library-tools-menu {
+            position: relative;
+            flex: 0 0 auto;
+        }
+
+        .library-tools-menu > summary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            height: 40px;
+            box-sizing: border-box;
+            padding: 0 14px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 999px;
+            background: rgba(255,255,255,0.075);
+            color: #F2F4F3;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            list-style: none;
+            user-select: none;
+        }
+
+        .library-tools-menu > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .library-tools-menu > summary:hover {
+            background: rgba(255,255,255,0.11);
+        }
+
+        .library-tools-popover {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            z-index: 1600;
+            display: grid;
+            gap: 6px;
+            min-width: 250px;
+            padding: 8px;
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 14px;
+            background: #101C17;
+            box-shadow: 0 14px 34px rgba(0,0,0,0.42);
+        }
+
+        .library-tools-popover button,
+        .library-tools-popover .btn {
+            width: 100%;
+            box-sizing: border-box;
+            margin: 0;
+            padding: 9px 12px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.07);
+            color: #F2F4F3;
+            text-align: left;
+            font-size: 13px;
+        }
+
+        .library-tools-popover button:hover,
+        .library-tools-popover .btn:hover {
+            background: rgba(255,255,255,0.12);
+            opacity: 1;
+        }
+
+        .ls-comparison-modal-card {
+            width: min(560px, calc(100vw - 36px));
+        }
+
+        .ls-comparison-modal-card select {
+            width: 100%;
+            box-sizing: border-box;
+            margin: 8px 0 12px;
+        }
+
+        .ls-comparison-modal-note,
+        .ls-comparison-modal-status {
+            line-height: 1.45;
+        }
+
+        .ls-comparison-modal-status {
+            min-height: 22px;
+            margin: 10px 0;
+            color: #C7D3CD;
+        }
+
+        .ls-comparison-modal-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+

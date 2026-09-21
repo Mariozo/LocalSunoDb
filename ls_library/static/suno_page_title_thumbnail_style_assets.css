@@ -1,0 +1,177 @@
+        .title-with-thumb {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+        }
+
+        .title-play-slot {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+            width: 38px;
+        }
+
+        .thumb-link {
+            flex: 0 0 auto;
+            position: relative;
+            display: inline-flex;
+            width: 58px;
+            height: 74px;
+            border-radius: 9px;
+            overflow: hidden;
+            background: #e6e6e6;
+            border: 1px solid #d0d0d0;
+        }
+
+        .thumb-link.thumb-error {
+            visibility: visible;
+            cursor: default;
+            background:
+                radial-gradient(circle at 10% 10%, rgba(190,65,231,.96) 0 17%, transparent 45%),
+                radial-gradient(circle at 88% 88%, rgba(168,65,218,.92) 0 16%, transparent 43%),
+                linear-gradient(135deg, #bd43e3 0%, #f24475 38%, #ff3b13 68%, #f23d1b 100%);
+        }
+
+        .thumb-link.thumb-error .track-thumb {
+            display: none;
+        }
+
+        .track-thumb {
+            width: 58px;
+            height: 74px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .thumb-placeholder {
+            flex: 0 0 auto;
+            position: relative;
+            width: 58px;
+            height: 74px;
+            display: inline-block;
+            border-radius: 9px;
+            background:
+                radial-gradient(circle at 10% 10%, rgba(190,65,231,.96) 0 17%, transparent 45%),
+                radial-gradient(circle at 88% 88%, rgba(168,65,218,.92) 0 16%, transparent 43%),
+                linear-gradient(135deg, #bd43e3 0%, #f24475 38%, #ff3b13 68%, #f23d1b 100%);
+        }
+
+        .thumb-duration-badge {
+            position: absolute;
+            right: 4px;
+            bottom: 4px;
+            padding: 2px 5px;
+            border-radius: 6px;
+            background: rgba(0,0,0,0.82);
+            color: white;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1.15;
+            font-variant-numeric: tabular-nums;
+            cursor: pointer;
+            z-index: 5;
+        }
+
+        .thumb-duration-badge:hover {
+            background: rgba(0,0,0,0.95);
+        }
+
+        .title-link {
+            color: #111;
+            font-weight: 650;
+            text-decoration: none;
+        }
+
+        .title-link:hover {
+            color: #1a73e8;
+            text-decoration: underline;
+        }
+
+        .title-stack {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .title-line {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            min-width: 0;
+            max-width: 100%;
+            white-space: nowrap;
+        }
+
+        .title-line .title-link {
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -0.2px;
+            line-height: 1.15;
+            flex: 0 0 auto;
+            min-width: 0;
+            overflow: visible;
+            text-overflow: clip;
+            white-space: nowrap;
+        }
+
+        .title-prompt-inline {
+            min-width: 0;
+            max-width: 100%;
+            display: inline-flex;
+            align-items: baseline;
+            gap: 6px;
+            overflow: hidden;
+            border: 0;
+            border-radius: 5px;
+            padding: 1px 4px;
+            background: transparent;
+            color: #6f7479;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            font-size: 16px;
+            font-weight: 400;
+            line-height: 1.15;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .title-prompt-inline:hover,
+        .title-prompt-inline:focus {
+            color: #174ea6;
+            background: #eef4ff;
+            outline: 1px solid #b8cdf5;
+        }
+
+        .title-text-field-label {
+            flex: 0 0 auto;
+            border: 1px solid currentColor;
+            border-radius: 4px;
+            padding: 1px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1.1;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .title-text-field-preview {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .text-field-lyrics .title-text-field-label {
+            color: #174ea6;
+        }
+
+        .text-field-prompt .title-text-field-label {
+            color: #8a4b08;
+        }
+
+        .text-field-style .title-text-field-label {
+            color: #5f3d91;
+        }
+
