@@ -65,16 +65,18 @@ def _wire_repository(monkeypatch, db_path, tmp_path):
     monkeypatch.setattr(repository, "REPORTS_DIR", tmp_path / "Reports")
     monkeypatch.setattr(repository, "BACKUP_DIR", tmp_path / "Backup")
     monkeypatch.setattr(repository, "BASE_DIR", tmp_path)
-    monkeypatch.setattr(repository, "lv_sort_key", lambda value: str(value or "").casefold())
+    monkeypatch.setattr(repository, "lv_sort_key", lambda value: str(value or "").casefold(), raising=False)
     monkeypatch.setattr(
         repository,
         "duration_sort_value",
         lambda value: float(value or 0) if str(value or "").replace(".", "", 1).isdigit() else 0.0,
+        raising=False,
     )
     monkeypatch.setattr(
         repository,
         "now_iso_local",
         lambda: "2026-09-21T12:00:00+03:00",
+        raising=False,
     )
 
 
