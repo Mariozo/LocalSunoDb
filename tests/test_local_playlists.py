@@ -56,3 +56,30 @@ def test_playlist_reorder_rejects_missing_or_duplicate_members(isolated_store):
 
     with pytest.raises(ValueError):
         playlists.reorder_local_playlist(playlist_id, ["a", "a"])
+
+
+
+def test_playlist_bulk_add_preserves_input_order_and_deduplicates(isolated_store):
+    playlist_id = playlists.create_local_playlist("Bulk")["id"]
+
+    result = playlists.add_tracks_to_local_playlist(
+        playlist_id,
+        ["track-c", "track-a", "TRACK-C", "track-b"],
+    )
+    assert result["track_ids"] == ["track-c", "track-a", "track-b"]
+    assert result["added_count"] == 3
+    assert result["added_track_ids"] == ["track-c", "track-a", "track-b"]
+
+    second = playlists.add_tracks_to_local_playlist(
+        playlist_id,
+        ["TRACK-A", "track-d"],
+    )
+    assert second["track_ids"] == ["track-c", "track-a", "track-b", "track-d"]
+    assert second["added_count"] == 1
+    assert second["added_track_ids"] == ["track-d"]
+
+
+def test_playlist_bulk_add_rejects_empty_selection(isolated_store):
+    playlist_id = playlists.create_local_playlist("Bulk")["id"]
+    with pytest.raises(ValueError):
+        playlists.add_tracks_to_local_playlist(playlist_id, [])

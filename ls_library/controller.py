@@ -142,6 +142,10 @@ class LibraryControllerMixin:
             self.add_playlist_track()
             return
 
+        if path == "/playlist-add-tracks":
+            self.add_playlist_tracks()
+            return
+
         if path == "/playlist-remove-track":
             self.remove_playlist_track()
             return
@@ -280,6 +284,24 @@ class LibraryControllerMixin:
             item = add_track_to_local_playlist(
                 params.get("playlist_id", [""])[0],
                 params.get("track_id", [""])[0],
+            )
+            self.send_json_response({"ok": True, "playlist": item})
+        except ValueError as error:
+            self.send_json_response({"ok": False, "error": str(error)}, status=400)
+        except Exception as error:
+            self.send_json_response({"ok": False, "error": str(error)}, status=500)
+
+    def add_playlist_tracks(self):
+        try:
+            params = self.read_playlist_form()
+            track_ids = [
+                value.strip()
+                for value in params.get("track_ids", [""])[0].split(",")
+                if value.strip()
+            ]
+            item = add_tracks_to_local_playlist(
+                params.get("playlist_id", [""])[0],
+                track_ids,
             )
             self.send_json_response({"ok": True, "playlist": item})
         except ValueError as error:
