@@ -2084,20 +2084,18 @@ def run_localsunodb_chrome_app():
 
 def build_browser_tab_launcher_shortcut_spec(
     *,
-    python_executable=None,
-    launcher_path=None,
     host_root=None,
+    launcher_path=None,
+    **_ignored,
 ):
-    """Windows shortcut contract for the restored Suno Finder operating model."""
-    python_executable = Path(python_executable or _background_python_executable()).resolve()
-    launcher_path = Path(launcher_path or Path(__file__).resolve()).resolve()
+    """Windows shortcut contract matching Suno Finder's stable CMD launcher."""
     host_root = Path(host_root or HOST_ROOT).resolve()
+    launcher_path = Path(
+        launcher_path or (host_root / "Start_LocalSunoDb.cmd")
+    ).resolve()
     return {
-        "target_path": str(python_executable),
-        "arguments": subprocess.list2cmdline([
-            str(launcher_path),
-            LS_BROWSER_TAB_LAUNCH_FLAG,
-        ]),
+        "target_path": str(launcher_path),
+        "arguments": "",
         "working_directory": str(host_root),
         "icon_location": str(LS_ICON_PATH.resolve()) + ",0",
     }

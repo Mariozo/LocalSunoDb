@@ -10,6 +10,7 @@ on:
       - 'ls_core/runtime.py'
       - 'ls_web/app.py'
       - 'LocalSunoDb.py'
+      - 'Start_LocalSunoDb.cmd'
       - 'ls_tools/launcher.py'
       - 'tests/test_backend_restart.py'
       - 'tests/test_local_suno_migration.py'
