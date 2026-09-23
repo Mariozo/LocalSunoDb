@@ -1,0 +1,67 @@
+name: Build v2.13 overlay artifact
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-overlay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify exact overlay inputs
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          required = [
+              Path("LocalSunoDb.py"),
+              Path("ls_core/runtime.py"),
+              Path("ls_web/render.py"),
+              Path("ls_web/static/popup_theme.css"),
+              Path("ls_web/static/help.css"),
+              Path("ls_library/templates/library.html"),
+          ]
+          for path in required:
+              if not path.is_file():
+                  raise SystemExit(f"Missing overlay file: {path}")
+          entry = Path("LocalSunoDb.py").read_text(encoding="utf-8")
+          runtime = Path("ls_core/runtime.py").read_text(encoding="utf-8")
+          popup = Path("ls_web/static/popup_theme.css").read_text(encoding="utf-8")
+          render = Path("ls_web/render.py").read_text(encoding="utf-8")
+          template = Path("ls_library/templates/library.html").read_text(encoding="utf-8")
+          assert 'APP_VERSION = "v2.13"' in entry
+          assert 'APP_VERSION = "v2.13"' in runtime
+          assert "#ls-library #settings-modal > .modal" in popup
+          assert "stylesheet_asset('ls_web/static/popup_theme.css')" in render
+          assert "default-rows-select" not in template
+          PY
+      - name: Build overlay ZIP
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import zipfile
+          files = [
+              Path("LocalSunoDb.py"),
+              Path("ls_core/runtime.py"),
+              Path("ls_web/render.py"),
+              Path("ls_web/static/popup_theme.css"),
+              Path("ls_web/static/help.css"),
+              Path("ls_library/templates/library.html"),
+          ]
+          out = Path("LocalSunoDb_v2.13_OVERLAY_E_Chrome-Player.zip")
+          with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+              for path in files:
+                  z.write(path, path.as_posix())
+          with zipfile.ZipFile(out) as z:
+              assert set(z.namelist()) == {p.as_posix() for p in files}
+          print(out)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LocalSunoDb-v2.13-overlay
+          path: LocalSunoDb_v2.13_OVERLAY_E_Chrome-Player.zip
+          if-no-files-found: error
+          retention-days: 1
