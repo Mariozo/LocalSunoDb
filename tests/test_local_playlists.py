@@ -101,3 +101,25 @@ def test_library_playlist_script_has_direct_target_mode():
     assert 'table.classList.add("selection-mode")' in script
     assert '"/playlist-add-tracks"' in script
     assert 'window.location.href = "/playlists?id="' in script
+
+
+
+def test_single_track_add_uses_native_playlist_chooser(isolated_store, monkeypatch):
+    monkeypatch.setattr(playlists, "esc", lambda value: str(value), raising=False)
+    playlist = playlists.create_local_playlist("Vārda diena")
+
+    html = playlists._playlist_catalog_html(
+        playlists.get_local_playlists(),
+        "track-native-1",
+    )
+
+    assert 'method="post" action="/playlist-add-track-open"' in html
+    assert 'name="playlist_id" value="' + playlist["id"] + '"' in html
+    assert 'name="track_id" value="track-native-1"' in html
+    assert "Add here" in html
+
+
+def test_single_row_playlist_add_no_longer_depends_on_delegated_menu_js():
+    script = playlists.render_playlist_library_actions_script()
+
+    assert 'event.target.closest(".menu-add-playlist")' not in script
