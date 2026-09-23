@@ -20,7 +20,6 @@ import urllib.parse
 import urllib.request
 import unicodedata
 import warnings
-import webbrowser
 import zipfile
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -403,7 +402,8 @@ def main():
     print(f"Process ID: {os.getpid()}")
     print("Press Ctrl+C to stop.")
     if "--ls-restarted" not in sys.argv and "--ls-update-transaction" not in sys.argv:
-        webbrowser.open(url)
+        from ls_tools.launcher import open_or_focus_localsunodb_chrome_app
+        open_or_focus_localsunodb_chrome_app(url=url)
 
     try:
         server.serve_forever()
