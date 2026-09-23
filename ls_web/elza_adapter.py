@@ -134,6 +134,25 @@ def parse_ls_elza_selection_intent(message):
         filters["local_audio_filter"] = "with"
         labels.append("With local audio")
 
+    local_audio_extensions = []
+    if re.search(r"\bwav\b", plain):
+        filters["local_audio_filter"] = "with"
+        local_audio_extensions.append("wav")
+        labels = [label for label in labels if label != "With local audio"]
+        labels.append("Local WAV")
+
+    exclude_ui_types = []
+    exclude_upload = bool(
+        re.search(
+            r"\b(?:bez|iznem\w*|exclude\w*|without)\s+(?:upload|uplod|uploads?)\b",
+            plain,
+        )
+        or re.search(r"(?:^|\s)-\s*(?:upload|uplod|uploads?)\b", plain)
+    )
+    if exclude_upload:
+        exclude_ui_types.append("Upload")
+        labels.append("Bez Type: Upload")
+
     if re.search(r"\binstrumental\w*\b", plain):
         filters["category_filter"] = "Instrumental"
         labels.append("Instrumental")
@@ -245,6 +264,8 @@ def parse_ls_elza_selection_intent(message):
         "labels": labels,
         "summary": " + ".join(labels),
         "save_name": " + ".join(labels)[:80] or "LS Elza selection",
+        "local_audio_extensions": local_audio_extensions,
+        "exclude_ui_types": exclude_ui_types,
     }
     if exact_flag_set_requested and exact_flags:
         exact_flag_mask = 0
@@ -347,12 +368,38 @@ def get_ls_elza_selection_result(intent, limit=20):
         preview_limit = max(1, min(int(limit), 50))
     except (TypeError, ValueError):
         preview_limit = 20
+
     filters = dict(intent.get("filters") or {})
     exact_flag_mask = intent.get("exact_flag_mask")
+    local_audio_extensions = {
+        str(item or "").strip().lower().lstrip(".")
+        for item in (intent.get("local_audio_extensions") or [])
+        if str(item or "").strip()
+    }
+    excluded_ui_types = {
+        str(item or "").strip().casefold()
+        for item in (intent.get("exclude_ui_types") or [])
+        if str(item or "").strip()
+    }
+    needs_exact_track_view = (
+        exact_flag_mask is not None
+        or bool(local_audio_extensions)
+        or bool(excluded_ui_types)
+    )
 
-    if exact_flag_mask is not None:
+    def row_text(row, key):
         try:
-            required_marks = int(exact_flag_mask)
+            return str(row[key] or "").strip()
+        except (KeyError, IndexError, TypeError):
+            return ""
+
+    if needs_exact_track_view:
+        try:
+            required_marks = (
+                int(exact_flag_mask)
+                if exact_flag_mask is not None
+                else None
+            )
         except (TypeError, ValueError):
             required_marks = -1
         candidate_rows = search_tracks(
@@ -363,18 +410,44 @@ def get_ls_elza_selection_result(intent, limit=20):
         )
         exact_rows = []
         for row in candidate_rows:
-            try:
-                row_marks = int(row["user_marks"] or 0)
-            except (TypeError, ValueError, KeyError, IndexError):
-                row_marks = 0
-            if row_marks == required_marks:
-                exact_rows.append(row)
+            if required_marks is not None:
+                try:
+                    row_marks = int(row["user_marks"] or 0)
+                except (TypeError, ValueError, KeyError, IndexError):
+                    row_marks = 0
+                if row_marks != required_marks:
+                    continue
+
+            ui_type = row_text(row, "ui_type") or row_text(row, "kind")
+            if ui_type.casefold() in excluded_ui_types:
+                continue
+
+            if local_audio_extensions:
+                row_extensions = set()
+                if row_text(row, "local_wav"):
+                    row_extensions.add("wav")
+                if row_text(row, "local_mp3"):
+                    row_extensions.add("mp3")
+                best_path = row_text(row, "ui_best_local_audio_path")
+                if best_path:
+                    suffix = Path(best_path).suffix.lower().lstrip(".")
+                    if suffix:
+                        row_extensions.add(suffix)
+                if not local_audio_extensions.intersection(row_extensions):
+                    continue
+
+            exact_rows.append(row)
+
         rows = exact_rows[:preview_limit]
         total = len(exact_rows)
-        exact_track_ids = [str(row["id"] or "") for row in exact_rows if row["id"]]
+        exact_track_ids = [
+            row_text(row, "id")
+            for row in exact_rows
+            if row_text(row, "id")
+        ]
         view_url = "/?" + urllib.parse.urlencode({
             "track_ids": ",".join(exact_track_ids),
-            "rows": "300",
+            "rows": "all",
             "sort_by": "title",
             "sort_dir": "asc",
         })
@@ -393,9 +466,9 @@ def get_ls_elza_selection_result(intent, limit=20):
     tracks = []
     for row in rows:
         tracks.append({
-            "track_id": str(row["id"] or ""),
-            "title": re.sub(r"\s+", " ", str(row["title"] or "").strip()),
-            "workspace": re.sub(r"\s+", " ", str(row["workspace"] or "").strip()),
+            "track_id": row_text(row, "id"),
+            "title": re.sub(r"\s+", " ", row_text(row, "title")),
+            "workspace": re.sub(r"\s+", " ", row_text(row, "workspace")),
         })
     return {
         "matched_count": int(total or 0),

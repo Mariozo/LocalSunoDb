@@ -58,6 +58,45 @@ def build_host_selection_intent(
         filters["local_audio_filter"] = local_audio
         labels.append("With local audio" if local_audio == "with" else "No local audio")
 
+    raw_extensions = request.get("local_audio_extensions") or []
+    if not isinstance(raw_extensions, list):
+        return {"error": "Elza atgrieza nederīgu lokālā audio formātu atlasi."}
+    allowed_extensions = {"wav", "mp3", "flac", "m4a", "aac", "ogg"}
+    local_audio_extensions = []
+    for item in raw_extensions:
+        extension = _clean_text(item, 20).lower().lstrip(".")
+        if not extension or extension not in allowed_extensions:
+            return {"error": "Elza atgrieza neatbalstītu lokālā audio formātu."}
+        if extension not in local_audio_extensions:
+            local_audio_extensions.append(extension)
+    if local_audio_extensions:
+        if local_audio == "without":
+            return {
+                "error": (
+                    "Konkrētu lokālā audio formātu nevar apvienot ar nosacījumu "
+                    "“bez lokālā audio”."
+                )
+            }
+        filters["local_audio_filter"] = "with"
+        labels = [label for label in labels if label != "With local audio"]
+        labels.append(
+            "Local " + "/".join(extension.upper() for extension in local_audio_extensions)
+        )
+
+    raw_excluded_types = request.get("exclude_ui_types") or []
+    if not isinstance(raw_excluded_types, list):
+        return {"error": "Elza atgrieza nederīgu izslēdzamo LS Type sarakstu."}
+    exclude_ui_types = []
+    seen_excluded_types = set()
+    for item in raw_excluded_types[:20]:
+        ui_type = _clean_text(item, 120)
+        key = ui_type.casefold()
+        if ui_type and key not in seen_excluded_types:
+            exclude_ui_types.append(ui_type)
+            seen_excluded_types.add(key)
+    for ui_type in exclude_ui_types:
+        labels.append(f"Bez Type: {ui_type}")
+
     raw_flags = request.get("flags")
     if not isinstance(raw_flags, list):
         return {"error": "Elza atgrieza nederīgu Flags atlasi."}
@@ -137,7 +176,12 @@ def build_host_selection_intent(
         return {"error": "Elza atgrieza nederīgu precīzo Stems skaitu."}
     if exact_stem_count < 0 or exact_stem_count > 100:
         return {"error": "Elza atgrieza neatbalstītu precīzo Stems skaitu."}
-    if exact_stem_count and (filters or local_family_assigned is not None):
+    if exact_stem_count and (
+        filters
+        or local_audio_extensions
+        or exclude_ui_types
+        or local_family_assigned is not None
+    ):
         return {
             "error": (
                 "Precīzu Stems skaitu pašreizējā drošajā atlasē nevar apvienot "
@@ -151,6 +195,8 @@ def build_host_selection_intent(
         "summary": " + ".join(labels) or "LS selection",
         "save_name": (" + ".join(labels) or "LS Elza selection")[:80],
         "local_family_assigned": local_family_assigned,
+        "local_audio_extensions": local_audio_extensions,
+        "exclude_ui_types": exclude_ui_types,
     }
 
     if exact_flags:
@@ -164,7 +210,12 @@ def build_host_selection_intent(
         result["summary"] = f"Tieši {exact_stem_count} Stems"
         result["save_name"] = result["summary"]
 
-    if not filters and not exact_stem_count and local_family_assigned is None:
+    if (
+        not filters
+        and not exact_stem_count
+        and not exclude_ui_types
+        and local_family_assigned is None
+    ):
         return {"error": "Elza neatrada nevienu droši izpildāmu LS atlases nosacījumu."}
 
     return result
