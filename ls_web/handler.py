@@ -109,8 +109,9 @@ class LocalSunoDbHandler(LibraryControllerMixin, DownloaderControllerMixin, Medi
         """Render top-level LocalSunoDb pages and lazy Library row chunks."""
         if path == "/playlists":
             playlist_id = params.get("id", [""])[0]
+            add_track_id = params.get("add_track", [""])[0]
             save_last_view_url(self.path)
-            self.send_html(render_playlists_page(playlist_id))
+            self.send_html(render_playlists_page(playlist_id, add_track_id))
             return
 
         if path == "/library-rows":
