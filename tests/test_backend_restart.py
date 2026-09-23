@@ -3,6 +3,7 @@ import re
 
 from ls_tools import launcher
 from ls_core import runtime
+from ls_web import render as web_render
 
 
 def test_entrypoint_and_runtime_versions_are_aligned():
@@ -15,6 +16,25 @@ def test_entrypoint_and_runtime_versions_are_aligned():
     assert entry_based_on is not None
     assert entry_version.group(1) == runtime.APP_VERSION
     assert entry_based_on.group(1) == runtime.APP_BASED_ON
+
+
+def test_popup_theme_is_loaded_last_in_library_head():
+    style_block = web_render.render_suno_page_style_block()
+    deferred_assets = web_render.render_ls_popup_theme_assets()
+
+    popup_url_marker = "ls_web/static/popup_theme.css"
+    assert popup_url_marker in style_block
+    assert style_block.rfind(popup_url_marker) > style_block.rfind("ls_player/static/suno_global_player_style_assets.css")
+    assert popup_url_marker not in deferred_assets
+
+
+def test_popup_theme_has_strong_settings_and_flags_selectors():
+    root = Path(__file__).resolve().parents[1]
+    popup_css = (root / "ls_web" / "static" / "popup_theme.css").read_text(encoding="utf-8")
+
+    assert "#ls-library #settings-modal > .modal" in popup_css
+    assert "#ls-library #stats-modal > .ls-stats-modal-card" in popup_css
+    assert "#ls-library #user-tag-panel.user-tag-panel" in popup_css
 
 
 def test_explicit_restart_replaces_same_version_backend():
