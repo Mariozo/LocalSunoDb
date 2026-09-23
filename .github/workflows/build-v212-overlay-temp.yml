@@ -1,0 +1,45 @@
+name: Build v2.12 overlay artifact
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-overlay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build overlay ZIP
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import zipfile
+
+          files = [
+              Path("LocalSunoDb.py"),
+              Path("ls_core/runtime.py"),
+              Path("ls_web/static/popup_theme.css"),
+              Path("ls_web/static/help.css"),
+          ]
+          output = Path("LocalSunoDb_v2.12_OVERLAY_E_Chrome-Player.zip")
+          with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+              for path in files:
+                  if not path.is_file():
+                      raise SystemExit(f"Missing package file: {path}")
+                  archive.write(path, path.as_posix())
+
+          with zipfile.ZipFile(output) as archive:
+              actual = set(archive.namelist())
+              expected = {path.as_posix() for path in files}
+              if actual != expected:
+                  raise SystemExit(f"Unexpected package contents: {sorted(actual)}")
+          print(output)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LocalSunoDb-v2.12-overlay
+          path: LocalSunoDb_v2.12_OVERLAY_E_Chrome-Player.zip
+          if-no-files-found: error
+          retention-days: 1
