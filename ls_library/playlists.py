@@ -559,7 +559,7 @@ def render_playlists_page(playlist_id=""):
                 <div class="playlist-actions">
                   <button type="button" class="playlist-primary" id="playlist-play-all">▶ Play</button>
                   <button type="button" class="playlist-secondary" id="playlist-rename">Edit playlist details</button>
-                  <a class="playlist-secondary" href="/?playlist_add={urllib.parse.quote(active[\"id\"])}">＋ Add songs</a>
+                  <a class="playlist-secondary" href="/?playlist_add={urllib.parse.quote(active['id'])}">＋ Add songs</a>
                   <button type="button" class="playlist-secondary playlist-danger" id="playlist-delete">Delete playlist</button>
                 </div>
               </div>
