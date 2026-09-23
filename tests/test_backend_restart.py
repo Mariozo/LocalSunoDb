@@ -2,6 +2,7 @@ from pathlib import Path
 import re
 
 from ls_tools import launcher
+from ls_core import runtime
 
 
 def test_entrypoint_and_runtime_versions_are_aligned():
@@ -12,8 +13,8 @@ def test_entrypoint_and_runtime_versions_are_aligned():
 
     assert entry_version is not None
     assert entry_based_on is not None
-    assert entry_version.group(1) == launcher.APP_VERSION
-    assert entry_based_on.group(1) == launcher.APP_BASED_ON
+    assert entry_version.group(1) == runtime.APP_VERSION
+    assert entry_based_on.group(1) == runtime.APP_BASED_ON
 
 
 def test_explicit_restart_replaces_same_version_backend():
