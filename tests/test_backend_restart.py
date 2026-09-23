@@ -124,34 +124,7 @@ def test_browser_tab_launcher_waits_for_backend_before_opening():
     assert result["browser_opened"] is True
 
 
-def test_chrome_app_launcher_waits_for_backend_before_opening():
-    events = []
-    status = {
-        "process_id": 556,
-        "running_version": launcher.APP_VERSION,
-        "server_ready": True,
-        "last_view_url": "/library",
-    }
-
-    def open_app(*, url, profile_directory):
-        events.append(("app", url, profile_directory))
-        return {"ok": True, "action": "opened_direct_chrome_app"}
-
-    result = launcher.run_localsunodb_chrome_app(
-        autostart_cleaner=lambda: events.append("cleanup"),
-        backend_ensurer=lambda: events.append("backend_ready") or (status, True),
-        app_opener=open_app,
-        profile_directory="Default",
-    )
-
-    assert events[0:2] == ["cleanup", "backend_ready"]
-    assert events[2][0] == "app"
-    assert events[2][1].endswith("/library")
-    assert result["action"] == "backend_started_and_app_opened"
-    assert result["ok"] is True
-
-
-def test_launcher_shortcut_uses_stable_cmd_entrypoint(tmp_path):
+def test_browser_tab_shortcut_uses_stable_sf_style_cmd_launcher(tmp_path):
     cmd = tmp_path / "Start_LocalSunoDb.cmd"
     spec = launcher.build_browser_tab_launcher_shortcut_spec(
         launcher_path=cmd,
@@ -164,17 +137,14 @@ def test_launcher_shortcut_uses_stable_cmd_entrypoint(tmp_path):
     assert spec["working_directory"] == str(tmp_path.resolve())
 
 
-def test_web_runtime_uses_standalone_chrome_app_lifecycle():
+def test_web_runtime_uses_suno_finder_browser_tab_lifecycle():
     root = Path(__file__).resolve().parents[1]
     app_source = (root / "ls_web" / "app.py").read_text(encoding="utf-8")
     entry_source = (root / "LocalSunoDb.py").read_text(encoding="utf-8")
-    start_source = (root / "Start_LocalSunoDb.cmd").read_text(encoding="utf-8")
 
-    assert "import webbrowser" not in app_source
-    assert "webbrowser.open(url)" not in app_source
-    assert "open_or_focus_localsunodb_chrome_app" in app_source
+    assert "import webbrowser" in app_source
+    assert "webbrowser.open(url)" in app_source
     assert "start_localsunodb_chrome_window_watcher" not in app_source
-    assert "--launch-chrome-app" in start_source
-    assert "ls_tools\\launcher.py" in start_source
+    assert "open_or_focus_localsunodb_chrome_app" not in app_source
     assert "start_localsunodb_backend_supervisor" not in entry_source
     assert "install_localsunodb_backend_run_entry" not in entry_source
