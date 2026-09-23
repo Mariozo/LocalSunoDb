@@ -1845,6 +1845,37 @@ def delete_local_variant_from_track(track_id, local_path):
     finally:
         conn.close()
 
+SAVED_VIEWS_LOCK = threading.RLock()
+
+SAVED_VIEW_MAX_COUNT = 40
+
+SAVED_VIEW_PARAM_ORDER = (
+    "q",
+    "style_q",
+    "workspace",
+    "workspace_mode",
+    "category_filter",
+    "category_mode",
+    "local_family_filter",
+    "kind_filter",
+    "local_audio_filter",
+    "search_name",
+    "search_lyrics",
+    "search_prompt",
+    "search_marks",
+    "search_tags",
+    "flag_filter",
+    "tag_filter",
+    "sort_by",
+    "sort_dir",
+)
+
+SAVED_VIEW_MULTI_PARAMS = {
+    "workspace",
+    "category_filter",
+    "local_family_filter",
+}
+
 def normalize_saved_view_name(value):
     text = str(value or "").replace("\r", " ").replace("\n", " ")
     text = re.sub(r"\s+", " ", text).strip()
