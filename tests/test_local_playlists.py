@@ -83,3 +83,20 @@ def test_playlist_bulk_add_rejects_empty_selection(isolated_store):
     playlist_id = playlists.create_local_playlist("Bulk")["id"]
     with pytest.raises(ValueError):
         playlists.add_tracks_to_local_playlist(playlist_id, [])
+
+
+
+def test_playlist_add_songs_enters_targeted_library_mode(isolated_store):
+    playlist = playlists.create_local_playlist("Vārda diena")
+    page = playlists.render_playlists_page(playlist["id"]).decode("utf-8")
+
+    assert "/?playlist_add=" + playlist["id"] in page
+
+
+def test_library_playlist_script_has_direct_target_mode():
+    script = playlists.render_playlist_library_actions_script()
+
+    assert 'params.get("playlist_add")' in script
+    assert 'table.classList.add("selection-mode")' in script
+    assert '"/playlist-add-tracks"' in script
+    assert 'window.location.href = "/playlists?id="' in script
