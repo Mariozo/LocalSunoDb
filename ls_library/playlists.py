@@ -559,7 +559,7 @@ def render_playlists_page(playlist_id=""):
                 <div class="playlist-actions">
                   <button type="button" class="playlist-primary" id="playlist-play-all">▶ Play</button>
                   <button type="button" class="playlist-secondary" id="playlist-rename">Edit playlist details</button>
-                  <a class="playlist-secondary" href="/">＋ Add songs</a>
+                  <a class="playlist-secondary" href="/?playlist_add={urllib.parse.quote(active[\"id\"])}">＋ Add songs</a>
                   <button type="button" class="playlist-secondary playlist-danger" id="playlist-delete">Delete playlist</button>
                 </div>
               </div>
@@ -642,15 +642,18 @@ def render_playlist_library_actions_script():
     });
   };
 
+  const fetchPlaylists = async () => {
+    const response = await fetch("/playlists-json", {cache:"no-store"});
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || "Could not load playlists.");
+    return Array.isArray(data.playlists) ? data.playlists : [];
+  };
+
   const choosePlaylist = async (trackIds) => {
     const ids = cleanTrackIds(trackIds);
     if (!ids.length) return null;
 
-    const response = await fetch("/playlists-json", {cache:"no-store"});
-    const data = await response.json();
-    if (!response.ok || !data.ok) throw new Error(data.error || "Could not load playlists.");
-    const playlists = Array.isArray(data.playlists) ? data.playlists : [];
-
+    const playlists = await fetchPlaylists();
     let playlist = null;
     if (!playlists.length) {
       const name = window.prompt("No playlists yet. New playlist name:");
@@ -695,12 +698,64 @@ def render_playlist_library_actions_script():
   ).map((check) => String(check.value || "").trim()).filter(Boolean);
 
   const selectedButton = document.getElementById("add-selected-playlist-btn");
+  const table = document.getElementById("tracks-table");
+  const params = new URLSearchParams(window.location.search);
+  const playlistAddId = String(params.get("playlist_add") || "").trim();
+  let playlistAddName = "";
+
   const syncSelectedButton = () => {
     if (!selectedButton) return;
     const count = getSelectedTrackIds().length;
     selectedButton.disabled = count < 1;
+    if (playlistAddId) {
+      selectedButton.style.display = "";
+      selectedButton.textContent = count > 0
+        ? "Add selected (" + count + ")"
+        : "Add selected";
+      selectedButton.title = playlistAddName
+        ? "Add selected songs to " + playlistAddName
+        : "Add selected songs to this playlist";
+      return;
+    }
     selectedButton.style.display = count > 0 ? "" : "none";
     selectedButton.textContent = count > 0 ? "Add to Playlist (" + count + ")" : "Add to Playlist";
+  };
+
+  const enterPlaylistAddMode = async () => {
+    if (!playlistAddId || !table) return;
+    const playlists = await fetchPlaylists();
+    const playlist = playlists.find((item) => String(item.id || "") === playlistAddId);
+    if (!playlist) throw new Error("Playlist not found.");
+    playlistAddName = String(playlist.name || "Playlist");
+
+    table.classList.add("selection-mode");
+    table.querySelectorAll("tbody .track-check:checked").forEach((check) => {
+      check.checked = false;
+    });
+
+    const wavButton = document.getElementById("wav-select-mode-btn");
+    const compareButton = document.getElementById("compare-this-btn");
+    const openSelected = document.getElementById("open-selected");
+    if (wavButton) wavButton.style.display = "none";
+    if (compareButton) compareButton.style.display = "none";
+    if (openSelected) openSelected.style.display = "none";
+
+    const panel = document.querySelector("main > .panel");
+    if (panel && !document.getElementById("playlist-add-mode-banner")) {
+      const banner = document.createElement("div");
+      banner.id = "playlist-add-mode-banner";
+      banner.style.cssText = "display:flex;align-items:center;gap:12px;margin:0 0 12px;padding:10px 14px;border:1px solid rgba(255,255,255,.16);border-radius:12px;background:rgba(255,255,255,.06);color:#fff;";
+      const text = document.createElement("strong");
+      text.textContent = "Add songs to: " + playlistAddName;
+      const back = document.createElement("a");
+      back.href = "/playlists?id=" + encodeURIComponent(playlistAddId);
+      back.textContent = "Back to playlist";
+      back.style.cssText = "margin-left:auto;color:inherit;text-decoration:underline;";
+      banner.appendChild(text);
+      banner.appendChild(back);
+      panel.appendChild(banner);
+    }
+    syncSelectedButton();
   };
 
   document.addEventListener("change", (event) => {
@@ -714,6 +769,12 @@ def render_playlist_library_actions_script():
       if (!ids.length) return;
       selectedButton.disabled = true;
       try {
+        if (playlistAddId) {
+          const result = await addTracks(playlistAddId, ids);
+          const added = Number(result.playlist?.added_count || 0);
+          window.location.href = "/playlists?id=" + encodeURIComponent(playlistAddId) + "&added=" + encodeURIComponent(String(added));
+          return;
+        }
         await choosePlaylist(ids);
       } catch (error) {
         window.alert(error.message);
@@ -740,6 +801,9 @@ def render_playlist_library_actions_script():
     }
   });
 
+  enterPlaylistAddMode().catch((error) => {
+    window.alert(error.message);
+  });
   window.setTimeout(syncSelectedButton, 0);
 })();
 </script>
