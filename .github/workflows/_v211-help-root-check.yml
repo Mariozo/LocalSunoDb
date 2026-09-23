@@ -1,0 +1,22 @@
+name: Help root hygiene v2.11 check
+
+on:
+  push:
+    branches:
+      - task/help-root-hygiene-v2.11
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install pytest
+      - run: python -c "from ls_core.runtime import APP_VERSION, APP_BASED_ON; assert APP_VERSION == 'v2.11'; assert APP_BASED_ON == 'v2.10'"
+      - run: python -m pytest -q tests/test_help_root_hygiene.py tests/test_local_playlists.py tests/test_saved_views_runtime.py tests/test_local_suno_runtime.py tests/test_local_suno_migration.py tests/test_backend_restart.py
+      - run: python LocalSunoDb.py --ls-update-probe
