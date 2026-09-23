@@ -285,7 +285,8 @@ def _playlist_cover_html(track_ids, css_class="playlist-cover"):
     return f'<div class="{css_class} playlist-cover-grid cover-count-{len(ids)}">{images}</div>'
 
 
-def _playlist_catalog_html(playlists):
+def _playlist_catalog_html(playlists, add_track_id=""):
+    pending_track_id = str(add_track_id or "").strip()
     cards = [
         """
         <button type="button" class="playlist-card playlist-new-card" id="playlist-new-card">
@@ -299,13 +300,26 @@ def _playlist_catalog_html(playlists):
         name = esc(item["name"])
         count = int(item["track_count"])
         cover = _playlist_cover_html(item["track_ids"], "playlist-card-cover")
-        cards.append(f"""
-            <a class="playlist-card" href="/playlists?id={playlist_id}">
-                {cover}
-                <strong>{name}</strong>
-                <span>{count} {'song' if count == 1 else 'songs'}</span>
-            </a>
-        """)
+        if pending_track_id:
+            cards.append(f"""
+                <form class="playlist-card playlist-add-target" method="post" action="/playlist-add-track-open">
+                    <input type="hidden" name="playlist_id" value="{playlist_id}">
+                    <input type="hidden" name="track_id" value="{esc(pending_track_id)}">
+                    <button type="submit" class="playlist-card-submit" title="Add song to {name}">
+                        {cover}
+                        <strong>{name}</strong>
+                        <span>{count} {'song' if count == 1 else 'songs'} · Add here</span>
+                    </button>
+                </form>
+            """)
+        else:
+            cards.append(f"""
+                <a class="playlist-card" href="/playlists?id={playlist_id}">
+                    {cover}
+                    <strong>{name}</strong>
+                    <span>{count} {'song' if count == 1 else 'songs'}</span>
+                </a>
+            """)
     return "".join(cards)
 
 
@@ -353,6 +367,7 @@ def _playlist_page_style():
     .playlist-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:24px}
     .playlist-card{display:flex;flex-direction:column;gap:9px;min-width:0;text-align:left;background:transparent;border:0;color:#fff;cursor:pointer}
     .playlist-card strong{font-size:17px}.playlist-card span{color:#a8a8ad}.playlist-new-card{height:245px;border:1px solid #4a4a50;border-radius:16px;background:#242429;align-items:center;justify-content:center}
+    .playlist-add-target{margin:0}.playlist-card-submit{display:flex;flex-direction:column;gap:9px;width:100%;padding:0;border:0;background:transparent;color:#fff;text-align:left;cursor:pointer}.playlist-card-submit strong{font-size:17px}.playlist-card-submit span{color:#a8a8ad}
     .playlist-new-plus{font-size:44px!important;color:#fff!important}.playlist-card-cover,.playlist-cover{height:200px;border-radius:16px;overflow:hidden;background:#222;display:grid}
     .playlist-cover-grid img{width:100%;height:100%;object-fit:cover;min-width:0;min-height:0}.cover-count-2,.cover-count-3,.cover-count-4{grid-template-columns:1fr 1fr}.cover-count-3,.cover-count-4{grid-template-rows:1fr 1fr}.cover-count-3 img:first-child{grid-row:1/3}
     .playlist-cover-empty{display:flex;align-items:center;justify-content:center;font-size:60px;color:#777}
@@ -375,11 +390,13 @@ def _playlist_page_style():
     """
 
 
-def _playlist_page_script(active_playlist_id=""):
+def _playlist_page_script(active_playlist_id="", pending_track_id=""):
     active_json = json.dumps(str(active_playlist_id or ""))
+    pending_json = json.dumps(str(pending_track_id or ""))
     return f"""
     (() => {{
       const activePlaylistId = {active_json};
+      const pendingTrackId = {pending_json};
       const post = async (path, values={{}}) => {{
         const body = new URLSearchParams();
         Object.entries(values).forEach(([key, value]) => body.set(key, String(value ?? "")));
@@ -395,6 +412,12 @@ def _playlist_page_script(active_playlist_id=""):
         if (!name) return;
         try {{
           const data = await post("/playlist-create", {{name}});
+          if (pendingTrackId) {{
+            await post("/playlist-add-track", {{
+              playlist_id: data.playlist.id,
+              track_id: pendingTrackId,
+            }});
+          }}
           window.location.href = "/playlists?id=" + encodeURIComponent(data.playlist.id);
         }} catch (error) {{ window.alert(error.message); }}
       }});
@@ -402,7 +425,7 @@ def _playlist_page_script(active_playlist_id=""):
       const search = document.getElementById("playlist-search");
       if (search) search.addEventListener("input", () => {{
         const needle = search.value.trim().toLocaleLowerCase();
-        document.querySelectorAll(".playlist-card[href]").forEach((card) => {{
+        document.querySelectorAll(".playlist-card[href], .playlist-add-target").forEach((card) => {{
           card.hidden = needle && !card.textContent.toLocaleLowerCase().includes(needle);
         }});
       }});
@@ -530,8 +553,9 @@ def _playlist_page_script(active_playlist_id=""):
     """
 
 
-def render_playlists_page(playlist_id=""):
+def render_playlists_page(playlist_id="", add_track_id=""):
     playlists = get_local_playlists()
+    pending_track_id = str(add_track_id or "").strip()
     active = None
     if playlist_id:
         try:
@@ -540,10 +564,16 @@ def render_playlists_page(playlist_id=""):
             active = None
 
     if active is None:
+        chooser_title = (
+            '<h1 style="margin:0 0 18px;font-size:30px">Choose Playlist</h1>'
+            '<p style="margin:-8px 0 22px;color:#aaa">Add the selected song to one local playlist.</p>'
+            if pending_track_id else ""
+        )
         main = f"""
           <main class="playlist-main">
+            {chooser_title}
             <input id="playlist-search" class="playlist-search" type="search" placeholder="Search for a playlist">
-            <div class="playlist-grid">{_playlist_catalog_html(playlists)}</div>
+            <div class="playlist-grid">{_playlist_catalog_html(playlists, pending_track_id)}</div>
           </main>
         """
         active_id = ""
@@ -599,7 +629,7 @@ def render_playlists_page(playlist_id=""):
 </header>
 {main}
 </div>
-<script>{_playlist_page_script(active_id)}</script>
+<script>{_playlist_page_script(active_id, pending_track_id if active is None else "")}</script>
 </body>
 </html>"""
     return html_text.encode("utf-8")
@@ -784,22 +814,8 @@ def render_playlist_library_actions_script():
     });
   }
 
-  document.addEventListener("click", async (event) => {
-    const item = event.target.closest(".menu-add-playlist");
-    if (!item) return;
-    event.preventDefault();
-    const menu = item.closest(".row-menu");
-    const wrap = item.closest(".row-menu-wrap");
-    const trigger = wrap?.querySelector(".row-menu-btn");
-    const trackId = trigger?.dataset.trackId || item.dataset.trackId || "";
-    if (menu) menu.classList.add("hidden");
-    if (!trackId) return;
-    try {
-      await choosePlaylist([trackId]);
-    } catch (error) {
-      window.alert(error.message);
-    }
-  });
+  // Single-row Add to Playlist uses a native link to the server-rendered
+  // playlist chooser. This avoids depending on delegated row-menu JavaScript.
 
   enterPlaylistAddMode().catch((error) => {
     window.alert(error.message);
