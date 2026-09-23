@@ -1,0 +1,62 @@
+name: Build v2.14 playlist overlay artifact
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-overlay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify exact overlay inputs
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          required = [
+              Path("LocalSunoDb.py"),
+              Path("ls_core/runtime.py"),
+              Path("ls_library/playlists.py"),
+              Path("ls_library/render.py"),
+          ]
+          for path in required:
+              if not path.is_file():
+                  raise SystemExit(f"Missing overlay file: {path}")
+          entry = Path("LocalSunoDb.py").read_text(encoding="utf-8")
+          runtime = Path("ls_core/runtime.py").read_text(encoding="utf-8")
+          playlists = Path("ls_library/playlists.py").read_text(encoding="utf-8")
+          render = Path("ls_library/render.py").read_text(encoding="utf-8")
+          assert 'APP_VERSION = "v2.14"' in entry
+          assert 'APP_VERSION = "v2.14"' in runtime
+          assert 'local_audio_filter' in playlists and "'with'" in playlists
+          assert 'getSelectedLocalWavTrackIds' in playlists
+          assert 'menu-add-playlist' not in render
+          PY
+      - name: Build overlay ZIP
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import zipfile
+          files = [
+              Path("LocalSunoDb.py"),
+              Path("ls_core/runtime.py"),
+              Path("ls_library/playlists.py"),
+              Path("ls_library/render.py"),
+          ]
+          out = Path("LocalSunoDb_v2.14_PLAYLIST_OVERLAY_E_Chrome-Player.zip")
+          with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+              for path in files:
+                  z.write(path, path.as_posix())
+          with zipfile.ZipFile(out) as z:
+              assert set(z.namelist()) == {p.as_posix() for p in files}
+          print(out)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LocalSunoDb-v2.14-playlist-overlay
+          path: LocalSunoDb_v2.14_PLAYLIST_OVERLAY_E_Chrome-Player.zip
+          if-no-files-found: error
+          retention-days: 1
