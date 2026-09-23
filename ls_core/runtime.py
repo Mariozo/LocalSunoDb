@@ -90,7 +90,8 @@ def initialize_runtime_environment():
 
 LS_UPDATE_PROBE_MARKER = "LS_UPDATE_PROBE_OK"
 
-DB_PATH = HOST_ROOT / "suno_finder_v4.db"
+LEGACY_DB_PATH = HOST_ROOT / "suno_finder_v4.db"
+DB_PATH = DATA_DIR / "local_suno.db"
 
 LOCAL_INVENTORY_DB_PATH = DATA_DIR / "suno_local_inventory.db"
 

@@ -358,6 +358,12 @@ def main():
     except Exception as exc:
         print(f"LS version registry warning: {exc}")
 
+    try:
+        ensure_local_suno_runtime_database()
+    except Exception as exc:
+        print(f"Could not prepare Local Suno database: {exc}")
+        return
+
     if not DB_PATH.exists():
         print(f"Database not found: {DB_PATH}")
         return
