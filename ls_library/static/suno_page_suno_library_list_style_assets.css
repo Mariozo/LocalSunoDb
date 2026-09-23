@@ -199,6 +199,56 @@
             background: rgba(0, 0, 0, 0.46);
         }
 
+        /* Legacy SF playback indicator: five bars stay visible on the active
+           cover; only the actively playing state animates them. */
+        #tracks-table tr.track-row.player-open .ls-cover-play-btn {
+            color: transparent;
+            text-shadow: none;
+            font-size: 0;
+        }
+
+        #tracks-table tr.track-row.player-open .ls-cover-play-btn::after {
+            content: "";
+            display: block;
+            width: 30px;
+            height: 28px;
+            background:
+                linear-gradient(#FFFFFF, #FFFFFF) 0% 100% / 4px 46% no-repeat,
+                linear-gradient(#FFFFFF, #FFFFFF) 25% 100% / 4px 72% no-repeat,
+                linear-gradient(#FFFFFF, #FFFFFF) 50% 100% / 4px 94% no-repeat,
+                linear-gradient(#FFFFFF, #FFFFFF) 75% 100% / 4px 64% no-repeat,
+                linear-gradient(#FFFFFF, #FFFFFF) 100% 100% / 4px 40% no-repeat;
+            filter: drop-shadow(0 1px 3px rgba(0,0,0,0.65));
+        }
+
+        #tracks-table tr.track-row.player-open .ls-cover-play-btn.active::after {
+            animation: ls-library-five-bars 720ms ease-in-out infinite;
+        }
+
+        @keyframes ls-library-five-bars {
+            0%, 100% {
+                background-size: 4px 46%, 4px 72%, 4px 94%, 4px 64%, 4px 40%;
+            }
+            20% {
+                background-size: 4px 82%, 4px 44%, 4px 68%, 4px 92%, 4px 58%;
+            }
+            40% {
+                background-size: 4px 58%, 4px 90%, 4px 48%, 4px 70%, 4px 96%;
+            }
+            60% {
+                background-size: 4px 94%, 4px 62%, 4px 84%, 4px 42%, 4px 72%;
+            }
+            80% {
+                background-size: 4px 68%, 4px 96%, 4px 60%, 4px 86%, 4px 46%;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            #tracks-table tr.track-row.player-open .ls-cover-play-btn.active::after {
+                animation: none;
+            }
+        }
+
         #tracks-table .ls-track-select-control {
             position: absolute;
             top: 4px;
