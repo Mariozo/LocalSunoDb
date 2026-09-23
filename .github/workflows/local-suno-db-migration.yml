@@ -10,6 +10,10 @@ on:
       - 'ls_core/runtime.py'
       - 'ls_web/app.py'
       - 'ls_web/render.py'
+      - 'ls_web/elza_adapter.py'
+      - 'ls_web/elza_selection_bridge.py'
+      - 'LS_Elza/selection_intent.py'
+      - 'LS_Elza/service.py'
       - 'ls_web/static/popup_theme.css'
       - 'ls_library/templates/library.html'
       - 'ls_library/playlists.py'
@@ -20,6 +24,7 @@ on:
       - 'tests/test_backend_restart.py'
       - 'tests/test_popup_theme_contract.py'
       - 'tests/test_local_playlists.py'
+      - 'tests/test_elza_selection_regression.py'
       - 'tests/test_local_suno_migration.py'
       - 'tests/test_local_suno_runtime.py'
       - '.github/workflows/local-suno-db-migration.yml'
@@ -39,4 +44,4 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install pytest
-      - run: python -m pytest -q tests/test_local_suno_migration.py tests/test_local_suno_runtime.py tests/test_backend_restart.py tests/test_popup_theme_contract.py tests/test_local_playlists.py
+      - run: python -m pytest -q tests/test_local_suno_migration.py tests/test_local_suno_runtime.py tests/test_backend_restart.py tests/test_popup_theme_contract.py tests/test_local_playlists.py tests/test_elza_selection_regression.py
