@@ -651,3 +651,124 @@
                 border: 1px solid CanvasText !important;
             }
         }
+
+/* LocalSunoDb reference parity: Help / Settings / Stats */
+#settings-modal .modal,
+#stats-modal .ls-stats-modal-card,
+#help-modal .modal {
+    background: #24382F !important;
+    color: #F7FAF8 !important;
+    border: 1px solid rgba(236, 246, 240, .22) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, .42) !important;
+}
+
+#settings-modal .modal {
+    width: min(840px, calc(100vw - 32px)) !important;
+    max-width: 840px !important;
+    padding: 18px 16px 20px !important;
+}
+
+#stats-modal .ls-stats-modal-card {
+    width: min(760px, calc(100vw - 32px)) !important;
+    max-width: 760px !important;
+    padding: 16px 18px 18px !important;
+}
+
+#help-modal .modal {
+    width: min(860px, calc(100vw - 32px)) !important;
+    max-width: 860px !important;
+    max-height: calc(100vh - 32px) !important;
+    overflow: auto !important;
+    padding: 18px 20px 22px !important;
+}
+
+#settings-modal h2,
+#stats-modal h2,
+#help-modal h2,
+#settings-modal p > strong,
+#settings-modal label {
+    color: #F7FAF8 !important;
+}
+
+#settings-modal p,
+#settings-modal span,
+#settings-modal #settings-status {
+    color: #DCE4DF !important;
+}
+
+#settings-modal p[style*="color:#666"],
+#settings-modal span[style*="color:#666"],
+#settings-modal #settings-status {
+    color: #C4CEC8 !important;
+}
+
+#stats-modal .stats,
+#stats-modal .sync-line {
+    color: #B8C4BD !important;
+    font-size: 14px !important;
+    line-height: 1.55 !important;
+}
+
+#stats-modal .sync-line {
+    margin-top: 4px !important;
+}
+
+#stats-modal .stats strong,
+#stats-modal .sync-line strong {
+    color: #F7FAF8 !important;
+    font-weight: 700 !important;
+}
+
+#help-modal .help-content {
+    color: #F7FAF8 !important;
+    white-space: pre-wrap !important;
+    line-height: 1.45 !important;
+}
+
+#settings-modal input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+#settings-modal select {
+    min-height: 38px !important;
+    padding: 7px 14px !important;
+    border: 1px solid #607268 !important;
+    border-radius: 999px !important;
+    background: #17261F !important;
+    color: #F7FAF8 !important;
+}
+
+#settings-modal button,
+#stats-modal button,
+#help-modal button {
+    min-height: 36px !important;
+    padding: 6px 13px !important;
+    border: 1px solid #65786D !important;
+    border-radius: 999px !important;
+    background: #394A40 !important;
+    color: #F7FAF8 !important;
+}
+
+#settings-modal button:hover,
+#stats-modal button:hover,
+#help-modal button:hover {
+    background: #465A4D !important;
+    color: #FFFFFF !important;
+}
+
+#settings-modal input[type="checkbox"] {
+    accent-color: #188038 !important;
+}
+
+@media (max-width: 700px) {
+    #settings-modal .modal,
+    #stats-modal .ls-stats-modal-card,
+    #help-modal .modal {
+        width: calc(100vw - 18px) !important;
+        max-width: calc(100vw - 18px) !important;
+    }
+
+    #settings-modal input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    #settings-modal select {
+        min-width: 0 !important;
+        width: 100% !important;
+    }
+}
