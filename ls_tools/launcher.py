@@ -2076,9 +2076,38 @@ def run_localsunodb_browser_tab(
     }
 
 
-def run_localsunodb_chrome_app():
-    """Legacy shortcut alias; Chrome app/PWA mode now opens the standard browser-tab flow."""
-    return run_localsunodb_browser_tab()
+def run_localsunodb_chrome_app(
+    *,
+    backend_ensurer=None,
+    app_opener=None,
+    autostart_cleaner=None,
+    profile_directory=None,
+):
+    """Ensure the backend, then open or focus the dedicated Chrome --app window."""
+    cleaner = autostart_cleaner or (
+        lambda: uninstall_localsunodb_backend_autostart(stop_supervisors=True)
+    )
+    cleaner()
+    ensure_backend = backend_ensurer or ensure_localsunodb_backend_ready
+    status, cold_started = ensure_backend()
+    target_url = build_localsunodb_app_url((status or {}).get("last_view_url"))
+    profile = str(
+        profile_directory or _chrome_last_used_profile_directory() or LS_CHROME_DEFAULT_PROFILE
+    ).strip() or LS_CHROME_DEFAULT_PROFILE
+    opener = app_opener or open_or_focus_localsunodb_chrome_app
+    result = opener(url=target_url, profile_directory=profile) or {}
+    opened_ok = bool(result.get("ok"))
+    return {
+        "ok": opened_ok,
+        "action": (
+            "backend_started_and_app_opened"
+            if cold_started and opened_ok
+            else str(result.get("action") or "app_open_failed")
+        ),
+        "url": target_url,
+        "profile_directory": profile,
+        "running_version": _backend_status_version(status),
+    }
 
 
 
@@ -2281,7 +2310,7 @@ def create_localsunodb_launcher_shortcut(*, profile_directory=None):
         "taskbar_shortcuts_rewritten": int(rebound),
         "message": (
             "LocalSunoDb saīsne palaiž lokālo backendu un pēc gatavības atver "
-            "parastu pārlūka cilni."
+            "atsevišķu Chrome lietotnes logu."
         ),
     }
 
@@ -2350,8 +2379,11 @@ def main():
         if LS_BACKEND_ONLY_FLAG in sys.argv:
             run_localsunodb_backend_only()
             return 0
-        if LS_BROWSER_TAB_LAUNCH_FLAG in sys.argv or LS_CHROME_APP_LAUNCH_FLAG in sys.argv:
+        if LS_BROWSER_TAB_LAUNCH_FLAG in sys.argv:
             run_localsunodb_browser_tab()
+            return 0
+        if LS_CHROME_APP_LAUNCH_FLAG in sys.argv:
+            run_localsunodb_chrome_app()
             return 0
         return 0
     except Exception as exc:
