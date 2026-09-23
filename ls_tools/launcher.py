@@ -12,6 +12,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import webbrowser
 from datetime import datetime
 from pathlib import Path, PureWindowsPath
 
@@ -31,7 +32,8 @@ from ls_core.runtime import (
 
 LS_SHORTCUT_FILENAME = "LocalSunoDb.lnk"
 LS_LEGACY_LAUNCHER_FILENAME = "LocalSunoDbLauncher.cmd"
-LS_CHROME_APP_LAUNCH_FLAG = "--launch-chrome-app"
+LS_CHROME_APP_LAUNCH_FLAG = "--launch-chrome-app"  # legacy alias
+LS_BROWSER_TAB_LAUNCH_FLAG = "--launch-browser-tab"
 LS_BACKEND_ONLY_FLAG = "--start-backend-only"
 LS_BACKEND_SUPERVISOR_FLAG = "--backend-supervisor"
 LS_BACKEND_AUTOSTART_INSTALL_FLAG = "--install-backend-autostart"
@@ -957,10 +959,7 @@ def rebind_taskbar_localsunodb_shortcuts(
     """Rewrite existing LS taskbar pins in place as direct Chrome --app shortcuts."""
     paths = list(pinned_paths) if pinned_paths is not None else _taskbar_pinned_shortcuts()
     writer = shortcut_writer or _write_windows_shortcut
-    spec = build_chrome_app_shortcut_spec(
-        chrome_executable=chrome_executable,
-        profile_directory=profile_directory,
-    )
+    spec = build_browser_tab_launcher_shortcut_spec()
     changed = 0
     for raw_path in paths:
         path = Path(raw_path)
@@ -1171,7 +1170,6 @@ def restart_localsunodb_backend(
     backend_waiter = backend_waiter or wait_for_ls_backend
     backend_terminator = backend_terminator or _terminate_backend_process
     backend_stop_waiter = backend_stop_waiter or _wait_for_backend_stopped
-    supervisor_starter = supervisor_starter or start_localsunodb_backend_supervisor
     restart_guard_setter = restart_guard_setter or _set_backend_restart_guard
 
     previous_status = status_getter()
@@ -1211,11 +1209,6 @@ def restart_localsunodb_backend(
             )
     finally:
         restart_guard_setter(False)
-
-    try:
-        supervisor_starter()
-    except Exception as exc:
-        _record_launcher_error(exc)
 
     return {
         "ok": True,
@@ -1884,17 +1877,8 @@ def supervise_localsunodb_backend_once(
 
 
 def run_localsunodb_backend_supervisor(*, initial_delay=2.0, poll_interval=0.75):
-    """Keep one LS backend alive without enforcing a cached supervisor version."""
-    mutex = _acquire_backend_supervisor_mutex()
-    if mutex is False:
-        return {"ok": True, "action": "supervisor_already_running"}
-    time.sleep(max(0.0, float(initial_delay)))
-    while True:
-        try:
-            supervise_localsunodb_backend_once()
-        except Exception as exc:
-            _record_launcher_error(exc)
-        time.sleep(max(0.25, float(poll_interval)))
+    """Compatibility endpoint: persistent backend supervision is retired."""
+    return {"ok": True, "action": "supervisor_disabled"}
 
 
 def start_localsunodb_backend_supervisor():
@@ -1970,50 +1954,151 @@ def install_localsunodb_backend_run_entry():
     return command
 
 
-def install_localsunodb_backend_autostart():
-    """One-time bootstrap used after the taskbar pin has become direct Chrome."""
-    command = install_localsunodb_backend_run_entry()
-    status, cold_started = ensure_localsunodb_backend_ready()
-    start_localsunodb_backend_supervisor()
+
+def _stop_legacy_backend_supervisors():
+    """Stop only detached LocalSunoDb launcher processes using the retired supervisor flag."""
+    if os.name != "nt":
+        return 0
+    launcher_path = str(Path(__file__).resolve())
+    script = "\n".join([
+        "$ErrorActionPreference = 'SilentlyContinue'",
+        f"$launcher = {_powershell_single_quote(launcher_path)}",
+        "$count = 0",
+        "Get-CimInstance Win32_Process | Where-Object {",
+        "  $_.CommandLine -and",
+        "  $_.CommandLine.Contains($launcher) -and",
+        f"  $_.CommandLine.Contains({_powershell_single_quote(LS_BACKEND_SUPERVISOR_FLAG)})",
+        "} | ForEach-Object {",
+        "  Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue",
+        "  $count += 1",
+        "}",
+        "Write-Output $count",
+    ])
+    try:
+        completed = subprocess.run(
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-NonInteractive",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-Command",
+                script,
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        return int(str(completed.stdout or "0").strip().splitlines()[-1] or 0)
+    except Exception:
+        return 0
+
+
+def uninstall_localsunodb_backend_autostart(*, stop_supervisors=False):
+    """Remove the retired PWA-era per-user backend bootstrap without touching user data."""
+    run_value_removed = False
+    startup_shortcut_removed = False
+    if os.name == "nt":
+        try:
+            import winreg
+            key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
+            with winreg.OpenKey(
+                winreg.HKEY_CURRENT_USER,
+                key_path,
+                0,
+                winreg.KEY_SET_VALUE,
+            ) as key:
+                try:
+                    winreg.DeleteValue(key, LS_BACKEND_RUN_VALUE_NAME)
+                    run_value_removed = True
+                except FileNotFoundError:
+                    pass
+        except OSError:
+            pass
+        try:
+            legacy_startup = (_startup_dir() / "LocalSunoDb Backend.lnk").resolve()
+            if legacy_startup.is_file():
+                legacy_startup.unlink()
+                startup_shortcut_removed = True
+        except OSError:
+            pass
+    stopped = _stop_legacy_backend_supervisors() if stop_supervisors else 0
     return {
         "ok": True,
-        "action": "backend_autostart_installed",
-        "command": command,
-        "cold_started": bool(cold_started),
+        "run_value_removed": bool(run_value_removed),
+        "startup_shortcut_removed": bool(startup_shortcut_removed),
+        "supervisors_stopped": int(stopped),
+    }
+
+def install_localsunodb_backend_autostart():
+    """Compatibility action: persistent backend autostart is no longer part of LocalSunoDb."""
+    cleanup = uninstall_localsunodb_backend_autostart(stop_supervisors=True)
+    return {
+        "ok": True,
+        "action": "backend_autostart_disabled",
+        **cleanup,
+    }
+
+
+def run_localsunodb_backend_only(*, autostart_cleaner=None):
+    """Retire an old Windows Run invocation instead of keeping LS alive in the background."""
+    cleaner = autostart_cleaner or (
+        lambda: uninstall_localsunodb_backend_autostart(stop_supervisors=True)
+    )
+    cleaner()
+    return {"ok": True, "action": "legacy_backend_autostart_removed"}
+
+
+def run_localsunodb_browser_tab(
+    *,
+    backend_ensurer=None,
+    browser_opener=None,
+    autostart_cleaner=None,
+):
+    """Suno Finder operating model: backend ready first, then an ordinary browser tab."""
+    cleaner = autostart_cleaner or (
+        lambda: uninstall_localsunodb_backend_autostart(stop_supervisors=True)
+    )
+    cleaner()
+    ensure_backend = backend_ensurer or ensure_localsunodb_backend_ready
+    status, cold_started = ensure_backend()
+    target_url = build_localsunodb_app_url((status or {}).get("last_view_url"))
+    opener = browser_opener or webbrowser.open
+    browser_opened = bool(opener(target_url))
+    return {
+        "ok": True,
+        "action": "backend_started_and_browser_opened" if cold_started else "browser_opened",
+        "url": target_url,
+        "browser_opened": browser_opened,
         "running_version": _backend_status_version(status),
     }
 
 
-def run_localsunodb_backend_only():
-    """Ensure the backend now and leave a hidden supervisor running."""
-    install_localsunodb_backend_run_entry()
-    ensure_localsunodb_backend_ready()
-    start_localsunodb_backend_supervisor()
-    return {"ok": True, "action": "backend_ready_supervised"}
-
-
 def run_localsunodb_chrome_app():
-    """One-time migration path from the legacy Python pin to a direct Chrome pin."""
-    status, cold_started = ensure_localsunodb_backend_ready()
-    start_localsunodb_backend_supervisor()
-    profile = _chrome_last_used_profile_directory() or LS_CHROME_DEFAULT_PROFILE
+    """Legacy shortcut alias; Chrome app/PWA mode now opens the standard browser-tab flow."""
+    return run_localsunodb_browser_tab()
 
-    # The legacy pin that invoked us is rewritten in place before Chrome opens.
-    # Backend autostart is a separate per-user Windows Run entry; the taskbar
-    # shortcut remains a direct Chrome --app shortcut.
-    install_localsunodb_backend_run_entry()
-    create_localsunodb_launcher_shortcut(profile_directory=profile)
 
-    target_url = build_localsunodb_app_url((status or {}).get("last_view_url"))
-    result = open_or_focus_localsunodb_chrome_app(
-        url=target_url,
-        profile_directory=profile,
-    )
+
+def build_browser_tab_launcher_shortcut_spec(
+    *,
+    host_root=None,
+    launcher_path=None,
+    **_ignored,
+):
+    """Windows shortcut contract matching Suno Finder's stable CMD launcher."""
+    host_root = Path(host_root or HOST_ROOT).resolve()
+    launcher_path = Path(
+        launcher_path or (host_root / "Start_LocalSunoDb.cmd")
+    ).resolve()
     return {
-        "ok": True,
-        "action": "migrated_pin_and_opened" if cold_started else result.get("action", "opened"),
+        "target_path": str(launcher_path),
+        "arguments": "",
+        "working_directory": str(host_root),
+        "icon_location": str(LS_ICON_PATH.resolve()) + ",0",
     }
-
 
 def build_chrome_app_shortcut_spec(
     *,
@@ -2174,14 +2259,11 @@ def create_localsunodb_launcher_shortcut(*, profile_directory=None):
     if os.name != "nt":
         raise RuntimeError("LocalSunoDb Windows saīsni var izveidot tikai Windows vidē.")
 
-    profile = str(
-        profile_directory or _chrome_last_used_profile_directory() or LS_CHROME_DEFAULT_PROFILE
-    ).strip() or LS_CHROME_DEFAULT_PROFILE
-    spec = build_chrome_app_shortcut_spec(profile_directory=profile)
+    spec = build_browser_tab_launcher_shortcut_spec()
     start_path, desktop_path = _launcher_shortcut_paths(None)
     start_shortcut = _write_windows_shortcut(start_path, spec)
     desktop_shortcut = _write_windows_shortcut(desktop_path, spec)
-    rebound = rebind_taskbar_localsunodb_shortcuts(profile_directory=profile)
+    rebound = rebind_taskbar_localsunodb_shortcuts()
 
     legacy_cmd = (Path(HOST_ROOT) / LS_LEGACY_LAUNCHER_FILENAME).resolve()
     try:
@@ -2190,15 +2272,16 @@ def create_localsunodb_launcher_shortcut(*, profile_directory=None):
     except OSError:
         pass
 
+    uninstall_localsunodb_backend_autostart(stop_supervisors=True)
+
     return {
         "ok": True,
         "shortcut_path": str(start_shortcut),
         "desktop_shortcut_path": str(desktop_shortcut),
         "taskbar_shortcuts_rewritten": int(rebound),
-        "profile_directory": profile,
         "message": (
-            "LocalSunoDb saīsnes tagad palaiž Chrome tieši ar --app; "
-            "LS.ico ir tikai saīsnes ikona, bet backend starts ir atdalīts."
+            "LocalSunoDb saīsne palaiž lokālo backendu un pēc gatavības atver "
+            "parastu pārlūka cilni."
         ),
     }
 
@@ -2257,7 +2340,7 @@ def main():
                 try:
                     ctypes.windll.user32.MessageBoxW(
                         0,
-                        f"LocalSunoDb {APP_VERSION} backend autostart ir uzstādīts un backend darbojas.",
+                        f"LocalSunoDb {APP_VERSION}: vecais backend autostart ir atspējots.",
                         "LocalSunoDb",
                         0x40,
                     )
@@ -2267,8 +2350,8 @@ def main():
         if LS_BACKEND_ONLY_FLAG in sys.argv:
             run_localsunodb_backend_only()
             return 0
-        if LS_CHROME_APP_LAUNCH_FLAG in sys.argv:
-            run_localsunodb_chrome_app()
+        if LS_BROWSER_TAB_LAUNCH_FLAG in sys.argv or LS_CHROME_APP_LAUNCH_FLAG in sys.argv:
+            run_localsunodb_browser_tab()
             return 0
         return 0
     except Exception as exc:

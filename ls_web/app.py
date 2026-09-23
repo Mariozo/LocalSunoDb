@@ -20,6 +20,7 @@ import urllib.parse
 import urllib.request
 import unicodedata
 import warnings
+import webbrowser
 import zipfile
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -328,11 +329,6 @@ def main():
     if "--ls-restarted" in sys.argv:
         previous_app_path = get_command_line_value(LS_PREVIOUS_APP_PATH_FLAG)
     if not acquire_ls_server_single_instance():
-        try:
-            from ls_tools.launcher import focus_existing_localsunodb_window
-            focus_existing_localsunodb_window()
-        except Exception:
-            pass
         print("LocalSunoDb is already running; this second instance was not started.")
         return
 
@@ -385,7 +381,6 @@ def main():
 
     server.daemon_threads = True
     RUNTIME_STATE["active_http_server"] = server
-    upgrade_restart = "--ls-update-transaction" in sys.argv
     upgrade_coordinator.start_watcher()
 
     if previous_app_path:
@@ -406,32 +401,9 @@ def main():
     print(f"LocalSunoDb {APP_VERSION} is running.")
     print(f"Running file: {Path(APP_ENTRYPOINT_PATH).resolve()}")
     print(f"Process ID: {os.getpid()}")
-    print("Close the LocalSunoDb Chrome app window to stop.")
-
-    from ls_tools.launcher import (
-        open_or_focus_localsunodb_chrome_app,
-        start_localsunodb_chrome_window_watcher,
-    )
-
-    def stop_after_chrome_app_close():
-        if RUNTIME_STATE.get("shutdown_reason") in {"upgrade", "user"}:
-            return
-        RUNTIME_STATE["shutdown_reason"] = "chrome_app_closed"
-        try:
-            server.shutdown()
-        except Exception:
-            pass
-
-    if "--ls-restarted" not in sys.argv or (upgrade_restart and os.name == "nt"):
-        open_or_focus_localsunodb_chrome_app(url=url)
-
-    start_localsunodb_chrome_window_watcher(
-        on_closed=stop_after_chrome_app_close,
-        stop_requested=lambda: (
-            RUNTIME_STATE.get("active_http_server") is not server
-            or RUNTIME_STATE.get("shutdown_reason") in {"upgrade", "user"}
-        ),
-    )
+    print("Press Ctrl+C to stop.")
+    if "--ls-restarted" not in sys.argv and "--ls-update-transaction" not in sys.argv:
+        webbrowser.open(url)
 
     try:
         server.serve_forever()
