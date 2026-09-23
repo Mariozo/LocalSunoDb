@@ -3,7 +3,8 @@ from ls_web import elza_adapter
 from ls_web import elza_selection_bridge
 
 
-def test_local_wav_minus_upload_parser_builds_exact_constraints():
+def test_local_wav_minus_upload_parser_builds_exact_constraints(monkeypatch):
+    monkeypatch.setattr(elza_adapter, "normalize_tag_filter", lambda values: values, raising=False)
     result = elza_adapter.parse_ls_elza_selection_intent(
         "Parādi visus lokālos Wav - Uplod"
     )
@@ -80,6 +81,7 @@ def test_host_bridge_preserves_exact_wav_and_excluded_type():
 
 
 def test_local_wav_minus_upload_returns_precise_track_id_view(monkeypatch):
+    monkeypatch.setattr(elza_adapter, "normalize_tag_filter", lambda values: values, raising=False)
     monkeypatch.setattr(
         elza_adapter,
         "search_tracks",
@@ -115,11 +117,13 @@ def test_local_wav_minus_upload_returns_precise_track_id_view(monkeypatch):
                 "kind": "Song",
             },
         ],
+        raising=False,
     )
     monkeypatch.setattr(
         elza_adapter,
         "ls_elza_append_chat_exchange",
         lambda *_args, **_kwargs: {},
+        raising=False,
     )
 
     response = elza_adapter.get_ls_elza_local_readonly_response({
