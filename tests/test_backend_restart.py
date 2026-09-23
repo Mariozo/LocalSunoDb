@@ -1,6 +1,20 @@
 from pathlib import Path
+import re
 
 from ls_tools import launcher
+from ls_core import runtime
+
+
+def test_entrypoint_and_runtime_versions_are_aligned():
+    root = Path(__file__).resolve().parents[1]
+    entry_source = (root / "LocalSunoDb.py").read_text(encoding="utf-8")
+    entry_version = re.search(r'^APP_VERSION = "([^"]+)"', entry_source, re.M)
+    entry_based_on = re.search(r'^APP_BASED_ON = "([^"]+)"', entry_source, re.M)
+
+    assert entry_version is not None
+    assert entry_based_on is not None
+    assert entry_version.group(1) == runtime.APP_VERSION
+    assert entry_based_on.group(1) == runtime.APP_BASED_ON
 
 
 def test_explicit_restart_replaces_same_version_backend():
