@@ -308,7 +308,7 @@ def _playlist_catalog_html(playlists, add_track_id=""):
                     <button type="submit" class="playlist-card-submit" title="Add song to {name}">
                         {cover}
                         <strong>{name}</strong>
-                        <span>{count} {'song' if count == 1 else 'songs'} · Add here</span>
+                        <span>{count} {'song' if count == 1 else 'songs'} now · +1 selected</span>
                     </button>
                 </form>
             """)
@@ -350,7 +350,7 @@ def _playlist_detail_rows(playlist):
             </div>
         """)
     if not html_rows:
-        return '<div class="playlist-empty-state">Playlist ir tukša. Pievieno dziesmas no Suno Library rindas izvēlnes.</div>'
+        return '<div class="playlist-empty-state">Playlist ir tukša. Spied Add songs, tad Suno Library izmanto Select WAV un izvēlies lokālos ierakstus.</div>'
     return "".join(html_rows)
 
 
@@ -589,7 +589,7 @@ def render_playlists_page(playlist_id="", add_track_id=""):
                 <div class="playlist-actions">
                   <button type="button" class="playlist-primary" id="playlist-play-all">▶ Play</button>
                   <button type="button" class="playlist-secondary" id="playlist-rename">Edit playlist details</button>
-                  <a class="playlist-secondary" href="/?playlist_add={urllib.parse.quote(active['id'])}">＋ Add songs</a>
+                  <a class="playlist-secondary" href="/?{urllib.parse.urlencode({'playlist_add': active['id'], 'local_audio_filter': 'with'})}">＋ Add songs</a>
                   <button type="button" class="playlist-secondary playlist-danger" id="playlist-delete">Delete playlist</button>
                 </div>
               </div>
@@ -723,9 +723,13 @@ def render_playlist_library_actions_script():
     return result;
   };
 
-  const getSelectedTrackIds = () => Array.from(
-    document.querySelectorAll("#tracks-table tbody .track-check:checked")
-  ).map((check) => String(check.value || "").trim()).filter(Boolean);
+  const getSelectedTrackIds = () => {
+    const wavIds = window.LS?.library?.getSelectedLocalWavTrackIds?.();
+    if (Array.isArray(wavIds)) return cleanTrackIds(wavIds);
+    return Array.from(
+      document.querySelectorAll("#tracks-table tbody .track-check:checked")
+    ).map((check) => String(check.value || "").trim()).filter(Boolean);
+  };
 
   const selectedButton = document.getElementById("add-selected-playlist-btn");
   const table = document.getElementById("tracks-table");
@@ -738,13 +742,13 @@ def render_playlist_library_actions_script():
     const count = getSelectedTrackIds().length;
     selectedButton.disabled = count < 1;
     if (playlistAddId) {
-      selectedButton.style.display = "";
+      selectedButton.style.display = count > 0 ? "" : "none";
       selectedButton.textContent = count > 0
-        ? "Add selected (" + count + ")"
-        : "Add selected";
+        ? "Add to " + (playlistAddName || "Playlist") + " (" + count + ")"
+        : "Add to " + (playlistAddName || "Playlist");
       selectedButton.title = playlistAddName
-        ? "Add selected songs to " + playlistAddName
-        : "Add selected songs to this playlist";
+        ? "Add " + count + " selected local WAV " + (count === 1 ? "track" : "tracks") + " to " + playlistAddName
+        : "Add selected local WAV tracks to this playlist";
       return;
     }
     selectedButton.style.display = count > 0 ? "" : "none";
@@ -758,17 +762,17 @@ def render_playlist_library_actions_script():
     if (!playlist) throw new Error("Playlist not found.");
     playlistAddName = String(playlist.name || "Playlist");
 
-    table.classList.add("selection-mode");
     table.querySelectorAll("tbody .track-check:checked").forEach((check) => {
       check.checked = false;
     });
+    table.classList.remove("selection-mode");
 
     const wavButton = document.getElementById("wav-select-mode-btn");
-    const compareButton = document.getElementById("compare-this-btn");
-    const openSelected = document.getElementById("open-selected");
-    if (wavButton) wavButton.style.display = "none";
-    if (compareButton) compareButton.style.display = "none";
-    if (openSelected) openSelected.style.display = "none";
+    if (wavButton) {
+      wavButton.style.display = "";
+      wavButton.textContent = "Select WAV";
+      wavButton.title = "Select local WAV tracks to add to " + playlistAddName;
+    }
 
     const panel = document.querySelector("main > .panel");
     if (panel && !document.getElementById("playlist-add-mode-banner")) {
@@ -776,7 +780,7 @@ def render_playlist_library_actions_script():
       banner.id = "playlist-add-mode-banner";
       banner.style.cssText = "display:flex;align-items:center;gap:12px;margin:0 0 12px;padding:10px 14px;border:1px solid rgba(255,255,255,.16);border-radius:12px;background:rgba(255,255,255,.06);color:#fff;";
       const text = document.createElement("strong");
-      text.textContent = "Add songs to: " + playlistAddName;
+      text.textContent = "Add to " + playlistAddName + " · Local only · press Select WAV";
       const back = document.createElement("a");
       back.href = "/playlists?id=" + encodeURIComponent(playlistAddId);
       back.textContent = "Back to playlist";
@@ -814,8 +818,7 @@ def render_playlist_library_actions_script():
     });
   }
 
-  // Single-row Add to Playlist uses a native link to the server-rendered
-  // playlist chooser. This avoids depending on delegated row-menu JavaScript.
+  // Playlist additions use the shared Select WAV multi-selection flow.
 
   enterPlaylistAddMode().catch((error) => {
     window.alert(error.message);

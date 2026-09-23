@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pytest
 
@@ -91,14 +92,18 @@ def test_playlist_add_songs_enters_targeted_library_mode(isolated_store, monkeyp
     playlist = playlists.create_local_playlist("Vārda diena")
     page = playlists.render_playlists_page(playlist["id"]).decode("utf-8")
 
-    assert "/?playlist_add=" + playlist["id"] in page
+    assert "playlist_add=" + playlist["id"] in page
+    assert "local_audio_filter=with" in page
 
 
 def test_library_playlist_script_has_direct_target_mode():
     script = playlists.render_playlist_library_actions_script()
 
+    assert "getSelectedLocalWavTrackIds" in script
     assert 'params.get("playlist_add")' in script
-    assert 'table.classList.add("selection-mode")' in script
+    assert 'table.classList.remove("selection-mode")' in script
+    assert 'wavButton.textContent = "Select WAV"' in script
+    assert '"Add to " + (playlistAddName || "Playlist") + " (" + count + ")"' in script
     assert '"/playlist-add-tracks"' in script
     assert 'window.location.href = "/playlists?id="' in script
 
@@ -116,10 +121,14 @@ def test_single_track_add_uses_native_playlist_chooser(isolated_store, monkeypat
     assert 'method="post" action="/playlist-add-track-open"' in html
     assert 'name="playlist_id" value="' + playlist["id"] + '"' in html
     assert 'name="track_id" value="track-native-1"' in html
-    assert "Add here" in html
+    assert "3 songs now · +1 selected" not in html
+    assert "1 selected" in html
 
 
-def test_single_row_playlist_add_no_longer_depends_on_delegated_menu_js():
+def test_single_row_playlist_add_is_not_exposed_in_three_dot_menu():
+    render_source = (Path(__file__).resolve().parents[1] / "ls_library" / "render.py").read_text(encoding="utf-8")
     script = playlists.render_playlist_library_actions_script()
 
+    assert 'menu-add-playlist' not in render_source
+    assert '/playlists?add_track=' not in render_source
     assert 'event.target.closest(".menu-add-playlist")' not in script
