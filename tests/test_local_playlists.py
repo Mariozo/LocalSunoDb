@@ -86,7 +86,8 @@ def test_playlist_bulk_add_rejects_empty_selection(isolated_store):
 
 
 
-def test_playlist_add_songs_enters_targeted_library_mode(isolated_store):
+def test_playlist_add_songs_enters_targeted_library_mode(isolated_store, monkeypatch):
+    monkeypatch.setattr(playlists, "esc", lambda value: str(value), raising=False)
     playlist = playlists.create_local_playlist("Vārda diena")
     page = playlists.render_playlists_page(playlist["id"]).decode("utf-8")
 
