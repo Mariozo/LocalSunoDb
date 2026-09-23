@@ -62,6 +62,12 @@
             background: #10593B !important;
         }
 
+        #ls-library #user-tag-panel.user-tag-panel {
+            background: #10593B !important;
+            color: var(--ls-popup-text) !important;
+            border-color: var(--ls-popup-border) !important;
+        }
+
         .user-tag-panel.filter-mode {
             background: #0B3D28 !important;
         }
@@ -653,9 +659,9 @@
         }
 
 /* LocalSunoDb reference parity: Help / Settings / Stats */
-#settings-modal .modal,
-#stats-modal .ls-stats-modal-card,
-#help-modal .modal {
+#ls-library #settings-modal > .modal,
+#ls-library #stats-modal > .ls-stats-modal-card,
+#ls-library #help-modal > .modal {
     background: #24382F !important;
     color: #F7FAF8 !important;
     border: 1px solid rgba(236, 246, 240, .22) !important;
@@ -663,19 +669,19 @@
     box-shadow: 0 18px 48px rgba(0, 0, 0, .42) !important;
 }
 
-#settings-modal .modal {
+#ls-library #settings-modal > .modal {
     width: min(840px, calc(100vw - 32px)) !important;
     max-width: 840px !important;
     padding: 18px 16px 20px !important;
 }
 
-#stats-modal .ls-stats-modal-card {
+#ls-library #stats-modal > .ls-stats-modal-card {
     width: min(760px, calc(100vw - 32px)) !important;
     max-width: 760px !important;
     padding: 16px 18px 18px !important;
 }
 
-#help-modal .modal {
+#ls-library #help-modal > .modal {
     width: min(860px, calc(100vw - 32px)) !important;
     max-width: 860px !important;
     max-height: calc(100vh - 32px) !important;
@@ -683,28 +689,28 @@
     padding: 18px 20px 22px !important;
 }
 
-#settings-modal h2,
-#stats-modal h2,
-#help-modal h2,
-#settings-modal p > strong,
-#settings-modal label {
+#ls-library #settings-modal h2,
+#ls-library #stats-modal h2,
+#ls-library #help-modal h2,
+#ls-library #settings-modal p > strong,
+#ls-library #settings-modal label {
     color: #F7FAF8 !important;
 }
 
-#settings-modal p,
-#settings-modal span,
-#settings-modal #settings-status {
+#ls-library #settings-modal p,
+#ls-library #settings-modal span,
+#ls-library #settings-modal #settings-status {
     color: #DCE4DF !important;
 }
 
-#settings-modal p[style*="color:#666"],
-#settings-modal span[style*="color:#666"],
-#settings-modal #settings-status {
+#ls-library #settings-modal p[style*="color:#666"],
+#ls-library #settings-modal span[style*="color:#666"],
+#ls-library #settings-modal #settings-status {
     color: #C4CEC8 !important;
 }
 
-#stats-modal .stats,
-#stats-modal .sync-line {
+#ls-library #stats-modal .stats,
+#ls-library #ls-library #stats-modal .sync-line {
     color: #B8C4BD !important;
     font-size: 14px !important;
     line-height: 1.55 !important;
@@ -714,20 +720,20 @@
     margin-top: 4px !important;
 }
 
-#stats-modal .stats strong,
-#stats-modal .sync-line strong {
+#ls-library #stats-modal .stats strong,
+#ls-library #stats-modal .sync-line strong {
     color: #F7FAF8 !important;
     font-weight: 700 !important;
 }
 
-#help-modal .help-content {
+#ls-library #help-modal .help-content {
     color: #F7FAF8 !important;
     white-space: pre-wrap !important;
     line-height: 1.45 !important;
 }
 
-#settings-modal input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
-#settings-modal select {
+#ls-library #settings-modal input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+#ls-library #settings-modal select {
     min-height: 38px !important;
     padding: 7px 14px !important;
     border: 1px solid #607268 !important;
@@ -736,9 +742,9 @@
     color: #F7FAF8 !important;
 }
 
-#settings-modal button,
-#stats-modal button,
-#help-modal button {
+#ls-library #settings-modal button,
+#ls-library #stats-modal button,
+#ls-library #help-modal button {
     min-height: 36px !important;
     padding: 6px 13px !important;
     border: 1px solid #65786D !important;
@@ -747,27 +753,27 @@
     color: #F7FAF8 !important;
 }
 
-#settings-modal button:hover,
-#stats-modal button:hover,
-#help-modal button:hover {
+#ls-library #settings-modal button:hover,
+#ls-library #stats-modal button:hover,
+#ls-library #help-modal button:hover {
     background: #465A4D !important;
     color: #FFFFFF !important;
 }
 
-#settings-modal input[type="checkbox"] {
+#ls-library #settings-modal input[type="checkbox"] {
     accent-color: #188038 !important;
 }
 
 @media (max-width: 700px) {
-    #settings-modal .modal,
-    #stats-modal .ls-stats-modal-card,
-    #help-modal .modal {
+    #ls-library #settings-modal > .modal,
+    #ls-library #stats-modal > .ls-stats-modal-card,
+    #ls-library #help-modal > .modal {
         width: calc(100vw - 18px) !important;
         max-width: calc(100vw - 18px) !important;
     }
 
-    #settings-modal input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
-    #settings-modal select {
+    #ls-library #settings-modal input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    #ls-library #settings-modal select {
         min-width: 0 !important;
         width: 100% !important;
     }
