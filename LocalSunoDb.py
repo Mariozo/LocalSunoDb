@@ -3,8 +3,8 @@
 # Based on: v1.03
 # Upgrade probe contract: --ls-update-probe / LS_UPDATE_PROBE_OK
 
-APP_VERSION = "v1.16"
-APP_BASED_ON = "v1.15"
+APP_VERSION = "v2.12"
+APP_BASED_ON = "v2.11"
 
 from datetime import datetime
 from pathlib import Path
