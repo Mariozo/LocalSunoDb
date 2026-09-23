@@ -19,8 +19,7 @@ def render_ls_web_runtime_assets():
 
 def render_ls_popup_theme_assets():
     return (
-        '<link id="ls-popup-theme-v5113" rel="stylesheet" href="' + asset_url('ls_web/static/popup_theme.css') + '">'
-        + '<link id="ls-library-panel-facelift" rel="stylesheet" href="' + asset_url('ls_web/static/library_panel_facelift.css') + '">'
+        '<link id="ls-library-panel-facelift" rel="stylesheet" href="' + asset_url('ls_web/static/library_panel_facelift.css') + '">'
         + '<script src="' + asset_url('ls_web/static/library_panel_facelift.js') + '"></script>'
         + '<link id="ls-library-playback-indicator" rel="stylesheet" href="' + asset_url('ls_web/static/library_playback_indicator.css') + '">'
         + '<script src="' + asset_url('ls_web/static/library_playback_indicator.js') + '"></script>'
@@ -116,6 +115,7 @@ def render_suno_page_style_block():
         stylesheet_asset('ls_library/static/localsunodb_search_style_assets.css'),
         stylesheet_asset('ls_library/static/suno_filter_layout_dock_style_assets.css'),
         stylesheet_asset('ls_player/static/suno_global_player_style_assets.css'),
+        stylesheet_asset('ls_web/static/popup_theme.css'),
     ))
 
 def render_suno_page_player_waveform_style_assets():
