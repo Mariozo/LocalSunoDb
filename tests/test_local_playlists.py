@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pytest
 
@@ -98,6 +99,7 @@ def test_playlist_add_songs_enters_targeted_library_mode(isolated_store, monkeyp
 def test_library_playlist_script_has_direct_target_mode():
     script = playlists.render_playlist_library_actions_script()
 
+    assert "getSelectedLocalWavTrackIds" in script
     assert 'params.get("playlist_add")' in script
     assert 'table.classList.remove("selection-mode")' in script
     assert 'wavButton.textContent = "Select WAV"' in script
@@ -124,7 +126,7 @@ def test_single_track_add_uses_native_playlist_chooser(isolated_store, monkeypat
 
 
 def test_single_row_playlist_add_is_not_exposed_in_three_dot_menu():
-    render_source = (playlists.Path(__file__).resolve().parents[1] / "ls_library" / "render.py").read_text(encoding="utf-8")
+    render_source = (Path(__file__).resolve().parents[1] / "ls_library" / "render.py").read_text(encoding="utf-8")
     script = playlists.render_playlist_library_actions_script()
 
     assert 'menu-add-playlist' not in render_source
