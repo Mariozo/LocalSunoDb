@@ -12,11 +12,14 @@ on:
       - 'ls_web/render.py'
       - 'ls_web/static/popup_theme.css'
       - 'ls_library/templates/library.html'
+      - 'ls_library/playlists.py'
+      - 'ls_library/render.py'
       - 'LocalSunoDb.py'
       - 'Start_LocalSunoDb.cmd'
       - 'ls_tools/launcher.py'
       - 'tests/test_backend_restart.py'
       - 'tests/test_popup_theme_contract.py'
+      - 'tests/test_local_playlists.py'
       - 'tests/test_local_suno_migration.py'
       - 'tests/test_local_suno_runtime.py'
       - '.github/workflows/local-suno-db-migration.yml'
@@ -36,4 +39,4 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install pytest
-      - run: python -m pytest -q tests/test_local_suno_migration.py tests/test_local_suno_runtime.py tests/test_backend_restart.py tests/test_popup_theme_contract.py
+      - run: python -m pytest -q tests/test_local_suno_migration.py tests/test_local_suno_runtime.py tests/test_backend_restart.py tests/test_popup_theme_contract.py tests/test_local_playlists.py
