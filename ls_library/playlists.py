@@ -723,9 +723,13 @@ def render_playlist_library_actions_script():
     return result;
   };
 
-  const getSelectedTrackIds = () => Array.from(
-    document.querySelectorAll("#tracks-table tbody .track-check:checked")
-  ).map((check) => String(check.value || "").trim()).filter(Boolean);
+  const getSelectedTrackIds = () => {
+    const wavIds = window.LS?.library?.getSelectedLocalWavTrackIds?.();
+    if (Array.isArray(wavIds)) return cleanTrackIds(wavIds);
+    return Array.from(
+      document.querySelectorAll("#tracks-table tbody .track-check:checked")
+    ).map((check) => String(check.value || "").trim()).filter(Boolean);
+  };
 
   const selectedButton = document.getElementById("add-selected-playlist-btn");
   const table = document.getElementById("tracks-table");
