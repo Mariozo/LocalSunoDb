@@ -46,22 +46,18 @@ if hasattr(threading, "excepthook"):
 
 
 
-def _ensure_backend_supervisor_process():
-    """Best-effort: every normal backend start leaves one persistent supervisor behind."""
+def _disable_legacy_backend_autostart():
+    """Retire the PWA-era persistent backend before normal SF-style startup."""
     if "--ls-update-probe" in sys.argv or "--ls-comparison-runner" in sys.argv:
         return
     try:
-        from ls_tools.launcher import (
-            install_localsunodb_backend_run_entry,
-            start_localsunodb_backend_supervisor,
-        )
-        install_localsunodb_backend_run_entry()
-        start_localsunodb_backend_supervisor()
+        from ls_tools.launcher import uninstall_localsunodb_backend_autostart
+        uninstall_localsunodb_backend_autostart(stop_supervisors=True)
     except Exception:
         pass
 
 
-_ensure_backend_supervisor_process()
+_disable_legacy_backend_autostart()
 
 try:
     from ls_web.app import entrypoint
