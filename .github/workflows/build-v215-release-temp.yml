@@ -1,0 +1,102 @@
+name: Build v2.15 release artifact
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build exact v2.15 release ZIP
+        shell: pwsh
+        run: |
+          @'
+          from pathlib import Path
+          import zipfile
+
+          files = [
+              Path("LocalSunoDb.py"),
+              Path("ls_core/runtime.py"),
+              Path("ls_library/playlists.py"),
+              Path("ls_library/render.py"),
+              Path("LS_Elza/selection_intent.py"),
+              Path("LS_Elza/service.py"),
+              Path("ls_web/elza_adapter.py"),
+              Path("ls_web/elza_selection_bridge.py"),
+          ]
+          out = Path("LocalSunoDb_v2.15.zip")
+          for path in files:
+              if not path.is_file():
+                  raise SystemExit(f"Missing release file: {path}")
+          with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:
+              for path in files:
+                  archive.write(path, path.as_posix())
+          with zipfile.ZipFile(out) as archive:
+              expected = {path.as_posix() for path in files}
+              actual = set(archive.namelist())
+              if actual != expected:
+                  raise SystemExit(f"Unexpected release contents: {sorted(actual)}")
+          print(out)
+          '@ | python -
+      - name: Verify release identity and required repairs
+        shell: pwsh
+        run: |
+          @'
+          from pathlib import Path
+          import zipfile
+
+          with zipfile.ZipFile("LocalSunoDb_v2.15.zip") as archive:
+              entry = archive.read("LocalSunoDb.py").decode("utf-8")
+              runtime = archive.read("ls_core/runtime.py").decode("utf-8")
+              playlists = archive.read("ls_library/playlists.py").decode("utf-8")
+              render = archive.read("ls_library/render.py").decode("utf-8")
+              selection = archive.read("LS_Elza/selection_intent.py").decode("utf-8")
+              service = archive.read("LS_Elza/service.py").decode("utf-8")
+              adapter = archive.read("ls_web/elza_adapter.py").decode("utf-8")
+              bridge = archive.read("ls_web/elza_selection_bridge.py").decode("utf-8")
+
+          assert '# Based on: v2.13' in entry
+          assert 'APP_VERSION = "v2.15"' in entry
+          assert 'APP_BASED_ON = "v2.13"' in entry
+          assert 'APP_VERSION = "v2.15"' in runtime
+          assert "local_audio_filter" in playlists and "'with'" in playlists
+          assert "getSelectedLocalWavTrackIds" in playlists
+          assert "menu-add-playlist" not in render
+          assert "local_audio_extensions" in selection
+          assert "exclude_ui_types" in selection
+          assert 'local_audio_extensions to ["wav"]' in service
+          assert 'rows": "all"' in adapter
+          assert "exclude_ui_types" in bridge
+          '@ | python -
+      - name: Apply exact ZIP over v2.13 baseline
+        shell: pwsh
+        run: |
+          git worktree add baseline-v213 2cf5e1efcf6eca73d4de3f8dda5b24474f7a9593
+          Expand-Archive -Path LocalSunoDb_v2.15.zip -DestinationPath baseline-v213 -Force
+      - name: Run startup probe on exact delivered artifact
+        shell: pwsh
+        run: |
+          $output = python baseline-v213/LocalSunoDb.py --ls-update-probe
+          $output | Write-Host
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not ($output -match 'LS_UPDATE_PROBE_OK')) { throw 'Missing LS_UPDATE_PROBE_OK' }
+          if (-not ($output -match '"app_version": "v2.15"')) { throw 'Probe did not report v2.15' }
+      - name: Run exact Elza and Playlist release regressions
+        shell: pwsh
+        run: |
+          python -m pip install pytest
+          python -m pytest -q tests/test_local_playlists.py tests/test_elza_selection_regression.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LocalSunoDb-v2.15-release
+          path: LocalSunoDb_v2.15.zip
+          if-no-files-found: error
+          retention-days: 2
