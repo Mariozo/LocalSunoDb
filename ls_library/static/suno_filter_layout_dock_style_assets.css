@@ -16,7 +16,7 @@
             }
         }
 
-        /* v5 layout: selection row contains only filters, sorting and Select WAV. */
+        /* v2.16: Cover circles select audio directly; toolbar only labels the selection action. */
         .library-control-row {
             gap: 6px;
             align-items: center;
@@ -24,7 +24,9 @@
         .library-control-row > .library-filter-select,
         .library-control-row > .library-multi-filter { flex: 0 1 auto; min-width: 0; }
         .library-control-row > .library-sort-group { flex: 0 1 auto; }
+        .library-control-row > #audio-selection-label,
         .library-control-row > #wav-select-mode-btn { flex: 0 0 auto; white-space: nowrap; }
+        #audio-selection-label { cursor: default; user-select: none; }
         .ls-sidebar-explore {
             margin-top: 30px;
         }
