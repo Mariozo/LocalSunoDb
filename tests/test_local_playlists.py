@@ -87,12 +87,13 @@ def test_playlist_bulk_add_rejects_empty_selection(isolated_store):
 
 
 
-def test_playlist_add_songs_opens_local_library_without_target_mode(isolated_store, monkeypatch):
+def test_playlist_add_songs_opens_unfiltered_library_without_target_mode(isolated_store, monkeypatch):
     monkeypatch.setattr(playlists, "esc", lambda value: str(value), raising=False)
     playlist = playlists.create_local_playlist("Vārda diena")
     page = playlists.render_playlists_page(playlist["id"]).decode("utf-8")
 
-    assert "local_audio_filter=with" in page
+    assert '<a class="playlist-secondary" href="/">＋ Add songs</a>' in page
+    assert "local_audio_filter=with" not in page
     assert "playlist_add=" not in page
     assert "atzīmē dziesmas ar apli uz Cover" in page
 
@@ -170,15 +171,15 @@ def test_single_row_playlist_add_is_not_exposed_in_three_dot_menu():
     assert '/playlists?add_track=' not in render_source
     assert 'event.target.closest(".menu-add-playlist")' not in script
 
-def test_v221_identity_is_based_on_v220():
+def test_v222_identity_is_based_on_v220():
     root = Path(__file__).resolve().parents[1]
     entrypoint = (root / "LocalSunoDb.py").read_text(encoding="utf-8")
     runtime = (root / "ls_core" / "runtime.py").read_text(encoding="utf-8")
 
     assert "# Based on: v2.20" in entrypoint
-    assert 'APP_VERSION = "v2.21"' in entrypoint
+    assert 'APP_VERSION = "v2.22"' in entrypoint
     assert 'APP_BASED_ON = "v2.20"' in entrypoint
-    assert 'APP_VERSION = "v2.21"' in runtime
+    assert 'APP_VERSION = "v2.22"' in runtime
     assert 'APP_BASED_ON = "v2.20"' in runtime
 
 
