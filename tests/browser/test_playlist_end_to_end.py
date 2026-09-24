@@ -150,9 +150,10 @@ def main():
             all_response = page.request.get(BASE_URL + all_src)
             assert all_response.ok, (all_response.status, all_src)
 
-            # Contract: returning to Library does not require F5 and rows are immediately present.
-            page.get_by_role("link", name="Suno Library", exact=True).click()
+            # Contract: Add songs opens the populated Library without forcing Local-only.
+            page.get_by_role("link", name="＋ Add songs", exact=True).click()
             page.locator("tr.track-row").first.wait_for(state="visible", timeout=5000)
+            assert "local_audio_filter" not in page.url, page.url
             ids_after_return = visible_library_ids(page)
             assert ids_after_return[:3] == ["browser-3", "browser-2", "browser-1"], ids_after_return
 
