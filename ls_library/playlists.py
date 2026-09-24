@@ -349,7 +349,7 @@ def _playlist_detail_rows(playlist):
                 <button class="playlist-drag-handle" type="button" title="Velc, lai mainītu secību" aria-label="Velc, lai mainītu secību">⋮⋮</button>
                 <span class="playlist-track-number">{index}</span>
                 <img class="playlist-track-cover" src="/suno-image?track_id={urllib.parse.quote(track_id)}" alt="">
-                <button type="button" class="playlist-track-play" data-track-id="{esc(track_id)}"{play_disabled}>▶</button>
+                <button type="button" class="playlist-track-play" data-track-id="{esc(track_id)}" aria-label="Play"{play_disabled}><span class="playlist-track-play-icon" aria-hidden="true">▶</span><span class="playlist-track-eq" aria-hidden="true"><i></i><i></i><i></i></span></button>
                 <div class="playlist-track-copy">
                     <strong>{esc(title)}</strong>
                     <span>{esc(workspace)} {missing_badge}</span>
@@ -386,8 +386,9 @@ def _playlist_page_style():
     .playlist-primary{background:#f5f2ed;color:#101012}.playlist-secondary{background:#2b2b30;color:#fff}.playlist-danger{color:#ff6f64}
     .playlist-detail-search{margin:12px 0 18px}.playlist-tracks{display:flex;flex-direction:column}
     .playlist-track-row{display:grid;grid-template-columns:34px 42px 58px 36px minmax(0,1fr) 72px 44px;gap:12px;align-items:center;padding:10px 8px;border-radius:10px}
-    .playlist-track-row:hover{background:#18181b}.playlist-track-row.dragging{opacity:.45}.playlist-track-row.drag-over{outline:1px solid #73737b}
+    .playlist-track-row:hover{background:#18181b}.playlist-track-row.is-current{background:#3b3b40;box-shadow:inset 3px 0 0 #f3f3f5}.playlist-track-row.dragging{opacity:.45}.playlist-track-row.drag-over{outline:1px solid #73737b}
     .playlist-drag-handle,.playlist-track-play,.playlist-track-remove{border:0;background:transparent;color:#c8c8cd;cursor:pointer}
+    .playlist-track-play{display:inline-flex;align-items:center;justify-content:center;min-width:28px;min-height:28px}.playlist-track-play-icon{display:inline}.playlist-track-eq{display:none;align-items:flex-end;justify-content:center;gap:2px;height:16px}.playlist-track-eq i{display:block;width:3px;height:5px;border-radius:2px;background:currentColor;animation:playlist-eq .75s ease-in-out infinite}.playlist-track-eq i:nth-child(2){animation-delay:.16s}.playlist-track-eq i:nth-child(3){animation-delay:.32s}.playlist-track-row.is-playing .playlist-track-play-icon{display:none}.playlist-track-row.is-playing .playlist-track-eq{display:inline-flex}@keyframes playlist-eq{0%,100%{height:4px}50%{height:15px}}
     .playlist-drag-handle{cursor:grab}.playlist-track-number{color:#8e8e95;text-align:right}.playlist-track-cover{width:54px;height:54px;border-radius:8px;object-fit:cover;background:#222}
     .playlist-track-copy{display:flex;flex-direction:column;gap:5px;min-width:0}.playlist-track-copy strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.playlist-track-copy span{font-size:13px;color:#929299}
     .playlist-track-duration{color:#aaa;text-align:right}.playlist-track-remove{font-size:24px}.playlist-missing-badge{color:#e58c83!important;margin-left:8px}
@@ -532,13 +533,35 @@ def _playlist_page_script(active_playlist_id="", pending_track_id=""):
       const audio = document.getElementById("playlist-audio");
       const nowTitle = document.getElementById("playlist-player-title");
       let currentIndex = -1;
+      let currentRow = null;
       const orderedRows = () => Array.from(rowsBox?.querySelectorAll(".playlist-track-row:not(.is-missing)") || []);
+      const setCurrentRow = (row) => {{
+        rowsBox?.querySelectorAll(".playlist-track-row.is-current, .playlist-track-row.is-playing").forEach((item) => {{
+          if (item !== row) {{
+            item.classList.remove("is-current", "is-playing");
+            item.removeAttribute("aria-current");
+          }}
+        }});
+        currentRow = row || null;
+        if (currentRow) {{
+          currentRow.classList.add("is-current");
+          currentRow.setAttribute("aria-current", "true");
+        }}
+      }};
+      const setPlayingState = (playing) => {{
+        if (!currentRow) return;
+        currentRow.classList.toggle("is-playing", Boolean(playing));
+        const button = currentRow.querySelector(".playlist-track-play");
+        if (button) button.setAttribute("aria-label", playing ? "Playing" : "Play");
+      }};
       const playTrack = (trackId, autoplay=true) => {{
         const rows = orderedRows();
         const index = rows.findIndex((row) => row.dataset.trackId === trackId);
         if (index < 0 || !audio) return;
         currentIndex = index;
         const row = rows[index];
+        setCurrentRow(row);
+        setPlayingState(false);
         const title = row.querySelector(".playlist-track-copy strong")?.textContent || trackId;
         const source = String(row.dataset.playSource || "suno");
         if (nowTitle) nowTitle.textContent = title;
@@ -555,7 +578,10 @@ def _playlist_page_script(active_playlist_id="", pending_track_id=""):
       document.getElementById("playlist-play-all")?.addEventListener("click", () => playAt(0));
       document.getElementById("playlist-player-prev")?.addEventListener("click", () => playAt(currentIndex <= 0 ? 0 : currentIndex - 1));
       document.getElementById("playlist-player-next")?.addEventListener("click", () => playAt(currentIndex + 1));
+      audio?.addEventListener("play", () => setPlayingState(true));
+      audio?.addEventListener("pause", () => setPlayingState(false));
       audio?.addEventListener("ended", () => {{
+        setPlayingState(false);
         const rows = orderedRows();
         if (currentIndex >= 0 && currentIndex + 1 < rows.length) playAt(currentIndex + 1);
       }});
