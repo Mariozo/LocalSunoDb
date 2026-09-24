@@ -123,6 +123,7 @@ def test_library_playlist_script_uses_select_audio_playlist_dropdown():
 
 def test_playlist_rows_expose_clear_remove_and_playback_feedback(isolated_store, monkeypatch):
     monkeypatch.setattr(playlists, "esc", lambda value: str(value), raising=False)
+    monkeypatch.setattr(playlists, "format_duration", lambda value: str(value), raising=False)
     playlist = playlists.create_local_playlist("Feedback")
     playlists.add_track_to_local_playlist(playlist["id"], "feedback-track")
     monkeypatch.setattr(
