@@ -175,4 +175,3 @@ def test_v217_identity_is_based_on_v216():
     assert 'APP_BASED_ON = "v2.16"' in entrypoint
     assert 'APP_VERSION = "v2.17"' in runtime
     assert 'APP_BASED_ON = "v2.16"' in runtime
-
