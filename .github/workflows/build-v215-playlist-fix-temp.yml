@@ -48,7 +48,7 @@ jobs:
               archive.write(src, src.as_posix())
           with zipfile.ZipFile(out) as archive:
               assert archive.namelist() == ["ls_library/playlists.py"]
-              data = archive.read("ls_library/playlists.py").decode("utf-8")
+              data = archive.read("ls_library/playlists.py").decode("utf-8").replace("\\r\\n", "\\n")
               assert 'def render_playlist_library_actions_script():\n    return r"""' in data
           '@ | python -
       - uses: actions/upload-artifact@v4
