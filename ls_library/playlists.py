@@ -636,7 +636,7 @@ def render_playlists_page(playlist_id="", add_track_id=""):
 
 
 def render_playlist_library_actions_script():
-    return """
+    return r"""
 <script>
 (() => {
   if (window.LSPlaylistLibraryActionsInstalled) return;

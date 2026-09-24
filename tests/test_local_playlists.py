@@ -106,6 +106,9 @@ def test_library_playlist_script_has_direct_target_mode():
     assert '"Add to " + (playlistAddName || "Playlist") + " (" + count + ")"' in script
     assert '"/playlist-add-tracks"' in script
     assert 'window.location.href = "/playlists?id="' in script
+    assert '.join("\\n")' in script
+    assert 'enter number:\\n\\n0. + New Playlist\\n' in script
+    assert 'playlist.name + "\\nAdded: "' in script
 
 
 
