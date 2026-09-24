@@ -6,6 +6,10 @@
     const resultCount = document.getElementById("ls-filter-result-count");
     if (!table || !tbody || !tableWrap || !sentinel) { return; }
 
+    try {
+        sessionStorage.setItem("ls.library.returnUrl", window.location.pathname + window.location.search);
+    } catch (_) {}
+
     const BATCH_SIZE = 32;
     const PREFETCH_MARGIN_PX = 320;
     let nextCursor = "";
