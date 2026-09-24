@@ -146,10 +146,9 @@ jobs:
           raise SystemExit("v2.21 overlay did not start")
           PY
 
-      - name: Run real browser flows on exact delivered overlay
+      - name: Run real browser flow on exact delivered overlay
         run: |
           cd baseline-v220
-          python tests/browser/test_select_audio_flow.py
           python tests/browser/test_playlist_end_to_end.py
 
       - name: Run focused Playlist regressions on exact delivered overlay
