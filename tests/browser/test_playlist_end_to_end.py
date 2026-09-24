@@ -129,14 +129,14 @@ def main():
             row_play = page.locator('.playlist-track-row[data-track-id="browser-3"] .playlist-track-play')
             row_play.click()
             page.wait_for_function(
-                "() => document.querySelector('.playlist-track-row[data-track-id="browser-3"]')?.classList.contains('is-current')",
+                '() => document.querySelector(\'.playlist-track-row[data-track-id="browser-3"]\')?.classList.contains("is-current")',
                 timeout=3000,
             )
             current_row = page.locator('.playlist-track-row[data-track-id="browser-3"]')
             assert current_row.get_attribute("aria-current") == "true"
             audio.dispatch_event("play")
             page.wait_for_function(
-                "() => document.querySelector('.playlist-track-row[data-track-id="browser-3"]')?.classList.contains('is-playing')",
+                '() => document.querySelector(\'.playlist-track-row[data-track-id="browser-3"]\')?.classList.contains("is-playing")',
                 timeout=3000,
             )
             assert current_row.locator(".playlist-track-eq").count() == 1
