@@ -124,25 +124,31 @@ def main():
             )
             assert playlist_ids[0] == "browser-3", playlist_ids
 
-            # Contract: row Play and Play All resolve local playback media.
+            # Contract: row Play and Play All point at a real local playback endpoint.
+            audio = page.locator("#playlist-audio")
             row_play = page.locator('.playlist-track-row[data-track-id="browser-3"] .playlist-track-play')
-            with page.expect_response(
-                lambda response: "/playback-media?track_id=browser-3" in response.url,
-                timeout=5000,
-            ) as response_info:
-                row_play.click()
-            response = response_info.value
-            assert response.ok, (response.status, response.url)
-            assert "source=local" in response.url, response.url
+            row_play.click()
+            page.wait_for_function(
+                "() => document.getElementById('playlist-audio')?.getAttribute('src')?.includes('track_id=browser-3')",
+                timeout=3000,
+            )
+            row_src = audio.get_attribute("src") or ""
+            assert "track_id=browser-3" in row_src, row_src
+            assert "source=local" in row_src, row_src
+            row_response = page.request.get(BASE_URL + row_src)
+            assert row_response.ok, (row_response.status, row_src)
 
-            with page.expect_response(
-                lambda response: "/playback-media?track_id=browser-3" in response.url,
-                timeout=5000,
-            ) as response_info:
-                page.locator("#playlist-play-all").click()
-            response = response_info.value
-            assert response.ok, (response.status, response.url)
-            assert "source=local" in response.url, response.url
+            audio.evaluate("el => { el.pause(); el.removeAttribute('src'); el.load(); }")
+            page.locator("#playlist-play-all").click()
+            page.wait_for_function(
+                "() => document.getElementById('playlist-audio')?.getAttribute('src')?.includes('track_id=browser-3')",
+                timeout=3000,
+            )
+            all_src = audio.get_attribute("src") or ""
+            assert "track_id=browser-3" in all_src, all_src
+            assert "source=local" in all_src, all_src
+            all_response = page.request.get(BASE_URL + all_src)
+            assert all_response.ok, (all_response.status, all_src)
 
             # Contract: returning to Library does not require F5 and rows are immediately present.
             page.get_by_role("link", name="Suno Library", exact=True).click()
