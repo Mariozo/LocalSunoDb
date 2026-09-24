@@ -671,8 +671,6 @@ def render_playlist_library_actions_script():
     const library = window.LS?.library;
     const directIds = library?.getSelectedTrackIds?.();
     if (Array.isArray(directIds)) return cleanTrackIds(directIds);
-    const legacyIds = library?.getSelectedLocalWavTrackIds?.();
-    if (Array.isArray(legacyIds)) return cleanTrackIds(legacyIds);
     return Array.from(
       document.querySelectorAll("#tracks-table tbody .track-check:checked")
     ).map((check) => String(check.value || "").trim()).filter(Boolean);
@@ -694,149 +692,137 @@ def render_playlist_library_actions_script():
     });
   };
 
-  const selectedButton = document.getElementById("add-selected-playlist-btn");
+  const selector = document.getElementById("audio-playlist-select");
+  const summary = document.getElementById("audio-playlist-summary");
+  const menu = document.getElementById("audio-playlist-menu");
   const table = document.getElementById("tracks-table");
-  if (!selectedButton || !table) return;
+  if (!selector || !summary || !menu || !table) return;
 
-  const syncSelectedButton = () => {
+  let menuLoadToken = 0;
+
+  const setEnabledState = () => {
     const count = getSelectedTrackIds().length;
-    selectedButton.disabled = count < 1;
-    if (count < 1) {
-      selectedButton.textContent = "Select Audio";
-      selectedButton.title = "Select songs using the circle on each cover";
+    const enabled = count > 0;
+    selector.classList.toggle("is-enabled", enabled);
+    summary.setAttribute("aria-disabled", enabled ? "false" : "true");
+    summary.title = enabled
+      ? "Open Playlists for selected audio"
+      : "Select songs using the circle on each cover";
+    if (!enabled) {
+      selector.removeAttribute("open");
+      menu.replaceChildren();
+    }
+  };
+
+  const renderMenu = async () => {
+    const ids = getSelectedTrackIds();
+    if (!ids.length) {
+      selector.removeAttribute("open");
       return;
     }
-    selectedButton.textContent = count === 1
-      ? "+ Add song (1)"
-      : "+ Add songs (" + count + ")";
-    selectedButton.title = "Add songs to Playlist";
-  };
 
-  const closeChooser = () => {
-    document.getElementById("playlist-add-chooser")?.remove();
-  };
+    const token = ++menuLoadToken;
+    menu.replaceChildren();
 
-  const buildChooser = async () => {
-    const ids = getSelectedTrackIds();
-    if (!ids.length) return;
+    const loading = document.createElement("div");
+    loading.className = "library-playlist-menu-status";
+    loading.textContent = "Playlists…";
+    menu.appendChild(loading);
 
-    closeChooser();
-    const playlists = await fetchPlaylists();
+    try {
+      const playlists = await fetchPlaylists();
+      if (token !== menuLoadToken || !selector.open) return;
 
-    const backdrop = document.createElement("div");
-    backdrop.id = "playlist-add-chooser";
-    backdrop.style.cssText = [
-      "position:fixed","inset:0","z-index:10020",
-      "display:flex","align-items:center","justify-content:center",
-      "background:rgba(0,0,0,.62)","padding:24px"
-    ].join(";");
+      menu.replaceChildren();
 
-    const card = document.createElement("div");
-    card.style.cssText = [
-      "width:min(520px,calc(100vw - 48px))","max-height:min(640px,calc(100vh - 48px))",
-      "overflow:auto","border:1px solid rgba(255,255,255,.16)",
-      "border-radius:16px","background:#121516","color:#fff",
-      "box-shadow:0 24px 70px rgba(0,0,0,.45)","padding:18px"
-    ].join(";");
+      const heading = document.createElement("div");
+      heading.className = "library-playlist-menu-heading";
+      heading.textContent = "Playlists (" + playlists.length + ")";
+      menu.appendChild(heading);
 
-    const head = document.createElement("div");
-    head.style.cssText = "display:flex;align-items:center;gap:12px;margin-bottom:14px;";
-    const title = document.createElement("strong");
-    title.textContent = ids.length === 1
-      ? "Add song to Playlist"
-      : "Add " + ids.length + " songs to Playlist";
-    title.style.cssText = "font-size:18px;";
-    const close = document.createElement("button");
-    close.type = "button";
-    close.textContent = "×";
-    close.title = "Close";
-    close.style.cssText = "margin-left:auto;border:0;background:transparent;color:#fff;font-size:26px;cursor:pointer;";
-    close.addEventListener("click", closeChooser);
-    head.appendChild(title);
-    head.appendChild(close);
-    card.appendChild(head);
-
-    const list = document.createElement("div");
-    list.style.cssText = "display:flex;flex-direction:column;gap:8px;";
-
-    const addPlaylistButton = (label, onClick) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.textContent = label;
-      button.style.cssText = [
-        "width:100%","text-align:left","border:1px solid rgba(255,255,255,.12)",
-        "border-radius:12px","background:#202526","color:#fff",
-        "padding:12px 14px","cursor:pointer","font:inherit"
-      ].join(";");
-      button.addEventListener("click", onClick);
-      list.appendChild(button);
-    };
-
-    addPlaylistButton("+ New Playlist", async () => {
-      const name = window.prompt("New playlist name:");
-      if (!name) return;
-      try {
-        const created = await post("/playlist-create", {name});
-        const result = await addTracks(created.playlist.id, ids);
-        window.alert(
-          "Playlist: " + created.playlist.name +
-          "\nAdded: " + Number(result.playlist?.added_count || 0)
-        );
-        closeChooser();
-      } catch (error) {
-        window.alert(error.message);
+      if (!playlists.length) {
+        const empty = document.createElement("div");
+        empty.className = "library-playlist-menu-status";
+        empty.textContent = "No playlists yet.";
+        menu.appendChild(empty);
+        return;
       }
-    });
 
-    playlists.forEach((playlist) => {
-      const count = Number(playlist.track_count || 0);
-      addPlaylistButton(
-        String(playlist.name || "Playlist") + " (" + count + ")",
-        async () => {
+      playlists.forEach((playlist) => {
+        const count = Number(playlist.track_count || 0);
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "library-playlist-menu-item";
+        button.setAttribute("role", "menuitem");
+        button.textContent = String(playlist.name || "Playlist") + " (" + count + ")";
+        button.addEventListener("click", async (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const selectedIds = getSelectedTrackIds();
+          if (!selectedIds.length) {
+            selector.removeAttribute("open");
+            setEnabledState();
+            return;
+          }
+
+          button.disabled = true;
           try {
-            const result = await addTracks(playlist.id, ids);
+            const result = await addTracks(playlist.id, selectedIds);
             const added = Number(result.playlist?.added_count || 0);
-            const skipped = ids.length - added;
+            const skipped = selectedIds.length - added;
             const suffix = skipped > 0 ? " · " + skipped + " already there" : "";
             window.alert(
-              "Playlist: " + playlist.name +
+              "Playlist: " + String(playlist.name || "Playlist") +
               "\nAdded: " + added + suffix
             );
-            closeChooser();
+            selector.removeAttribute("open");
           } catch (error) {
             window.alert(error.message);
+          } finally {
+            button.disabled = false;
+            setEnabledState();
           }
-        }
-      );
-    });
-
-    if (!playlists.length) {
-      const empty = document.createElement("div");
-      empty.textContent = "No playlists yet.";
-      empty.style.cssText = "padding:10px 2px;color:#aaa;";
-      list.appendChild(empty);
+        });
+        menu.appendChild(button);
+      });
+    } catch (error) {
+      if (token !== menuLoadToken) return;
+      menu.replaceChildren();
+      const failed = document.createElement("div");
+      failed.className = "library-playlist-menu-status";
+      failed.textContent = error.message;
+      menu.appendChild(failed);
     }
-
-    card.appendChild(list);
-    backdrop.appendChild(card);
-    backdrop.addEventListener("click", (event) => {
-      if (event.target === backdrop) closeChooser();
-    });
-    document.body.appendChild(backdrop);
   };
 
-  selectedButton.addEventListener("click", () => {
-    buildChooser().catch((error) => window.alert(error.message));
+  summary.addEventListener("click", (event) => {
+    if (!getSelectedTrackIds().length) {
+      event.preventDefault();
+      event.stopPropagation();
+      selector.removeAttribute("open");
+    }
+  });
+
+  selector.addEventListener("toggle", () => {
+    if (!selector.open) return;
+    if (!getSelectedTrackIds().length) {
+      selector.removeAttribute("open");
+      setEnabledState();
+      return;
+    }
+    renderMenu();
   });
 
   document.addEventListener("change", (event) => {
-    if (event.target?.matches?.("#tracks-table .track-check")) syncSelectedButton();
+    if (event.target?.matches?.("#tracks-table .track-check")) setEnabledState();
   });
-  document.addEventListener("ls-library-wav-selection-changed", syncSelectedButton);
-  window.setTimeout(syncSelectedButton, 0);
+  document.addEventListener("ls-library-wav-selection-changed", setEnabledState);
+
+  window.setTimeout(setEnabledState, 0);
 })();
 </script>
 """
+
 
 def playlists_json_payload():
     return {"ok": True, "playlists": get_local_playlists()}
