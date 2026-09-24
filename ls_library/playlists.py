@@ -407,6 +407,14 @@ def _playlist_page_script(active_playlist_id="", pending_track_id=""):
     (() => {{
       const activePlaylistId = {active_json};
       const pendingTrackId = {pending_json};
+      let libraryReturnUrl = "/";
+      try {{
+        const remembered = String(sessionStorage.getItem("ls.library.returnUrl") || "");
+        if (remembered.startsWith("/") && !remembered.startsWith("//")) libraryReturnUrl = remembered;
+      }} catch (_) {{}}
+      document.querySelectorAll("[data-library-return]").forEach((link) => {{
+        link.setAttribute("href", libraryReturnUrl);
+      }});
       const post = async (path, values={{}}) => {{
         const body = new URLSearchParams();
         Object.entries(values).forEach(([key, value]) => body.set(key, String(value ?? "")));
@@ -625,7 +633,7 @@ def render_playlists_page(playlist_id="", add_track_id=""):
                 <div class="playlist-actions">
                   <button type="button" class="playlist-primary" id="playlist-play-all">▶ Play</button>
                   <button type="button" class="playlist-secondary" id="playlist-rename">Edit playlist details</button>
-                  <a class="playlist-secondary" href="/">＋ Add songs</a>
+                  <a class="playlist-secondary" data-library-return href="/">＋ Add songs</a>
                   <button type="button" class="playlist-secondary playlist-danger" id="playlist-delete">Delete playlist</button>
                 </div>
               </div>
@@ -657,9 +665,9 @@ def render_playlists_page(playlist_id="", add_track_id=""):
 <body>
 <div class="playlist-shell">
 <header class="playlist-topbar">
-  <a class="playlist-brand" href="/">LS</a>
+  <a class="playlist-brand" data-library-return href="/">LS</a>
   <nav class="playlist-nav">
-    <a href="/">Suno Library</a>
+    <a data-library-return href="/">Suno Library</a>
     <a class="active" href="/playlists">Playlists</a>
   </nav>
 </header>
