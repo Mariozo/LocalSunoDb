@@ -74,7 +74,7 @@ def main():
         page.on("pageerror", lambda exc: page_errors.append(str(exc)))
 
         try:
-            page.goto(BASE_URL + "/", wait_until="domcontentloaded", timeout=30000)
+            page.goto(BASE_URL + "/?local_audio_filter=with", wait_until="domcontentloaded", timeout=30000)
             page.locator("tr.track-row").first.wait_for(state="visible", timeout=20000)
 
             # Contract: default Library order is newest first.
@@ -129,6 +129,18 @@ def main():
             row_play = page.locator('.playlist-track-row[data-track-id="browser-3"] .playlist-track-play')
             row_play.click()
             page.wait_for_function(
+                "() => document.querySelector('.playlist-track-row[data-track-id="browser-3"]')?.classList.contains('is-current')",
+                timeout=3000,
+            )
+            current_row = page.locator('.playlist-track-row[data-track-id="browser-3"]')
+            assert current_row.get_attribute("aria-current") == "true"
+            audio.dispatch_event("play")
+            page.wait_for_function(
+                "() => document.querySelector('.playlist-track-row[data-track-id="browser-3"]')?.classList.contains('is-playing')",
+                timeout=3000,
+            )
+            assert current_row.locator(".playlist-track-eq").count() == 1
+            page.wait_for_function(
                 "() => document.getElementById('playlist-audio')?.getAttribute('src')?.includes('track_id=browser-3')",
                 timeout=3000,
             )
@@ -150,10 +162,13 @@ def main():
             all_response = page.request.get(BASE_URL + all_src)
             assert all_response.ok, (all_response.status, all_src)
 
-            # Contract: Add songs opens the populated Library without forcing Local-only.
+            # Contract: removal uses an unambiguous x control.
+            assert page.locator('.playlist-track-row[data-track-id="browser-3"] .playlist-track-remove').text_content().strip() == "×"
+
+            # Contract: Add songs restores the exact Library view, including Local-only.
             page.get_by_role("link", name="＋ Add songs", exact=True).click()
             page.locator("tr.track-row").first.wait_for(state="visible", timeout=5000)
-            assert "local_audio_filter" not in page.url, page.url
+            assert "local_audio_filter=with" in page.url, page.url
             ids_after_return = visible_library_ids(page)
             assert ids_after_return[:3] == ["browser-3", "browser-2", "browser-1"], ids_after_return
 
