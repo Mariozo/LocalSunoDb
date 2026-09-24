@@ -1,10 +1,10 @@
 # LocalSunoDb - Local Web Interface
 # Canonical LocalSunoDb runtime entrypoint.
-# Based on: v2.13
+# Based on: v2.15
 # Upgrade probe contract: --ls-update-probe / LS_UPDATE_PROBE_OK
 
-APP_VERSION = "v2.15"
-APP_BASED_ON = "v2.13"
+APP_VERSION = "v2.16"
+APP_BASED_ON = "v2.15"
 
 from datetime import datetime
 from pathlib import Path
