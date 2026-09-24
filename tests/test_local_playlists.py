@@ -208,6 +208,7 @@ def test_v218_select_audio_dropdown_styles_are_selection_gated():
     assert ".library-playlist-menu-item" in css
 
 def test_v221_playlist_player_uses_row_source(monkeypatch):
+    monkeypatch.setattr(playlists, "format_duration", lambda value: str(value), raising=False)
     monkeypatch.setattr(
         playlists,
         "_playlist_track_rows",
