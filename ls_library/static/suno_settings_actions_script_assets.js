@@ -170,3 +170,141 @@
             });
         }
 
+
+
+        async function loadFreshInstallState(openWhenNeeded=false) {
+            if (!freshInstallModal) { return null; }
+            const response = await fetch("/fresh-install-state", {cache:"no-store"});
+            const payload = await response.json();
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload.error || "Neizdevās pārbaudīt LS datubāzi.");
+            }
+            if (freshInstallDbStatus) {
+                const tracks = Number(payload.track_count || 0);
+                const media = Number(payload.media_count || 0);
+                freshInstallDbStatus.textContent =
+                    "DB gatava: " + String(payload.db_path || "") +
+                    " · " + tracks + " dziesmas · " + media + " audio faili";
+            }
+            if (freshInstallRootInput) {
+                freshInstallRootInput.value = String(payload.audio_library_root_folder || "");
+            }
+            if (openWhenNeeded && payload.needs_setup) {
+                freshInstallModal.style.display = "flex";
+            }
+            return payload;
+        }
+
+        if (openFreshInstallSetupButton && freshInstallModal) {
+            openFreshInstallSetupButton.addEventListener("click", async () => {
+                closeTopMenus();
+                freshInstallModal.style.display = "flex";
+                if (freshInstallStatus) { freshInstallStatus.textContent = ""; }
+                try {
+                    await loadFreshInstallState(false);
+                } catch (error) {
+                    if (freshInstallStatus) {
+                        freshInstallStatus.textContent = String(error && error.message || error);
+                    }
+                }
+            });
+        }
+
+        if (freshInstallClose && freshInstallModal) {
+            freshInstallClose.addEventListener("click", () => {
+                freshInstallModal.style.display = "none";
+            });
+        }
+
+        if (freshInstallModal) {
+            freshInstallModal.addEventListener("click", (event) => {
+                if (event.target === freshInstallModal) {
+                    freshInstallModal.style.display = "none";
+                }
+            });
+        }
+
+        if (freshInstallChooseRoot && freshInstallRootInput) {
+            freshInstallChooseRoot.addEventListener("click", async () => {
+                if (freshInstallStatus) {
+                    freshInstallStatus.textContent = "Izvēlies lokālās audio bibliotēkas mapi…";
+                }
+                freshInstallChooseRoot.disabled = true;
+                try {
+                    const response = await fetch("/choose-audio-library-root", {cache:"no-store"});
+                    const text = await response.text();
+                    if (!response.ok) {
+                        throw new Error(text || "Mapi neizdevās izvēlēties.");
+                    }
+                    if (text) {
+                        freshInstallRootInput.value = text;
+                        if (freshInstallStatus) {
+                            freshInstallStatus.textContent = "Izvēlēta: " + text;
+                        }
+                    } else if (freshInstallStatus) {
+                        freshInstallStatus.textContent = "Mapes izvēle atcelta.";
+                    }
+                } catch (error) {
+                    if (freshInstallStatus) {
+                        freshInstallStatus.textContent = String(error && error.message || error);
+                    }
+                } finally {
+                    freshInstallChooseRoot.disabled = false;
+                }
+            });
+        }
+
+        if (freshInstallImport && freshInstallRootInput) {
+            freshInstallImport.addEventListener("click", async () => {
+                if (freshInstallImport.disabled) { return; }
+                const root = String(freshInstallRootInput.value || "").trim();
+                if (!root) {
+                    if (freshInstallStatus) {
+                        freshInstallStatus.textContent = "Vispirms izvēlies mapi ar lokālajām dziesmām.";
+                    }
+                    return;
+                }
+                freshInstallImport.disabled = true;
+                if (freshInstallChooseRoot) { freshInstallChooseRoot.disabled = true; }
+                if (freshInstallStatus) {
+                    freshInstallStatus.textContent = "Skenē un importē lokālās dziesmas…";
+                }
+                try {
+                    const body = new URLSearchParams();
+                    body.set("audio_library_root_folder", root);
+                    const response = await fetch("/import-local-library", {
+                        method:"POST",
+                        headers:{"Content-Type":"application/x-www-form-urlencoded"},
+                        body:body.toString()
+                    });
+                    const payload = await response.json();
+                    if (!response.ok || !payload.ok) {
+                        throw new Error(payload.error || "Lokālo dziesmu imports neizdevās.");
+                    }
+                    const addedTracks = Number(payload.added_tracks || 0);
+                    const addedMedia = Number(payload.added_media || 0);
+                    const existingMedia = Number(payload.existing_media || 0);
+                    if (freshInstallStatus) {
+                        freshInstallStatus.textContent =
+                            "Gatavs. Pievienotas " + addedTracks + " dziesmas un " +
+                            addedMedia + " audio faili." +
+                            (existingMedia ? " Jau DB bija " + existingMedia + " faili." : "");
+                    }
+                    await loadFreshInstallState(false);
+                    window.setTimeout(() => window.location.reload(), 900);
+                } catch (error) {
+                    if (freshInstallStatus) {
+                        freshInstallStatus.textContent = String(error && error.message || error);
+                    }
+                } finally {
+                    freshInstallImport.disabled = false;
+                    if (freshInstallChooseRoot) { freshInstallChooseRoot.disabled = false; }
+                }
+            });
+        }
+
+        if (freshInstallModal) {
+            window.setTimeout(() => {
+                loadFreshInstallState(true).catch(() => {});
+            }, 0);
+        }
