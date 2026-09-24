@@ -50,22 +50,10 @@
                 openSelected.disabled = checkedCount <= 1;
             }
             if (compareThisButton) {
-                const selectionMode = table.classList.contains("selection-mode");
-                const compareReady = compareSelection.compareReady;
-
-                compareThisButton.style.display = (selectionMode && !LS_WAV_PICKER_MODE) ? "" : "none";
-                compareThisButton.disabled = LS_WAV_PICKER_MODE || !compareReady;
-
-                if (compareReady) {
-                    compareThisButton.innerText = "Compare This (" + checkedCount + ")";
-                    compareThisButton.title = "Compare all selected Local WAV files in Library order.";
-                } else if (checkedCount < 2) {
-                    compareThisButton.innerText = "Compare This";
-                    compareThisButton.title = "Select at least 2 Local WAV files.";
-                } else {
-                    compareThisButton.innerText = "Compare This (" + checkedCount + ")";
-                    compareThisButton.title = "All selected rows must have a Local WAV file.";
-                }
+                compareThisButton.style.display = "none";
+                compareThisButton.disabled = true;
+                compareThisButton.innerText = "Compare This";
+                compareThisButton.title = "Compare selected WAV files from the Player bar.";
             }
 
             document.dispatchEvent(new CustomEvent(
