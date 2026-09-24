@@ -1,0 +1,149 @@
+name: Build v2.16 final ZIP
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-v216:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build exact v2.16 ZIP
+        shell: pwsh
+        run: |
+          @'
+          from pathlib import Path
+          import zipfile
+
+          files = [
+              Path("LocalSunoDb.py"),
+              Path("ls_core/runtime.py"),
+              Path("ls_library/playlists.py"),
+              Path("ls_library/render.py"),
+              Path("ls_library/templates/library.html"),
+              Path("ls_library/static/suno_selection_state_script.js"),
+              Path("ls_library/static/suno_selection_actions_script.js"),
+              Path("ls_library/static/suno_page_suno_library_list_style_assets.css"),
+              Path("ls_library/static/suno_filter_layout_dock_style_assets.css"),
+          ]
+          out = Path("LocalSunoDb_v2.16.zip")
+          for path in files:
+              if not path.is_file():
+                  raise SystemExit(f"Missing release file: {path}")
+          with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:
+              for path in files:
+                  archive.write(path, path.as_posix())
+          with zipfile.ZipFile(out) as archive:
+              expected = [path.as_posix() for path in files]
+              if archive.namelist() != expected:
+                  raise SystemExit(f"Unexpected ZIP contents: {archive.namelist()}")
+          '@ | python -
+      - name: Verify exact ZIP contracts and line endings
+        shell: pwsh
+        run: |
+          @'
+          from pathlib import Path
+          import zipfile
+
+          with zipfile.ZipFile("LocalSunoDb_v2.16.zip") as archive:
+              names = archive.namelist()
+              payloads = {name: archive.read(name) for name in names}
+
+          entry = payloads["LocalSunoDb.py"].decode("utf-8")
+          runtime = payloads["ls_core/runtime.py"].decode("utf-8")
+          playlists = payloads["ls_library/playlists.py"].decode("utf-8")
+          render = payloads["ls_library/render.py"].decode("utf-8")
+          template = payloads["ls_library/templates/library.html"].decode("utf-8")
+          state = payloads["ls_library/static/suno_selection_state_script.js"].decode("utf-8")
+          actions = payloads["ls_library/static/suno_selection_actions_script.js"].decode("utf-8")
+          list_css = payloads["ls_library/static/suno_page_suno_library_list_style_assets.css"].decode("utf-8")
+
+          assert '# Based on: v2.15' in entry
+          assert 'APP_VERSION = "v2.16"' in entry
+          assert 'APP_BASED_ON = "v2.15"' in entry
+          assert 'APP_VERSION = "v2.16"' in runtime
+          assert 'APP_BASED_ON = "v2.15"' in runtime
+
+          assert 'id="audio-selection-label"' in template
+          assert '>Select Audio</span>' in template
+          assert 'id="compare-this-btn"' not in template
+          assert 'title="Add songs to Playlist"' in template
+
+          assert 'getSelectedTrackIds()' in state
+          assert 'table.classList.add("selection-mode")' not in actions
+          assert 'table.classList.remove("selection-mode")' not in actions
+          assert 'opacity: 1;' in list_css
+
+          assert 'class="small-action compare-btn"' not in render
+          assert '>Compare</button>' not in render
+          assert '"+ Add song (1)"' in playlists
+          assert '"+ Add songs (" + count + ")"' in playlists
+          assert 'String(playlist.name || "Playlist") + " (" + count + ")"' in playlists
+          assert 'table.classList.contains("selection-mode")' not in playlists
+
+          for name, data in payloads.items():
+              crlf = data.count(b"\r\n")
+              lf = data.count(b"\n")
+              bare_lf = lf - crlf
+              if crlf and bare_lf:
+                  raise SystemExit(f"Mixed line endings in ZIP: {name}")
+          '@ | python -
+      - name: Apply exact ZIP over v2.15 baseline
+        shell: pwsh
+        run: |
+          git worktree add baseline-v215 50ff9b759217c262352ac2020e470599c8fe32bd
+          Expand-Archive -Path LocalSunoDb_v2.16.zip -DestinationPath baseline-v215 -Force
+      - name: Verify exact overlaid artifact syntax and Player Compare
+        shell: pwsh
+        run: |
+          python -m py_compile baseline-v215/LocalSunoDb.py baseline-v215/ls_core/runtime.py baseline-v215/ls_library/playlists.py baseline-v215/ls_library/render.py
+          node --check baseline-v215/ls_library/static/suno_selection_state_script.js
+          node --check baseline-v215/ls_library/static/suno_selection_actions_script.js
+          @'
+          from pathlib import Path
+          import sys
+
+          root = Path("baseline-v215").resolve()
+          sys.path.insert(0, str(root))
+          from ls_library.playlists import render_playlist_library_actions_script
+
+          rendered = render_playlist_library_actions_script().strip()
+          body = rendered[len("<script>"):]
+          body = body.rsplit("</script>", 1)[0]
+          Path("playlist_actions_exact_v216.js").write_text(body, encoding="utf-8", newline="\n")
+
+          player = (root / "ls_player/static/suno_global_player_script_assets.js").read_text(encoding="utf-8")
+          assert 'document.getElementById("ls-global-player-compare")' in player
+          assert '"ls-library-wav-selection-changed"' in player
+          assert 'libraryApi.isLocalWavCompareReady()' in player
+          assert '"ls-library-open-selected-wav-compare"' in player
+          '@ | python -
+          node --check playlist_actions_exact_v216.js
+      - name: Run startup probe on exact delivered artifact
+        shell: pwsh
+        run: |
+          $output = python baseline-v215/LocalSunoDb.py --ls-update-probe
+          $output | Write-Host
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not ($output -match 'LS_UPDATE_PROBE_OK')) { throw 'Missing LS_UPDATE_PROBE_OK' }
+          if (-not ($output -match '"app_version": "v2.16"')) { throw 'Probe did not report v2.16' }
+      - name: Run v2.16 Playlist regressions on exact overlaid artifact
+        shell: pwsh
+        run: |
+          python -m pip install pytest
+          Copy-Item tests/test_local_playlists.py baseline-v215/tests/test_local_playlists.py -Force
+          Push-Location baseline-v215
+          python -m pytest -q tests/test_local_playlists.py
+          Pop-Location
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LocalSunoDb-v2.16-final
+          path: LocalSunoDb_v2.16.zip
+          if-no-files-found: error
+          retention-days: 2
