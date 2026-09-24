@@ -95,15 +95,14 @@ class ElzaControllerMixin:
             }, status=400)
             return
 
-        payload, use_legacy_local = prepare_selection_transport(payload)
-        if use_legacy_local:
-            local_readonly_result = get_ls_elza_local_readonly_response(payload)
-            if local_readonly_result is not None:
-                self.send_json_response(
-                    local_readonly_result,
-                    status=200 if local_readonly_result.get("ok") else 500,
-                )
-                return
+        payload, _use_legacy_local = prepare_selection_transport(payload)
+        local_readonly_result = get_ls_elza_local_readonly_response(payload)
+        if local_readonly_result is not None:
+            self.send_json_response(
+                local_readonly_result,
+                status=200 if local_readonly_result.get("ok") else 500,
+            )
+            return
 
         local_locf_result = prepare_local_locf_service_result(payload)
         if local_locf_result is not None:
