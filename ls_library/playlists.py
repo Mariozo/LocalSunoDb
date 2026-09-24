@@ -698,12 +698,14 @@ def render_playlist_library_actions_script():
   const table = document.getElementById("tracks-table");
   if (!selectedButton || !table) return;
 
-  selectedButton.title = "Add songs to Playlist";
-
   const syncSelectedButton = () => {
     const count = getSelectedTrackIds().length;
     selectedButton.disabled = count < 1;
-    selectedButton.style.display = count > 0 ? "" : "none";
+    if (count < 1) {
+      selectedButton.textContent = "Select Audio";
+      selectedButton.title = "Select songs using the circle on each cover";
+      return;
+    }
     selectedButton.textContent = count === 1
       ? "+ Add song (1)"
       : "+ Add songs (" + count + ")";
