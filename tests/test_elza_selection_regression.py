@@ -1,5 +1,9 @@
+import io
+import json
+
 from LS_Elza import selection_intent
 from ls_web import elza_adapter
+from ls_web import elza_controller
 from ls_web import elza_selection_bridge
 
 
@@ -140,3 +144,55 @@ def test_local_wav_minus_upload_returns_precise_track_id_view(monkeypatch):
     assert "ls_save_view_url" not in response
     assert "Local WAV" in response["answer"]
     assert "Bez Type: Upload" in response["answer"]
+
+
+def test_plain_ask_short_circuits_to_deterministic_selection(monkeypatch):
+    payload = {
+        "action": "send",
+        "message": "Parādi visus lokālos Wav bez Uplod",
+        "selected_mode": "",
+    }
+    raw = json.dumps(payload).encode("utf-8")
+    local_result = {
+        "ok": True,
+        "answer": "Atrasti 1 ieraksti.",
+        "ls_view_url": "/?track_ids=wav-keep&rows=all",
+        "ls_view_label": "Atvērt atlasi LS",
+    }
+    calls = []
+
+    monkeypatch.setattr(
+        elza_controller,
+        "get_ls_elza_local_readonly_response",
+        lambda received: calls.append(received) or local_result,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        elza_controller,
+        "handle_ls_elza_action",
+        lambda _payload: (_ for _ in ()).throw(
+            AssertionError("AI service must not run for deterministic selection")
+        ),
+        raising=False,
+    )
+
+    class Handler(elza_controller.ElzaControllerMixin):
+        headers = {
+            "Content-Length": str(len(raw)),
+            "Origin": "",
+        }
+        rfile = io.BytesIO(raw)
+
+        def __init__(self):
+            self.sent = []
+
+        def send_json_response(self, data, status=200):
+            self.sent.append((status, data))
+
+    handler = Handler()
+    handler.ls_assistant_chat()
+
+    assert len(calls) == 1
+    assert calls[0]["action"] == "send"
+    assert calls[0]["message"] == "Parādi visus lokālos Wav bez Uplod"
+    assert handler.sent == [(200, local_result)]
