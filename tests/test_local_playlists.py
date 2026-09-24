@@ -97,14 +97,16 @@ def test_playlist_add_songs_opens_local_library_without_target_mode(isolated_sto
     assert "atzīmē dziesmas ar apli uz Cover" in page
 
 
-def test_library_playlist_script_uses_direct_cover_selection_add_flow():
+def test_library_playlist_script_uses_single_fixed_action_slot():
     script = playlists.render_playlist_library_actions_script()
 
     assert "getSelectedTrackIds" in script
+    assert 'selectedButton.textContent = "Select Audio"' in script
     assert 'selectedButton.textContent = count === 1' in script
     assert '"+ Add song (1)"' in script
     assert '"+ Add songs (" + count + ")"' in script
     assert 'selectedButton.title = "Add songs to Playlist"' in script
+    assert 'selectedButton.style.display' not in script
     assert 'String(playlist.name || "Playlist") + " (" + count + ")"' in script
     assert '"/playlist-add-tracks"' in script
     assert 'table.classList.contains("selection-mode")' not in script
@@ -121,10 +123,11 @@ def test_selection_starts_on_cover_and_compare_exists_only_in_player():
     render_source = (root / "ls_library" / "render.py").read_text(encoding="utf-8")
     player_source = (root / "ls_player" / "static" / "suno_global_player_script_assets.js").read_text(encoding="utf-8")
 
-    assert 'id="audio-selection-label"' in template
-    assert ">Select Audio</span>" in template
+    assert 'id="audio-selection-label"' not in template
+    assert 'id="add-selected-playlist-btn"' in template
+    assert '>Select Audio</button>' in template
     assert 'id="compare-this-btn"' not in template
-    assert 'title="Add songs to Playlist"' in template
+    assert 'title="Select songs using the circle on each cover"' in template
     assert "getSelectedTrackIds()" in selection_source
     assert 'table.classList.add("selection-mode")' not in actions_source
     assert 'table.classList.remove("selection-mode")' not in actions_source
@@ -161,3 +164,15 @@ def test_single_row_playlist_add_is_not_exposed_in_three_dot_menu():
     assert 'menu-add-playlist' not in render_source
     assert '/playlists?add_track=' not in render_source
     assert 'event.target.closest(".menu-add-playlist")' not in script
+
+def test_v217_identity_is_based_on_v216():
+    root = Path(__file__).resolve().parents[1]
+    entrypoint = (root / "LocalSunoDb.py").read_text(encoding="utf-8")
+    runtime = (root / "ls_core" / "runtime.py").read_text(encoding="utf-8")
+
+    assert "# Based on: v2.16" in entrypoint
+    assert 'APP_VERSION = "v2.17"' in entrypoint
+    assert 'APP_BASED_ON = "v2.16"' in entrypoint
+    assert 'APP_VERSION = "v2.17"' in runtime
+    assert 'APP_BASED_ON = "v2.16"' in runtime
+
