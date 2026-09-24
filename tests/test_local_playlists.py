@@ -188,4 +188,3 @@ def test_v218_select_audio_dropdown_styles_are_selection_gated():
     assert "#audio-playlist-select.is-enabled .library-playlist-arrow" in css
     assert ".library-playlist-menu-heading" in css
     assert ".library-playlist-menu-item" in css
-
