@@ -50,7 +50,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install pytest
-      - name: Verify v2.17 changed-file syntax and line endings
+      - name: Verify v2.18 changed-file syntax and line endings
         shell: pwsh
         run: |
           @'
@@ -90,7 +90,7 @@ jobs:
           rendered = render_playlist_library_actions_script().strip()
           body = rendered[len("<script>"):]
           body = body.rsplit("</script>", 1)[0]
-          Path("playlist_actions_v217.js").write_text(body, encoding="utf-8", newline="\n")
+          Path("playlist_actions_v218.js").write_text(body, encoding="utf-8", newline="\n")
           '@ | python -
           node --check playlist_actions_v217.js
           git diff --check HEAD^1 HEAD
