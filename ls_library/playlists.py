@@ -599,7 +599,7 @@ def render_playlists_page(playlist_id="", add_track_id=""):
                 <div class="playlist-actions">
                   <button type="button" class="playlist-primary" id="playlist-play-all">▶ Play</button>
                   <button type="button" class="playlist-secondary" id="playlist-rename">Edit playlist details</button>
-                  <a class="playlist-secondary" href="/?{urllib.parse.urlencode({'local_audio_filter': 'with'})}">＋ Add songs</a>
+                  <a class="playlist-secondary" href="/">＋ Add songs</a>
                   <button type="button" class="playlist-secondary playlist-danger" id="playlist-delete">Delete playlist</button>
                 </div>
               </div>
