@@ -19,9 +19,9 @@ jobs:
           from pathlib import Path
           from ls_library.playlists import render_playlist_library_actions_script
 
-          rendered = render_playlist_library_actions_script()
+          rendered = render_playlist_library_actions_script().strip()
           assert rendered.startswith("<script>")
-          assert rendered.rstrip().endswith("</script>")
+          assert rendered.endswith("</script>")
           body = rendered[len("<script>"):]
           body = body.rsplit("</script>", 1)[0]
           assert '.join("\\n")' in body
