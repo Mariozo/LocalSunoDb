@@ -1,4 +1,4 @@
-name: Dev v2.20 full-overlay browser proof
+name: Dev v2.21 Playlist recovery browser proof
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - fix/v219-browser-verified-select-audio
 
 jobs:
-  prove-v220:
+  prove-v221:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,7 +22,7 @@ jobs:
           python -m pip install pytest playwright
           python -m playwright install --with-deps chromium
 
-      - name: Build exact v2.20 user-test overlay
+      - name: Build exact v2.21 user-test overlay
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -34,8 +34,12 @@ jobs:
               Path("ls_library/playlists.py"),
               Path("ls_library/templates/library.html"),
               Path("ls_library/static/suno_filter_layout_dock_style_assets.css"),
+              Path("ls_library/static/suno_selection_state_script.js"),
+              Path("ls_library/static/suno_sidebar_stats_search_events_script_assets.js"),
+              Path("ls_library/static/suno_library_lazy_loader.js"),
+              Path("ls_web/pages.py"),
           ]
-          out = Path("LocalSunoDb_v2.20.zip")
+          out = Path("LocalSunoDb_v2.21.zip")
           with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:
               for path in files:
                   if not path.is_file():
@@ -47,41 +51,39 @@ jobs:
                   raise SystemExit(f"Unexpected ZIP contents: {archive.namelist()}")
           PY
 
-      - name: Verify exact overlay contract
+      - name: Verify exact overlay contract and line endings
         run: |
           python - <<'PY'
           import zipfile
 
-          with zipfile.ZipFile("LocalSunoDb_v2.20.zip") as archive:
+          with zipfile.ZipFile("LocalSunoDb_v2.21.zip") as archive:
               data = {name: archive.read(name) for name in archive.namelist()}
-
-          assert set(data) == {
-              "LocalSunoDb.py",
-              "ls_core/runtime.py",
-              "ls_library/playlists.py",
-              "ls_library/templates/library.html",
-              "ls_library/static/suno_filter_layout_dock_style_assets.css",
-          }
 
           entry = data["LocalSunoDb.py"].decode("utf-8")
           runtime = data["ls_core/runtime.py"].decode("utf-8")
           playlists = data["ls_library/playlists.py"].decode("utf-8")
           template = data["ls_library/templates/library.html"].decode("utf-8")
-          css = data["ls_library/static/suno_filter_layout_dock_style_assets.css"].decode("utf-8")
+          selection = data["ls_library/static/suno_selection_state_script.js"].decode("utf-8")
+          search_events = data["ls_library/static/suno_sidebar_stats_search_events_script_assets.js"].decode("utf-8")
+          lazy = data["ls_library/static/suno_library_lazy_loader.js"].decode("utf-8")
+          pages = data["ls_web/pages.py"].decode("utf-8")
 
-          assert "# Based on: v2.19" in entry
-          assert 'APP_VERSION = "v2.20"' in entry
-          assert 'APP_BASED_ON = "v2.19"' in entry
-          assert 'APP_VERSION = "v2.20"' in runtime
-          assert 'APP_BASED_ON = "v2.19"' in runtime
-
+          assert "# Based on: v2.20" in entry
+          assert 'APP_VERSION = "v2.21"' in entry
+          assert 'APP_BASED_ON = "v2.20"' in entry
+          assert 'APP_VERSION = "v2.21"' in runtime
+          assert 'APP_BASED_ON = "v2.20"' in runtime
           assert '<span class="ls-sidebar-title-full">LS @@LS0@@</span>' in template
-          assert 'id="audio-playlist-select"' in template
-          assert 'id="audio-playlist-menu"' in template
-          assert 'heading.textContent = "Playlists (" + playlists.length + ")"' in playlists
-          assert 'String(playlist.name || "Playlist") + " (" + count + ")"' in playlists
-          assert '#audio-playlist-select.is-enabled .library-playlist-arrow' in css
-          assert '.library-playlist-menu-item' in css
+
+          assert 'item["track_ids"] = added + current' in playlists
+          assert 'data-play-source="{esc(play_source)}"' in playlists
+          assert 'row.dataset.playSource || "suno"' in playlists
+          assert "clearSelectedTracks" in playlists
+          assert "clearSelectedTracks()" in selection
+          assert 'event.key === "F4"' in search_events
+          assert 'window.addEventListener("pageshow"' in lazy
+          assert 'sort_by = "created"' in pages
+          assert 'sort_dir = "desc"' in pages
 
           for name, blob in data.items():
               crlf = blob.count(b"\r\n")
@@ -90,39 +92,42 @@ jobs:
                   raise SystemExit(f"Mixed line endings: {name}")
           PY
 
-      - name: Apply exact overlay to fixed v2.17 reproduction fixture
+      - name: Apply exact overlay over exact v2.20 user-test state
         run: |
-          git worktree add baseline-v217 729ad251fe3565be28ca695dc3d1b47ddaaeb808
-          unzip -o LocalSunoDb_v2.20.zip -d baseline-v217
-          mkdir -p baseline-v217/tests/browser
-          cp tests/browser/seed_select_audio_fixture.py baseline-v217/tests/browser/
-          cp tests/browser/test_select_audio_flow.py baseline-v217/tests/browser/
-          cp tests/browser/test_playlist_end_to_end.py baseline-v217/tests/browser/
-          cp tests/test_local_playlists.py baseline-v217/tests/test_local_playlists.py
+          git worktree add baseline-v220 d2ed614c46b2dced30853b4a6c4b94e976a7c3f2
+          unzip -o LocalSunoDb_v2.21.zip -d baseline-v220
+          mkdir -p baseline-v220/tests/browser
+          cp tests/browser/seed_select_audio_fixture.py baseline-v220/tests/browser/
+          cp tests/browser/test_select_audio_flow.py baseline-v220/tests/browser/
+          cp tests/browser/test_playlist_end_to_end.py baseline-v220/tests/browser/
+          cp tests/test_local_playlists.py baseline-v220/tests/test_local_playlists.py
 
-      - name: Focused syntax and generated-JS checks on delivered overlay
+      - name: Focused syntax checks on delivered overlay
         run: |
-          python -m py_compile             baseline-v217/LocalSunoDb.py             baseline-v217/ls_core/runtime.py             baseline-v217/ls_library/playlists.py
+          python -m py_compile             baseline-v220/LocalSunoDb.py             baseline-v220/ls_core/runtime.py             baseline-v220/ls_library/playlists.py             baseline-v220/ls_web/pages.py
+          node --check baseline-v220/ls_library/static/suno_selection_state_script.js
+          node --check baseline-v220/ls_library/static/suno_sidebar_stats_search_events_script_assets.js
+          node --check baseline-v220/ls_library/static/suno_library_lazy_loader.js
           python - <<'PY'
           from pathlib import Path
           import sys
 
-          root = Path("baseline-v217").resolve()
+          root = Path("baseline-v220").resolve()
           sys.path.insert(0, str(root))
           from ls_library.playlists import render_playlist_library_actions_script
 
           rendered = render_playlist_library_actions_script().strip()
           body = rendered[len("<script>"):].rsplit("</script>", 1)[0]
-          Path("playlist_actions_v220.js").write_text(body, encoding="utf-8", newline="\n")
+          Path("playlist_actions_v221.js").write_text(body, encoding="utf-8", newline="\n")
           PY
-          node --check playlist_actions_v220.js
+          node --check playlist_actions_v221.js
 
       - name: Seed isolated browser fixture
-        run: python baseline-v217/tests/browser/seed_select_audio_fixture.py
+        run: python baseline-v220/tests/browser/seed_select_audio_fixture.py
 
       - name: Start exact delivered overlay
         run: |
-          cd baseline-v217
+          cd baseline-v220
           python LocalSunoDb.py --ls-restarted > ../browser-server.log 2>&1 &
           echo $! > ../browser-server.pid
           cd ..
@@ -134,32 +139,32 @@ jobs:
               try:
                   with urlopen("http://127.0.0.1:8765/app-version", timeout=1) as response:
                       body = response.read().decode("utf-8", "replace")
-                      if response.status == 200 and "v2.20" in body:
+                      if response.status == 200 and "v2.21" in body:
                           raise SystemExit(0)
               except Exception:
                   time.sleep(0.25)
-          raise SystemExit("v2.20 overlay did not start")
+          raise SystemExit("v2.21 overlay did not start")
           PY
 
-      - name: Run real browser flow on exact delivered overlay
+      - name: Run real browser flows on exact delivered overlay
         run: |
-          cd baseline-v217
+          cd baseline-v220
           python tests/browser/test_select_audio_flow.py
           python tests/browser/test_playlist_end_to_end.py
 
       - name: Run focused Playlist regressions on exact delivered overlay
         run: |
-          cd baseline-v217
+          cd baseline-v220
           python -m pytest -q tests/test_local_playlists.py
 
       - name: Upload exact user-test ZIP and browser proof
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: LocalSunoDb-v2.20-full-overlay-browser-verified
+          name: LocalSunoDb-v2.21-playlist-recovery-browser-verified
           path: |
-            LocalSunoDb_v2.20.zip
-            baseline-v217/browser-artifacts/
+            LocalSunoDb_v2.21.zip
+            baseline-v220/browser-artifacts/
             browser-server.log
           if-no-files-found: error
           retention-days: 2
