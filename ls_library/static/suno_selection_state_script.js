@@ -43,6 +43,14 @@
                     .map((row) => String(row.dataset.trackId || "").trim())
                     .filter(Boolean);
             },
+            clearSelectedTracks() {
+                table.querySelectorAll("tbody .track-check:checked").forEach((check) => {
+                    check.checked = false;
+                });
+                if (checkAll) { checkAll.checked = false; }
+                updateOpenSelectedButton();
+                saveSunoSelection();
+            },
             isLocalWavCompareReady() {
                 return getLocalWavCompareSelectionState().compareReady;
             },
