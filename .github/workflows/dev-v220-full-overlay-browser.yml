@@ -19,6 +19,8 @@ jobs:
 
       - name: Install focused test dependencies
         run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
           python -m pip install pytest playwright
           python -m playwright install --with-deps chromium
 
