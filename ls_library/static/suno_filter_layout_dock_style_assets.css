@@ -16,7 +16,7 @@
             }
         }
 
-        /* v2.16: Cover circles select audio directly; toolbar labels the action. */
+        /* v2.18: Cover circles select audio; Select Audio opens the Playlist list. */
         .library-control-row {
             gap: 6px;
             align-items: center;
@@ -24,8 +24,96 @@
         .library-control-row > .library-filter-select,
         .library-control-row > .library-multi-filter { flex: 0 1 auto; min-width: 0; }
         .library-control-row > .library-sort-group { flex: 0 1 auto; }
-        .library-control-row > #add-selected-playlist-btn,
+        .library-control-row > #audio-playlist-select,
         .library-control-row > #wav-select-mode-btn { flex: 0 0 auto; white-space: nowrap; }
+
+        #audio-playlist-select {
+            position: relative;
+            padding: 0;
+            overflow: visible;
+        }
+        #audio-playlist-select > summary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            min-width: 132px;
+            height: 34px;
+            box-sizing: border-box;
+            padding: 0 11px 0 14px;
+            list-style: none;
+            color: rgba(255,255,255,0.72);
+            cursor: default;
+            user-select: none;
+        }
+        #audio-playlist-select > summary::-webkit-details-marker { display: none; }
+        #audio-playlist-select.is-enabled > summary {
+            color: #FFFFFF;
+            cursor: pointer;
+        }
+        .library-playlist-label {
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .library-playlist-arrow {
+            width: 0;
+            height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 5px solid currentColor;
+            opacity: 0.28;
+            transition: transform 120ms ease, opacity 120ms ease;
+        }
+        #audio-playlist-select.is-enabled .library-playlist-arrow { opacity: 0.92; }
+        #audio-playlist-select[open] .library-playlist-arrow { transform: rotate(180deg); }
+        .library-playlist-menu {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            z-index: 7000;
+            width: 230px;
+            box-sizing: border-box;
+            padding: 7px;
+            border: 1px solid rgba(255,255,255,0.20);
+            border-radius: 10px;
+            background: #24312d;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.42);
+        }
+        .library-playlist-menu-heading {
+            padding: 7px 10px;
+            margin-bottom: 5px;
+            border: 1px solid rgba(255,255,255,0.16);
+            border-radius: 8px;
+            color: #FFFFFF;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .library-playlist-menu-item {
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: 6px;
+            padding: 9px 11px;
+            border: 1px solid rgba(72,174,202,0.46);
+            border-radius: 8px;
+            background: #3b554c;
+            color: #FFFFFF;
+            text-align: left;
+            font: inherit;
+            cursor: pointer;
+        }
+        .library-playlist-menu-item:hover:not(:disabled) {
+            background: #46665b;
+        }
+        .library-playlist-menu-item:disabled {
+            opacity: 0.55;
+            cursor: wait;
+        }
+        .library-playlist-menu-status {
+            padding: 9px 10px;
+            color: rgba(255,255,255,0.70);
+            font-size: 12px;
+        }
         .ls-sidebar-explore {
             margin-top: 30px;
         }

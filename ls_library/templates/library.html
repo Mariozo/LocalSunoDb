@@ -484,7 +484,13 @@
                         });
                     });
                     </script>
-                    <button type="button" class="secondary" id="add-selected-playlist-btn" disabled title="Select songs using the circle on each cover">Select Audio</button>
+                    <details class="library-filter-select library-playlist-select" id="audio-playlist-select">
+                        <summary id="audio-playlist-summary" aria-disabled="true" title="Select songs using the circle on each cover">
+                            <span class="library-playlist-label">Select Audio</span>
+                            <span class="library-playlist-arrow" aria-hidden="true"></span>
+                        </summary>
+                        <div class="library-playlist-menu" id="audio-playlist-menu" role="menu" aria-label="Playlists"></div>
+                    </details>
                     <button type="button" class="secondary" id="wav-select-mode-btn" style="display:none;">Cancel Audio selection</button>
                     <button type="button" class="secondary" id="open-selected" style="display:none;" disabled>Open selected</button>
                     <div class="ls-filter-top-actions">
