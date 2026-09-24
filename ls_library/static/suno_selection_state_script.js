@@ -28,6 +28,11 @@
 
         window.LS = window.LS || {};
         window.LS.library = Object.assign(window.LS.library || {}, {
+            getSelectedTrackIds() {
+                return getSelectedWavTrackRows()
+                    .map((row) => String(row.dataset.trackId || "").trim())
+                    .filter(Boolean);
+            },
             getSelectedWavTrackIds() {
                 return getSelectedWavTrackRows()
                     .map((row) => String(row.dataset.trackId || "").trim())
@@ -49,24 +54,6 @@
             if (openSelected) {
                 openSelected.disabled = checkedCount <= 1;
             }
-            if (compareThisButton) {
-                const selectionMode = table.classList.contains("selection-mode");
-                const compareReady = compareSelection.compareReady;
-
-                compareThisButton.style.display = (selectionMode && !LS_WAV_PICKER_MODE) ? "" : "none";
-                compareThisButton.disabled = LS_WAV_PICKER_MODE || !compareReady;
-
-                if (compareReady) {
-                    compareThisButton.innerText = "Compare This (" + checkedCount + ")";
-                    compareThisButton.title = "Compare all selected Local WAV files in Library order.";
-                } else if (checkedCount < 2) {
-                    compareThisButton.innerText = "Compare This";
-                    compareThisButton.title = "Select at least 2 Local WAV files.";
-                } else {
-                    compareThisButton.innerText = "Compare This (" + checkedCount + ")";
-                    compareThisButton.title = "All selected rows must have a Local WAV file.";
-                }
-            }
 
             document.dispatchEvent(new CustomEvent(
                 "ls-library-wav-selection-changed",
@@ -79,10 +66,10 @@
                 }
             ));
 
-            if (wavSelectModeButton) {
-                wavSelectModeButton.innerText = LS_WAV_PICKER_MODE
-                    ? "Cancel WAV selection"
-                    : (table.classList.contains("selection-mode") ? "Unselect WAV" : "Select WAV");
+            if (wavSelectModeButton && LS_WAV_PICKER_MODE) {
+                wavSelectModeButton.style.display = "";
+                wavSelectModeButton.innerText = "Cancel Audio selection";
+                wavSelectModeButton.title = "Return to Downloader without selecting audio";
             }
         }
 
