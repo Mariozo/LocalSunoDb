@@ -44,12 +44,28 @@ def write_diagnostics(page, console_messages, page_errors):
                 });
                 node = node.parentElement;
               }
+              const inlineScripts = Array.from(document.querySelectorAll('script:not([src])')).map((script, index) => {
+                const text = script.textContent || '';
+                let syntaxError = '';
+                try { new Function(text); } catch (error) { syntaxError = String(error); }
+                return {
+                  index,
+                  length: text.length,
+                  hasPlaylistActions: text.includes('LSPlaylistLibraryActionsInstalled'),
+                  syntaxError,
+                  start: text.slice(0, 180)
+                };
+              });
               return {
                 selectorOpen: Boolean(selector?.open),
                 selectorClass: selector?.className || '',
                 summaryDisabled: summary?.getAttribute('aria-disabled') || '',
                 menuText: menu?.innerText || '',
                 menuHtml: menu?.innerHTML || '',
+                playlistActionsInstalled: Boolean(window.LSPlaylistLibraryActionsInstalled),
+                libraryApiKeys: Object.keys(window.LS?.library || {}),
+                checkedValues: Array.from(document.querySelectorAll('#tracks-table .track-check:checked')).map(el => el.value),
+                inlineScripts,
                 chain
               };
             }"""
@@ -93,8 +109,18 @@ def main():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page(viewport={"width": 1900, "height": 900})
-        page.on("console", lambda msg: console_messages.append(f"{msg.type}: {msg.text}"))
-        page.on("pageerror", lambda exc: page_errors.append(str(exc)))
+        page.on(
+            "console",
+            lambda msg: console_messages.append(
+                f"{msg.type}: {msg.text} @ {msg.location.get('url','')}:{msg.location.get('lineNumber','')}:{msg.location.get('columnNumber','')}"
+            ),
+        )
+        page.on(
+            "pageerror",
+            lambda exc: page_errors.append(
+                str(exc) + (" | " + str(getattr(exc, "stack", "")) if getattr(exc, "stack", "") else "")
+            ),
+        )
 
         try:
             page.goto(BASE_URL + "/", wait_until="domcontentloaded", timeout=30000)
