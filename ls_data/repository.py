@@ -28,7 +28,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path, PurePosixPath
 
 from ls_core.runtime import *
-from ls_data.local_suno_migration import migrate as migrate_local_suno_database
+from ls_data.local_suno_migration import create_schema as create_local_suno_schema, migrate as migrate_local_suno_database
 from ls_data.local_suno_runtime import configure_legacy_runtime_views
 
 
