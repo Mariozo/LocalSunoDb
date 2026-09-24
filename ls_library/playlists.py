@@ -350,7 +350,7 @@ def _playlist_detail_rows(playlist):
             </div>
         """)
     if not html_rows:
-        return '<div class="playlist-empty-state">Playlist ir tukša. Spied Add songs, tad Suno Library izmanto Select WAV un izvēlies lokālos ierakstus.</div>'
+        return '<div class="playlist-empty-state">Playlist ir tukša. Spied Add songs, tad atzīmē dziesmas ar apli uz Cover un izvēlies Playlist.</div>'
     return "".join(html_rows)
 
 
@@ -668,9 +668,14 @@ def render_playlist_library_actions_script():
   };
 
   const getSelectedTrackIds = () => {
-    const wavIds = window.LS?.library?.getSelectedLocalWavTrackIds?.();
-    if (Array.isArray(wavIds)) return cleanTrackIds(wavIds);
-    return [];
+    const library = window.LS?.library;
+    const directIds = library?.getSelectedTrackIds?.();
+    if (Array.isArray(directIds)) return cleanTrackIds(directIds);
+    const legacyIds = library?.getSelectedLocalWavTrackIds?.();
+    if (Array.isArray(legacyIds)) return cleanTrackIds(legacyIds);
+    return Array.from(
+      document.querySelectorAll("#tracks-table tbody .track-check:checked")
+    ).map((check) => String(check.value || "").trim()).filter(Boolean);
   };
 
   const fetchPlaylists = async () => {
@@ -682,7 +687,7 @@ def render_playlist_library_actions_script():
 
   const addTracks = async (playlistId, trackIds) => {
     const ids = cleanTrackIds(trackIds);
-    if (!ids.length) throw new Error("No Local WAV tracks selected.");
+    if (!ids.length) throw new Error("No songs selected.");
     return await post("/playlist-add-tracks", {
       playlist_id: playlistId,
       track_ids: ids.join(","),
@@ -697,9 +702,8 @@ def render_playlist_library_actions_script():
 
   const syncSelectedButton = () => {
     const count = getSelectedTrackIds().length;
-    const selectionMode = table.classList.contains("selection-mode");
     selectedButton.disabled = count < 1;
-    selectedButton.style.display = selectionMode && count > 0 ? "" : "none";
+    selectedButton.style.display = count > 0 ? "" : "none";
     selectedButton.textContent = count === 1
       ? "+ Add song (1)"
       : "+ Add songs (" + count + ")";

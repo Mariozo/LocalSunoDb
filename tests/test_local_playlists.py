@@ -94,31 +94,44 @@ def test_playlist_add_songs_opens_local_library_without_target_mode(isolated_sto
 
     assert "local_audio_filter=with" in page
     assert "playlist_add=" not in page
+    assert "atzīmē dziesmas ar apli uz Cover" in page
 
 
-def test_library_playlist_script_uses_canonical_select_wav_add_flow():
+def test_library_playlist_script_uses_direct_cover_selection_add_flow():
     script = playlists.render_playlist_library_actions_script()
 
-    assert "getSelectedLocalWavTrackIds" in script
+    assert "getSelectedTrackIds" in script
     assert 'selectedButton.textContent = count === 1' in script
     assert '"+ Add song (1)"' in script
     assert '"+ Add songs (" + count + ")"' in script
     assert 'selectedButton.title = "Add songs to Playlist"' in script
     assert 'String(playlist.name || "Playlist") + " (" + count + ")"' in script
     assert '"/playlist-add-tracks"' in script
+    assert 'table.classList.contains("selection-mode")' not in script
     assert 'params.get("playlist_add")' not in script
     assert "playlist-add-mode-banner" not in script
 
 
-def test_compare_stays_on_rows_and_player_bar_not_top_selection_controls():
+def test_selection_starts_on_cover_and_compare_exists_only_in_player():
     root = Path(__file__).resolve().parents[1]
+    template = (root / "ls_library" / "templates" / "library.html").read_text(encoding="utf-8")
     selection_source = (root / "ls_library" / "static" / "suno_selection_state_script.js").read_text(encoding="utf-8")
+    actions_source = (root / "ls_library" / "static" / "suno_selection_actions_script.js").read_text(encoding="utf-8")
+    list_css = (root / "ls_library" / "static" / "suno_page_suno_library_list_style_assets.css").read_text(encoding="utf-8")
     render_source = (root / "ls_library" / "render.py").read_text(encoding="utf-8")
     player_source = (root / "ls_player" / "static" / "suno_global_player_script_assets.js").read_text(encoding="utf-8")
 
-    assert 'compareThisButton.style.display = "none"' in selection_source
-    assert 'class="small-action compare-btn"' in render_source
-    assert '>Compare</button>' in render_source
+    assert 'id="audio-selection-label"' in template
+    assert ">Select Audio</span>" in template
+    assert 'id="compare-this-btn"' not in template
+    assert 'title="Add songs to Playlist"' in template
+    assert "getSelectedTrackIds()" in selection_source
+    assert 'table.classList.add("selection-mode")' not in actions_source
+    assert 'table.classList.remove("selection-mode")' not in actions_source
+    assert ".ls-track-select-control" in list_css
+    assert "opacity: 1;" in list_css
+    assert 'class="small-action compare-btn"' not in render_source
+    assert '>Compare</button>' not in render_source
     assert '"ls-library-wav-selection-changed"' in player_source
     assert 'libraryApi.isLocalWavCompareReady()' in player_source
     assert '"ls-library-open-selected-wav-compare"' in player_source

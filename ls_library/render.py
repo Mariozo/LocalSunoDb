@@ -1713,8 +1713,8 @@ def build_library_table_rows(
             str(track_id or "").lower() in confirmed_local_audio_paths
         )
 
-        # The presence of the Compare button is the local-WAV indicator.
-        # Separate WAV/Go buttons are intentionally not shown in the compact Audio column.
+        # Local WAV resolution stays available to the Player compare flow.
+        # Row-level Compare is intentionally not rendered in v2.16.
         local_links = []
         db_track_checked_attr = " checked" if selection_view_active else ""
 
@@ -1781,20 +1781,6 @@ def build_library_table_rows(
                     aria-label="{esc(play_button_title)}"
                 >▶</button>
             """
-
-        if audio_url and compare_local_wav:
-            compare_button = f"""
-                <button
-                    type="button"
-                    class="small-action compare-btn"
-                    data-audio="{esc(audio_url)}"
-                    data-local-path="{esc(compare_local_wav)}"
-                    data-local-audio="/local-audio?path={urllib.parse.quote(compare_local_wav)}"
-                    data-track-id="{esc(track_id)}"
-                    title="Compare Suno and local WAV"
-                >Compare</button>
-            """
-
 
         table_rows.append(f"""
             <tr
