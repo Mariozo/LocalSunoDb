@@ -24,9 +24,8 @@
         .library-control-row > .library-filter-select,
         .library-control-row > .library-multi-filter { flex: 0 1 auto; min-width: 0; }
         .library-control-row > .library-sort-group { flex: 0 1 auto; }
-        .library-control-row > #audio-selection-label,
+        .library-control-row > #add-selected-playlist-btn,
         .library-control-row > #wav-select-mode-btn { flex: 0 0 auto; white-space: nowrap; }
-        #audio-selection-label { cursor: default; user-select: none; }
         .ls-sidebar-explore {
             margin-top: 30px;
         }
