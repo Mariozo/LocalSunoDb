@@ -169,16 +169,26 @@ def test_single_row_playlist_add_is_not_exposed_in_three_dot_menu():
     assert '/playlists?add_track=' not in render_source
     assert 'event.target.closest(".menu-add-playlist")' not in script
 
-def test_v218_identity_is_based_on_v217():
+def test_v219_identity_is_based_on_v218():
     root = Path(__file__).resolve().parents[1]
     entrypoint = (root / "LocalSunoDb.py").read_text(encoding="utf-8")
     runtime = (root / "ls_core" / "runtime.py").read_text(encoding="utf-8")
 
-    assert "# Based on: v2.17" in entrypoint
-    assert 'APP_VERSION = "v2.18"' in entrypoint
-    assert 'APP_BASED_ON = "v2.17"' in entrypoint
-    assert 'APP_VERSION = "v2.18"' in runtime
-    assert 'APP_BASED_ON = "v2.17"' in runtime
+    assert "# Based on: v2.18" in entrypoint
+    assert 'APP_VERSION = "v2.19"' in entrypoint
+    assert 'APP_BASED_ON = "v2.18"' in entrypoint
+    assert 'APP_VERSION = "v2.19"' in runtime
+    assert 'APP_BASED_ON = "v2.18"' in runtime
+
+
+def test_v219_library_tail_keeps_asset_boundaries_inside_script_and_playlist_assets_outside():
+    root = Path(__file__).resolve().parents[1]
+    template = (root / "ls_library" / "templates" / "library.html").read_text(encoding="utf-8")
+    tail = template[template.rfind("@@LS94@@"):]
+
+    assert "@@LS94@@\n@@LS95@@\n@@LS96@@\n    </script>" in tail
+    assert "    @@LS97@@\n    @@LS98@@\n    @@LS99@@\n</body>" in tail
+
 
 def test_v218_select_audio_dropdown_styles_are_selection_gated():
     root = Path(__file__).resolve().parents[1]
