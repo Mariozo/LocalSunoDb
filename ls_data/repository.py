@@ -83,22 +83,59 @@ def ls_stem_base_title(value):
 _LOCAL_SUNO_DB_INIT_LOCK = threading.Lock()
 
 def ensure_local_suno_runtime_database():
+    """Ensure a usable canonical DB exists on both upgrades and fresh installs."""
     if DB_PATH.is_file():
         return
     with _LOCAL_SUNO_DB_INIT_LOCK:
         if DB_PATH.is_file():
             return
-        if not LEGACY_DB_PATH.is_file():
-            raise FileNotFoundError(
-                f"Canonical Local Suno DB is missing and legacy DB was not found: {LEGACY_DB_PATH}"
-            )
+
         DB_PATH.parent.mkdir(parents=True, exist_ok=True)
         REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-        migrate_local_suno_database(
-            LEGACY_DB_PATH,
-            DB_PATH,
-            REPORTS_DIR / "local_suno_migration_report.json",
-        )
+
+        if LEGACY_DB_PATH.is_file():
+            migrate_local_suno_database(
+                LEGACY_DB_PATH,
+                DB_PATH,
+                REPORTS_DIR / "local_suno_migration_report.json",
+            )
+            return
+
+        temp_path = DB_PATH.with_suffix(DB_PATH.suffix + ".creating")
+        try:
+            if temp_path.exists():
+                temp_path.unlink()
+            conn = sqlite3.connect(temp_path)
+            try:
+                create_local_suno_schema(conn)
+                conn.commit()
+            finally:
+                conn.close()
+            temp_path.replace(DB_PATH)
+        finally:
+            if temp_path.exists():
+                try:
+                    temp_path.unlink()
+                except OSError:
+                    pass
+
+
+def get_local_library_database_state():
+    """Return a small fresh-install status payload without mutating user data."""
+    ensure_local_suno_runtime_database()
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        track_count = int(conn.execute("SELECT COUNT(*) FROM tracks").fetchone()[0] or 0)
+        media_count = int(conn.execute("SELECT COUNT(*) FROM media_files").fetchone()[0] or 0)
+    finally:
+        conn.close()
+    return {
+        "ok": True,
+        "db_path": str(DB_PATH),
+        "track_count": track_count,
+        "media_count": media_count,
+        "is_empty": track_count == 0,
+    }
 
 def get_connection():
     ensure_local_suno_runtime_database()
