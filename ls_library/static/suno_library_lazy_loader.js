@@ -176,4 +176,16 @@
     } else {
         initialLoad();
     }
+
+    window.addEventListener("pageshow", (event) => {
+        if (!event.persisted || tbody.querySelector("tr.track-row")) { return; }
+        nextCursor = "";
+        loadedCount = 0;
+        hasMore = true;
+        loading = false;
+        failed = false;
+        tbody.replaceChildren();
+        sentinel.hidden = false;
+        initialLoad();
+    });
 })();
