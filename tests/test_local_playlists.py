@@ -25,7 +25,7 @@ def test_playlist_crud_and_manual_order(isolated_store):
     playlists.add_track_to_local_playlist(playlist_id, "TRACK-B")
 
     current = playlists.get_local_playlist(playlist_id)
-    assert current["track_ids"] == ["track-a", "track-b", "track-c"]
+    assert current["track_ids"] == ["track-c", "track-b", "track-a"]
 
     reordered = playlists.reorder_local_playlist(
         playlist_id,
@@ -75,7 +75,7 @@ def test_playlist_bulk_add_preserves_input_order_and_deduplicates(isolated_store
         playlist_id,
         ["TRACK-A", "track-d"],
     )
-    assert second["track_ids"] == ["track-c", "track-a", "track-b", "track-d"]
+    assert second["track_ids"] == ["track-d", "track-c", "track-a", "track-b"]
     assert second["added_count"] == 1
     assert second["added_track_ids"] == ["track-d"]
 
@@ -87,12 +87,13 @@ def test_playlist_bulk_add_rejects_empty_selection(isolated_store):
 
 
 
-def test_playlist_add_songs_opens_local_library_without_target_mode(isolated_store, monkeypatch):
+def test_playlist_add_songs_restores_remembered_library_view(isolated_store, monkeypatch):
     monkeypatch.setattr(playlists, "esc", lambda value: str(value), raising=False)
     playlist = playlists.create_local_playlist("Vārda diena")
     page = playlists.render_playlists_page(playlist["id"]).decode("utf-8")
 
-    assert "local_audio_filter=with" in page
+    assert '<a class="playlist-secondary" data-library-return href="/">＋ Add songs</a>' in page
+    assert 'sessionStorage.getItem("ls.library.returnUrl")' in page
     assert "playlist_add=" not in page
     assert "atzīmē dziesmas ar apli uz Cover" in page
 
@@ -100,6 +101,9 @@ def test_playlist_add_songs_opens_local_library_without_target_mode(isolated_sto
 def test_library_playlist_script_uses_select_audio_playlist_dropdown():
     script = playlists.render_playlist_library_actions_script()
 
+    assert "LSPlaylistLibraryActionsInstalled" in script
+    assert "let addInFlight = false" in script
+    assert "if (addInFlight || button.disabled) return" in script
     assert "getSelectedTrackIds" in script
     assert 'document.getElementById("audio-playlist-select")' in script
     assert 'document.getElementById("audio-playlist-summary")' in script
@@ -109,11 +113,38 @@ def test_library_playlist_script_uses_select_audio_playlist_dropdown():
     assert 'heading.textContent = "Playlists (" + playlists.length + ")"' in script
     assert 'String(playlist.name || "Playlist") + " (" + count + ")"' in script
     assert '"/playlist-add-tracks"' in script
+    assert "clearSelectedTracks" in script
     assert '"+ Add song (1)"' not in script
     assert '"+ Add songs ("' not in script
     assert 'table.classList.contains("selection-mode")' not in script
     assert 'params.get("playlist_add")' not in script
     assert "playlist-add-mode-banner" not in script
+
+
+def test_playlist_rows_expose_clear_remove_and_playback_feedback(isolated_store, monkeypatch):
+    monkeypatch.setattr(playlists, "esc", lambda value: str(value), raising=False)
+    monkeypatch.setattr(playlists, "format_duration", lambda value: str(value), raising=False)
+    playlist = playlists.create_local_playlist("Feedback")
+    playlists.add_track_to_local_playlist(playlist["id"], "feedback-track")
+    monkeypatch.setattr(
+        playlists,
+        "_playlist_track_rows",
+        lambda track_ids: [{
+            "id": "feedback-track",
+            "title": "Feedback Track",
+            "workspace": "Test",
+            "duration": "3:15",
+            "missing": False,
+            "play_source": "local",
+        }],
+    )
+    page = playlists.render_playlists_page(playlist["id"]).decode("utf-8")
+
+    assert 'aria-label="Remove from Playlist">×</button>' in page
+    assert "playlist-track-eq" in page
+    assert ".playlist-track-row.is-current" in page
+    assert ".playlist-track-row.is-playing" in page
+    assert 'audio?.addEventListener("play"' in page
 
 
 def test_selection_starts_on_cover_and_compare_exists_only_in_player():
@@ -169,16 +200,23 @@ def test_single_row_playlist_add_is_not_exposed_in_three_dot_menu():
     assert '/playlists?add_track=' not in render_source
     assert 'event.target.closest(".menu-add-playlist")' not in script
 
-def test_v219_identity_is_based_on_v218():
+def test_v223_identity_is_based_on_v220():
     root = Path(__file__).resolve().parents[1]
     entrypoint = (root / "LocalSunoDb.py").read_text(encoding="utf-8")
     runtime = (root / "ls_core" / "runtime.py").read_text(encoding="utf-8")
 
-    assert "# Based on: v2.18" in entrypoint
-    assert 'APP_VERSION = "v2.19"' in entrypoint
-    assert 'APP_BASED_ON = "v2.18"' in entrypoint
-    assert 'APP_VERSION = "v2.19"' in runtime
-    assert 'APP_BASED_ON = "v2.18"' in runtime
+    assert "# Based on: v2.20" in entrypoint
+    assert 'APP_VERSION = "v2.23"' in entrypoint
+    assert 'APP_BASED_ON = "v2.20"' in entrypoint
+    assert 'APP_VERSION = "v2.23"' in runtime
+    assert 'APP_BASED_ON = "v2.20"' in runtime
+
+
+def test_v220_library_header_shows_visible_version_identity():
+    root = Path(__file__).resolve().parents[1]
+    template = (root / "ls_library" / "templates" / "library.html").read_text(encoding="utf-8")
+
+    assert '<span class="ls-sidebar-title-full">LS @@LS0@@</span>' in template
 
 
 def test_v219_library_tail_keeps_asset_boundaries_inside_script_and_playlist_assets_outside():
@@ -198,3 +236,56 @@ def test_v218_select_audio_dropdown_styles_are_selection_gated():
     assert "#audio-playlist-select.is-enabled .library-playlist-arrow" in css
     assert ".library-playlist-menu-heading" in css
     assert ".library-playlist-menu-item" in css
+
+def test_v221_playlist_player_uses_row_source(monkeypatch):
+    monkeypatch.setattr(playlists, "format_duration", lambda value: str(value), raising=False)
+    monkeypatch.setattr(playlists, "esc", lambda value: str(value), raising=False)
+    monkeypatch.setattr(
+        playlists,
+        "_playlist_track_rows",
+        lambda _ids: [
+            {
+                "id": "local-1",
+                "title": "Local Track",
+                "workspace": "Browser",
+                "duration": "3:00",
+                "missing": False,
+                "play_source": "local",
+            }
+        ],
+    )
+    html = playlists._playlist_detail_rows({"track_ids": ["local-1"]})
+    script = playlists._playlist_page_script("playlist-1")
+
+    assert 'data-play-source="local"' in html
+    assert 'row.dataset.playSource || "suno"' in script
+    assert '"&source=" + encodeURIComponent(source)' in script
+
+
+def test_v221_library_selection_has_public_clear_api():
+    root = Path(__file__).resolve().parents[1]
+    selection_source = (
+        root / "ls_library" / "static" / "suno_selection_state_script.js"
+    ).read_text(encoding="utf-8")
+
+    assert "clearSelectedTracks()" in selection_source
+    assert "check.checked = false" in selection_source
+    assert "saveSunoSelection();" in selection_source
+
+
+def test_v221_f4_and_bfcache_contracts_present():
+    root = Path(__file__).resolve().parents[1]
+    search_events = (
+        root
+        / "ls_library"
+        / "static"
+        / "suno_sidebar_stats_search_events_script_assets.js"
+    ).read_text(encoding="utf-8")
+    lazy_loader = (
+        root / "ls_library" / "static" / "suno_library_lazy_loader.js"
+    ).read_text(encoding="utf-8")
+
+    assert 'event.key === "F4"' in search_events
+    assert "openFinderSearchBox();" in search_events
+    assert 'window.addEventListener("pageshow"' in lazy_loader
+    assert "event.persisted" in lazy_loader

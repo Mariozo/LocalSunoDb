@@ -31,8 +31,8 @@ from ls_core.root_hygiene import organize_ls_root, resolve_host_root
 
 LS_UPDATE_PROBE_MARKER = "LS_UPDATE_PROBE_OK"
 LS_UPDATE_PROBE_MODE = "--ls-update-probe" in sys.argv
-APP_VERSION = "v2.19"
-APP_BASED_ON = "v2.18"
+APP_VERSION = "v2.23"
+APP_BASED_ON = "v2.20"
 APP_DIR = Path(__file__).resolve().parent.parent
 HOST_ROOT = APP_DIR
 # Compatibility alias: BASE_DIR means the user-facing LocalSunoDb host root.

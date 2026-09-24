@@ -1,6 +1,7 @@
 import json
 import sqlite3
 import sys
+import wave
 from pathlib import Path
 
 
@@ -26,7 +27,11 @@ def main():
     for index, title in enumerate(("Browser Track One", "Browser Track Two", "Browser Track Three"), start=1):
         track_id = f"browser-{index}"
         wav_path = TEMP_DIR / f"{track_id}.wav"
-        wav_path.write_bytes(b"RIFFbrowser-test")
+        with wave.open(str(wav_path), "wb") as wav_file:
+            wav_file.setnchannels(2)
+            wav_file.setsampwidth(2)
+            wav_file.setframerate(48000)
+            wav_file.writeframes(b"\x00\x00\x00\x00" * 4800)
 
         conn.execute(
             """
@@ -95,7 +100,7 @@ def main():
                 "name": "Vārda diena",
                 "created_at": "2026-09-24T10:00:00+00:00",
                 "updated_at": "2026-09-24T10:00:00+00:00",
-                "track_ids": [f"existing-name-{i}" for i in range(7)],
+                "track_ids": ["browser-2"] + [f"existing-name-{i}" for i in range(6)],
             },
             {
                 "id": "playlist-folk",
