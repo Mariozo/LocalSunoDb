@@ -87,28 +87,41 @@ def test_playlist_bulk_add_rejects_empty_selection(isolated_store):
 
 
 
-def test_playlist_add_songs_enters_targeted_library_mode(isolated_store, monkeypatch):
+def test_playlist_add_songs_opens_local_library_without_target_mode(isolated_store, monkeypatch):
     monkeypatch.setattr(playlists, "esc", lambda value: str(value), raising=False)
     playlist = playlists.create_local_playlist("Vārda diena")
     page = playlists.render_playlists_page(playlist["id"]).decode("utf-8")
 
-    assert "playlist_add=" + playlist["id"] in page
     assert "local_audio_filter=with" in page
+    assert "playlist_add=" not in page
 
 
-def test_library_playlist_script_has_direct_target_mode():
+def test_library_playlist_script_uses_canonical_select_wav_add_flow():
     script = playlists.render_playlist_library_actions_script()
 
     assert "getSelectedLocalWavTrackIds" in script
-    assert 'params.get("playlist_add")' in script
-    assert 'table.classList.remove("selection-mode")' in script
-    assert 'wavButton.textContent = "Select WAV"' in script
-    assert '"Add to " + (playlistAddName || "Playlist") + " (" + count + ")"' in script
+    assert 'selectedButton.textContent = count === 1' in script
+    assert '"+ Add song (1)"' in script
+    assert '"+ Add songs (" + count + ")"' in script
+    assert 'selectedButton.title = "Add songs to Playlist"' in script
+    assert 'String(playlist.name || "Playlist") + " (" + count + ")"' in script
     assert '"/playlist-add-tracks"' in script
-    assert 'window.location.href = "/playlists?id="' in script
-    assert '.join("\\n")' in script
-    assert 'enter number:\\n\\n0. + New Playlist\\n' in script
-    assert 'playlist.name + "\\nAdded: "' in script
+    assert 'params.get("playlist_add")' not in script
+    assert "playlist-add-mode-banner" not in script
+
+
+def test_compare_stays_on_rows_and_player_bar_not_top_selection_controls():
+    root = Path(__file__).resolve().parents[1]
+    selection_source = (root / "ls_library" / "static" / "suno_selection_state_script.js").read_text(encoding="utf-8")
+    render_source = (root / "ls_library" / "render.py").read_text(encoding="utf-8")
+    player_source = (root / "ls_player" / "static" / "suno_global_player_script_assets.js").read_text(encoding="utf-8")
+
+    assert 'compareThisButton.style.display = "none"' in selection_source
+    assert 'class="small-action compare-btn"' in render_source
+    assert '>Compare</button>' in render_source
+    assert '"ls-library-wav-selection-changed"' in player_source
+    assert 'libraryApi.isLocalWavCompareReady()' in player_source
+    assert '"ls-library-open-selected-wav-compare"' in player_source
 
 
 
