@@ -1,0 +1,59 @@
+name: Build v2.15 Playlist fix ZIP
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-fix:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify rendered Playlist action JavaScript
+        shell: pwsh
+        run: |
+          @'
+          from pathlib import Path
+          from ls_library.playlists import render_playlist_library_actions_script
+
+          rendered = render_playlist_library_actions_script()
+          assert rendered.startswith("<script>")
+          assert rendered.rstrip().endswith("</script>")
+          body = rendered[len("<script>"):]
+          body = body.rsplit("</script>", 1)[0]
+          assert '.join("\\n")' in body
+          assert 'enter number:\\n\\n0. + New Playlist\\n' in body
+          assert 'playlist.name + "\\nAdded: "' in body
+          Path("playlist_actions_check.js").write_text(body, encoding="utf-8")
+          '@ | python -
+          node --check playlist_actions_check.js
+      - name: Run Playlist regressions
+        shell: pwsh
+        run: |
+          python -m pip install pytest
+          python -m pytest -q tests/test_local_playlists.py
+      - name: Build exact hotfix ZIP
+        shell: pwsh
+        run: |
+          @'
+          from pathlib import Path
+          import zipfile
+
+          src = Path("ls_library/playlists.py")
+          out = Path("LocalSunoDb_v2.15_PLAYLIST_FIX.zip")
+          with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:
+              archive.write(src, src.as_posix())
+          with zipfile.ZipFile(out) as archive:
+              assert archive.namelist() == ["ls_library/playlists.py"]
+              data = archive.read("ls_library/playlists.py").decode("utf-8")
+              assert 'def render_playlist_library_actions_script():\n    return r"""' in data
+          '@ | python -
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LocalSunoDb-v2.15-playlist-fix
+          path: LocalSunoDb_v2.15_PLAYLIST_FIX.zip
+          if-no-files-found: error
+          retention-days: 2
