@@ -1,26 +1,26 @@
-# LocalSunoDb v1.05
+# LocalSunoDb
 
-Clean LocalSunoDb repository baseline.
+LocalSunoDb ir lokāla Windows lietotne darbam ar Suno bibliotēku un lokālajiem audio failiem.
 
-## Start
+Ar LocalSunoDb var:
 
-The database file is intentionally not included in this ZIP.
-Place `suno_finder_v4.db` in the repository root, next to `LocalSunoDb.py`, then run:
+- meklēt, filtrēt un kārtot Suno dziesmas;
+- izmantot Flags, Tags un Saved Views;
+- veidot lokālas Playlists;
+- atskaņot lokālo audio ar waveform, Loop un A/B Loop;
+- salīdzināt WAV variantus un strādāt ar Stems;
+- piesaistīt lokālos audio failus Suno Track ID;
+- importēt WAV no Suno un pārbaudīt trūkstošos metadatus;
+- izmantot LS Elza tieši Library un Imports darba vidē.
 
-`python LocalSunoDb.py`
+Interfeiss darbojas Chrome cilnē vai pēc izvēles kā instalēta Chrome Web App ar savu LS ikonu Windows uzdevumjoslā.
 
-Runtime errors are appended to root-level `error.log`.
+## Database
 
-## Naming
+LocalSunoDb izmanto:
 
-Application modules use the `ls_` / `LS_` prefixes throughout. The database filename and Python entrypoint are intentionally kept for compatibility with the existing database and launch workflow.
+`Data/local_suno.db`
 
-## Playback
+Veco `suno_finder_v4.db` var izmantot datu migrācijai.
 
-- Tracks with confirmed PC audio keep the LocalSunoDb local player.
-- Suno-only Library Play opens the same `suno.com/song/<track-id>` page as clicking the track title.
-- Imports preview uses a single round Suno.com Play button; no embedded `<audio>` player is created.
-
-## Repository hygiene
-
-The package contains no `suno_finder_v4.db`, WAV/MP3/M4A files, browser audio cache, logs, `__pycache__`, or saved UI/runtime state.
+Pilnīgi jaunas tukšas datubāzes izveide vēl nav noformēta kā vienkārša first-run komanda.
