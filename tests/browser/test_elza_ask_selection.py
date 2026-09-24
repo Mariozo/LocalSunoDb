@@ -60,35 +60,12 @@ def main():
             button.wait_for(state="visible", timeout=5000)
             assert button.inner_text().strip() == "Atvērt atlasi LS"
 
-            href = button.evaluate(
-                "el => el.dataset && el.dataset.lsElzaTargetUrl"
-                " ? el.dataset.lsElzaTargetUrl"
-                " : ''"
+            button.click()
+            page.wait_for_url(
+                lambda url: "track_ids=" in str(url),
+                timeout=10000,
             )
-            if not href:
-                href = button.evaluate(
-                    """el => {
-                        const clone = el.cloneNode(true);
-                        let assigned = "";
-                        const original = window.location.assign;
-                        try {
-                            window.location.assign = value => { assigned = String(value); };
-                            clone.click();
-                        } catch (_) {
-                        } finally {
-                            try { window.location.assign = original; } catch (_) {}
-                        }
-                        return assigned;
-                    }"""
-                )
-
-            # The button closure is not directly introspectable in every browser,
-            # so use the server response URL preserved on the latest action when
-            # available; otherwise click and inspect the resulting URL.
-            if not href:
-                with page.expect_navigation(wait_until="domcontentloaded", timeout=10000):
-                    button.click()
-                href = page.url
+            href = page.url
 
             parsed = urlparse(href)
             query = parse_qs(parsed.query)
