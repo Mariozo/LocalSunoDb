@@ -1,4 +1,4 @@
-name: Dev v2.21 Playlist recovery browser proof
+name: Dev v2.22 Playlist Add songs browser proof
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - fix/v219-browser-verified-select-audio
 
 jobs:
-  prove-v221:
+  prove-v222:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +24,7 @@ jobs:
           python -m pip install pytest playwright
           python -m playwright install --with-deps chromium
 
-      - name: Build exact v2.21 user-test overlay
+      - name: Build exact v2.22 user-test overlay
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -41,7 +41,7 @@ jobs:
               Path("ls_library/static/suno_library_lazy_loader.js"),
               Path("ls_web/pages.py"),
           ]
-          out = Path("LocalSunoDb_v2.21.zip")
+          out = Path("LocalSunoDb_v2.22.zip")
           with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:
               for path in files:
                   if not path.is_file():
@@ -58,7 +58,7 @@ jobs:
           python - <<'PY'
           import zipfile
 
-          with zipfile.ZipFile("LocalSunoDb_v2.21.zip") as archive:
+          with zipfile.ZipFile("LocalSunoDb_v2.22.zip") as archive:
               data = {name: archive.read(name) for name in archive.namelist()}
 
           entry = data["LocalSunoDb.py"].decode("utf-8")
@@ -71,9 +71,9 @@ jobs:
           pages = data["ls_web/pages.py"].decode("utf-8")
 
           assert "# Based on: v2.20" in entry
-          assert 'APP_VERSION = "v2.21"' in entry
+          assert 'APP_VERSION = "v2.22"' in entry
           assert 'APP_BASED_ON = "v2.20"' in entry
-          assert 'APP_VERSION = "v2.21"' in runtime
+          assert 'APP_VERSION = "v2.22"' in runtime
           assert 'APP_BASED_ON = "v2.20"' in runtime
           assert '<span class="ls-sidebar-title-full">LS @@LS0@@</span>' in template
 
@@ -81,6 +81,7 @@ jobs:
           assert 'data-play-source="{esc(play_source)}"' in playlists
           assert 'row.dataset.playSource || "suno"' in playlists
           assert "clearSelectedTracks" in playlists
+          assert '<a class="playlist-secondary" href="/">＋ Add songs</a>' in playlists
           assert "clearSelectedTracks()" in selection
           assert 'event.key === "F4"' in search_events
           assert 'window.addEventListener("pageshow"' in lazy
@@ -97,7 +98,7 @@ jobs:
       - name: Apply exact overlay over exact v2.20 user-test state
         run: |
           git worktree add baseline-v220 d2ed614c46b2dced30853b4a6c4b94e976a7c3f2
-          unzip -o LocalSunoDb_v2.21.zip -d baseline-v220
+          unzip -o LocalSunoDb_v2.22.zip -d baseline-v220
           mkdir -p baseline-v220/tests/browser
           cp tests/browser/seed_select_audio_fixture.py baseline-v220/tests/browser/
           cp tests/browser/test_select_audio_flow.py baseline-v220/tests/browser/
@@ -120,9 +121,9 @@ jobs:
 
           rendered = render_playlist_library_actions_script().strip()
           body = rendered[len("<script>"):].rsplit("</script>", 1)[0]
-          Path("playlist_actions_v221.js").write_text(body, encoding="utf-8", newline="\n")
+          Path("playlist_actions_v222.js").write_text(body, encoding="utf-8", newline="\n")
           PY
-          node --check playlist_actions_v221.js
+          node --check playlist_actions_v222.js
 
       - name: Seed isolated browser fixture
         run: python baseline-v220/tests/browser/seed_select_audio_fixture.py
@@ -141,11 +142,11 @@ jobs:
               try:
                   with urlopen("http://127.0.0.1:8765/app-version", timeout=1) as response:
                       body = response.read().decode("utf-8", "replace")
-                      if response.status == 200 and "v2.21" in body:
+                      if response.status == 200 and "v2.22" in body:
                           raise SystemExit(0)
               except Exception:
                   time.sleep(0.25)
-          raise SystemExit("v2.21 overlay did not start")
+          raise SystemExit("v2.22 overlay did not start")
           PY
 
       - name: Run real browser flow on exact delivered overlay
@@ -162,9 +163,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: LocalSunoDb-v2.21-playlist-recovery-browser-verified
+          name: LocalSunoDb-v2.22-playlist-recovery-browser-verified
           path: |
-            LocalSunoDb_v2.21.zip
+            LocalSunoDb_v2.22.zip
             baseline-v220/browser-artifacts/
             browser-server.log
           if-no-files-found: error
