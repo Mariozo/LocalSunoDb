@@ -1,0 +1,122 @@
+name: Build v2.18 Select Audio ZIP
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-v218:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build exact v2.18 ZIP
+        shell: pwsh
+        run: |
+          @'
+          from pathlib import Path
+          import zipfile
+
+          files = [
+              Path("LocalSunoDb.py"),
+              Path("ls_core/runtime.py"),
+              Path("ls_library/playlists.py"),
+              Path("ls_library/templates/library.html"),
+              Path("ls_library/static/suno_filter_layout_dock_style_assets.css"),
+          ]
+          out = Path("LocalSunoDb_v2.18.zip")
+          with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:
+              for path in files:
+                  if not path.is_file():
+                      raise SystemExit(f"Missing file: {path}")
+                  archive.write(path, path.as_posix())
+          with zipfile.ZipFile(out) as archive:
+              assert archive.namelist() == [p.as_posix() for p in files]
+          '@ | python -
+      - name: Verify ZIP contract and line endings
+        shell: pwsh
+        run: |
+          @'
+          import zipfile
+
+          with zipfile.ZipFile("LocalSunoDb_v2.18.zip") as z:
+              data={n:z.read(n) for n in z.namelist()}
+
+          entry=data["LocalSunoDb.py"].decode("utf-8")
+          runtime=data["ls_core/runtime.py"].decode("utf-8")
+          playlists=data["ls_library/playlists.py"].decode("utf-8")
+          template=data["ls_library/templates/library.html"].decode("utf-8")
+          css=data["ls_library/static/suno_filter_layout_dock_style_assets.css"].decode("utf-8")
+
+          assert '# Based on: v2.17' in entry
+          assert 'APP_VERSION = "v2.18"' in entry
+          assert 'APP_BASED_ON = "v2.17"' in entry
+          assert 'APP_VERSION = "v2.18"' in runtime
+          assert 'APP_BASED_ON = "v2.17"' in runtime
+
+          assert 'id="audio-playlist-select"' in template
+          assert 'id="audio-playlist-summary"' in template
+          assert '<span class="library-playlist-label">Select Audio</span>' in template
+          assert 'id="audio-playlist-menu"' in template
+          assert 'id="add-selected-playlist-btn"' not in template
+
+          assert 'selector.classList.toggle("is-enabled", enabled)' in playlists
+          assert 'heading.textContent = "Playlists (" + playlists.length + ")"' in playlists
+          assert 'String(playlist.name || "Playlist") + " (" + count + ")"' in playlists
+          assert '"+ Add song (1)"' not in playlists
+          assert '"+ Add songs ("' not in playlists
+          assert '#audio-playlist-select.is-enabled .library-playlist-arrow' in css
+          assert '.library-playlist-menu-item' in css
+
+          for name,b in data.items():
+              crlf=b.count(b"\r\n")
+              lf=b.count(b"\n")
+              bare=lf-crlf
+              if crlf and bare:
+                  raise SystemExit(f"Mixed line endings: {name}")
+          '@ | python -
+      - name: Apply ZIP over v2.17 baseline
+        shell: pwsh
+        run: |
+          git worktree add baseline-v217 729ad251fe3565be28ca695dc3d1b47ddaaeb808
+          Expand-Archive -Path LocalSunoDb_v2.18.zip -DestinationPath baseline-v217 -Force
+      - name: Verify exact overlaid artifact
+        shell: pwsh
+        run: |
+          python -m py_compile baseline-v217/LocalSunoDb.py baseline-v217/ls_core/runtime.py baseline-v217/ls_library/playlists.py
+          @'
+          from pathlib import Path
+          import sys
+          root=Path("baseline-v217").resolve()
+          sys.path.insert(0,str(root))
+          from ls_library.playlists import render_playlist_library_actions_script
+
+          rendered=render_playlist_library_actions_script().strip()
+          body=rendered[len("<script>"):].rsplit("</script>",1)[0]
+          Path("playlist_actions_v218_exact.js").write_text(body,encoding="utf-8",newline="\n")
+          '@ | python -
+          node --check playlist_actions_v218_exact.js
+      - name: Run startup probe and Playlist regressions
+        shell: pwsh
+        run: |
+          $output = python baseline-v217/LocalSunoDb.py --ls-update-probe
+          $output | Write-Host
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not ($output -match 'LS_UPDATE_PROBE_OK')) { throw 'Missing probe marker' }
+          if (-not ($output -match '"app_version": "v2.18"')) { throw 'Probe is not v2.18' }
+
+          python -m pip install pytest
+          Copy-Item tests/test_local_playlists.py baseline-v217/tests/test_local_playlists.py -Force
+          Push-Location baseline-v217
+          python -m pytest -q tests/test_local_playlists.py
+          Pop-Location
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LocalSunoDb-v2.18-select-audio
+          path: LocalSunoDb_v2.18.zip
+          if-no-files-found: error
+          retention-days: 2
