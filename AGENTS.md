@@ -50,6 +50,7 @@ Git is the project history and recovery mechanism.
 - Commit/PR the useful working state.
 - Do not turn every failed implementation attempt into a new branch/PR/release.
 - Temporary user-test ZIPs/builds are test artifacts, not automatically releases.
+- After a PR is merged, its working branch must be deleted; GitHub automatic head-branch deletion should handle this when enabled.
 - Do not maintain SHA baselines for live source code.
 - Use hashes only where byte identity genuinely matters, such as immutable release artifacts, migration input snapshots, or fixed fixtures.
 
