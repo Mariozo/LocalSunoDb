@@ -1,4 +1,5 @@
 from ls_core.runtime import *
+from ls_data.repository import get_best_local_audio_path_for_track
 
 import uuid as _uuid
 
@@ -179,17 +180,18 @@ def add_tracks_to_local_playlist(playlist_id, track_ids):
 
     payload = _load_playlist_store()
     item = _playlist_by_id(payload, playlist_id)
-    existing = {str(value).casefold() for value in item.get("track_ids") or []}
+    current = list(item.get("track_ids") or [])
+    existing = {str(value).casefold() for value in current}
     added = []
     for track_id in cleaned:
         key = track_id.casefold()
         if key in existing:
             continue
-        item.setdefault("track_ids", []).append(track_id)
         existing.add(key)
         added.append(track_id)
 
     if added:
+        item["track_ids"] = added + current
         item["updated_at"] = _playlist_now()
         _save_playlist_store(payload)
     return dict(
@@ -266,10 +268,16 @@ def _playlist_track_rows(track_ids):
                 "workspace": "",
                 "duration": "",
                 "missing": True,
+                "play_source": "",
             })
         else:
             item = dict(row)
             item["missing"] = False
+            try:
+                local_path = str(get_best_local_audio_path_for_track(track_id) or "").strip()
+            except Exception:
+                local_path = ""
+            item["play_source"] = "local" if local_path else "suno"
             ordered.append(item)
     return ordered
 
@@ -332,11 +340,12 @@ def _playlist_detail_rows(playlist):
         workspace = str(row.get("workspace") or "")
         duration = format_duration(row.get("duration") or "")
         missing = bool(row.get("missing"))
+        play_source = str(row.get("play_source") or "")
         play_disabled = " disabled" if missing else ""
         missing_badge = '<span class="playlist-missing-badge">Missing</span>' if missing else ""
         html_rows.append(f"""
             <div class="playlist-track-row{' is-missing' if missing else ''}"
-                 draggable="true" data-track-id="{esc(track_id)}">
+                 draggable="true" data-track-id="{esc(track_id)}" data-play-source="{esc(play_source)}">
                 <button class="playlist-drag-handle" type="button" title="Velc, lai mainītu secību" aria-label="Velc, lai mainītu secību">⋮⋮</button>
                 <span class="playlist-track-number">{index}</span>
                 <img class="playlist-track-cover" src="/suno-image?track_id={urllib.parse.quote(track_id)}" alt="">
@@ -531,8 +540,9 @@ def _playlist_page_script(active_playlist_id="", pending_track_id=""):
         currentIndex = index;
         const row = rows[index];
         const title = row.querySelector(".playlist-track-copy strong")?.textContent || trackId;
+        const source = String(row.dataset.playSource || "suno");
         if (nowTitle) nowTitle.textContent = title;
-        audio.src = "/playback-media?track_id=" + encodeURIComponent(trackId) + "&source=suno";
+        audio.src = "/playback-media?track_id=" + encodeURIComponent(trackId) + "&source=" + encodeURIComponent(source);
         if (autoplay) audio.play().catch(() => {{}});
       }};
       const playAt = (index) => {{
@@ -771,11 +781,13 @@ def render_playlist_library_actions_script():
             const added = Number(result.playlist?.added_count || 0);
             const skipped = selectedIds.length - added;
             const suffix = skipped > 0 ? " · " + skipped + " already there" : "";
+            window.LS?.library?.clearSelectedTracks?.();
+            selector.removeAttribute("open");
+            setEnabledState();
             window.alert(
               "Playlist: " + String(playlist.name || "Playlist") +
               "\nAdded: " + added + suffix
             );
-            selector.removeAttribute("open");
           } catch (error) {
             window.alert(error.message);
           } finally {
