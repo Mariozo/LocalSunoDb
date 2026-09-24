@@ -289,6 +289,13 @@ def render_library_rows_chunk(
         batch_size = 40
     batch_size = max(10, min(batch_size, 100))
 
+    sort_by = normalize_sort_by(sort_by)
+    if sort_by:
+        sort_dir = normalize_sort_dir(sort_dir)
+    else:
+        sort_by = "created"
+        sort_dir = "desc"
+
     rows_plus_one = search_tracks(
         query=query,
         style_query=style_query,
@@ -307,8 +314,8 @@ def render_library_rows_chunk(
         tag_filter=tag_filter_value,
         track_ids_filter=track_ids_filter,
         family_group_track_ids=family_group_track_ids,
-        sort_by=normalize_sort_by(sort_by),
-        sort_dir=normalize_sort_dir(sort_dir),
+        sort_by=sort_by,
+        sort_dir=sort_dir,
         cursor_value=cursor,
     )
     has_more = len(rows_plus_one) > batch_size
@@ -420,7 +427,11 @@ def render_page(query="", style_query="", workspace="", workspace_mode="or", kin
 
     stats = get_stats()
     sort_by = normalize_sort_by(sort_by)
-    sort_dir = normalize_sort_dir(sort_dir)
+    if sort_by:
+        sort_dir = normalize_sort_dir(sort_dir)
+    else:
+        sort_by = "created"
+        sort_dir = "desc"
     sort_column = {"title": 2, "created": 4, "duration": 5}.get(sort_by)
     sort_column_js = "null" if sort_column is None else str(sort_column)
     sort_direction_js = sort_dir if sort_by else ""
