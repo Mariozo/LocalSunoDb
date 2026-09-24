@@ -355,7 +355,7 @@ def _playlist_detail_rows(playlist):
                     <span>{esc(workspace)} {missing_badge}</span>
                 </div>
                 <span class="playlist-track-duration">{esc(duration)}</span>
-                <button type="button" class="playlist-track-remove" data-track-id="{esc(track_id)}" title="Remove from Playlist">−</button>
+                <button type="button" class="playlist-track-remove" data-track-id="{esc(track_id)}" title="Remove from Playlist" aria-label="Remove from Playlist">×</button>
             </div>
         """)
     if not html_rows:
