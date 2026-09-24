@@ -113,6 +113,12 @@
         });
 
         document.addEventListener("keydown", (event) => {
+            if (event.key === "F4") {
+                event.preventDefault();
+                event.stopPropagation();
+                openFinderSearchBox();
+                return;
+            }
             if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "f") {
                 event.preventDefault();
                 event.stopPropagation();
