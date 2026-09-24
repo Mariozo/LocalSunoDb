@@ -126,10 +126,10 @@ def main():
             page.goto(BASE_URL + "/", wait_until="domcontentloaded", timeout=30000)
             page.locator("tr.track-row").first.wait_for(state="visible", timeout=20000)
 
-            assert page.title() == "LS v2.20"
+            assert page.title() == "LS v2.21"
             version_label = page.locator(".ls-sidebar-title-full")
             version_label.wait_for(state="visible", timeout=3000)
-            assert version_label.inner_text().strip() == "LS v2.20"
+            assert version_label.inner_text().strip() == "LS v2.21"
 
             selector = page.locator("#audio-playlist-select")
             summary = page.locator("#audio-playlist-summary")
