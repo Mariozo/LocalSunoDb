@@ -1,0 +1,98 @@
+name: Build v2.16 overlay ZIP
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-overlay:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build exact v2.16 overlay
+        shell: pwsh
+        run: |
+          @'
+          from pathlib import Path
+          import zipfile
+
+          files = [
+              Path("LocalSunoDb.py"),
+              Path("ls_core/runtime.py"),
+              Path("ls_library/playlists.py"),
+              Path("ls_library/static/suno_selection_state_script.js"),
+          ]
+          out = Path("LocalSunoDb_v2.16.zip")
+          with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:
+              for path in files:
+                  if not path.is_file():
+                      raise SystemExit(f"Missing overlay file: {path}")
+                  archive.write(path, path.as_posix())
+          with zipfile.ZipFile(out) as archive:
+              expected = [path.as_posix() for path in files]
+              if archive.namelist() != expected:
+                  raise SystemExit(f"Unexpected ZIP contents: {archive.namelist()}")
+          '@ | python -
+      - name: Verify source syntax and line endings
+        shell: pwsh
+        run: |
+          @'
+          from pathlib import Path
+          import py_compile
+
+          for name in ("LocalSunoDb.py", "ls_core/runtime.py", "ls_library/playlists.py"):
+              py_compile.compile(name, doraise=True)
+
+          for name in (
+              "LocalSunoDb.py",
+              "ls_core/runtime.py",
+              "ls_library/playlists.py",
+              "ls_library/static/suno_selection_state_script.js",
+          ):
+              data = Path(name).read_bytes()
+              crlf = data.count(b"\r\n")
+              lf = data.count(b"\n")
+              if crlf and (lf - crlf):
+                  raise SystemExit(f"Mixed line endings: {name}")
+          '@ | python -
+          node --check ls_library/static/suno_selection_state_script.js
+          @'
+          from pathlib import Path
+          from ls_library.playlists import render_playlist_library_actions_script
+
+          rendered = render_playlist_library_actions_script().strip()
+          if not (rendered.startswith("<script>") and rendered.endswith("</script>")):
+              raise SystemExit("Playlist action wrapper is invalid")
+          body = rendered[len("<script>"):].rsplit("</script>", 1)[0]
+          Path("playlist_actions_v216.js").write_text(body, encoding="utf-8", newline="\n")
+          '@ | python -
+          node --check playlist_actions_v216.js
+      - name: Apply exact ZIP over v2.15 baseline
+        shell: pwsh
+        run: |
+          git worktree add baseline-v215 50ff9b759217c262352ac2020e470599c8fe32bd
+          Expand-Archive -Path LocalSunoDb_v2.16.zip -DestinationPath baseline-v215 -Force
+      - name: Probe exact delivered artifact
+        shell: pwsh
+        run: |
+          $output = python baseline-v215/LocalSunoDb.py --ls-update-probe
+          $output | Write-Host
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not ($output -match 'LS_UPDATE_PROBE_OK')) { throw 'Missing LS_UPDATE_PROBE_OK' }
+          if (-not ($output -match '"app_version": "v2.16"')) { throw 'Probe did not report v2.16' }
+      - name: Run exact v2.16 regressions
+        shell: pwsh
+        run: |
+          python -m pip install pytest
+          python -m pytest -q tests/test_local_playlists.py tests/test_local_suno_runtime.py tests/test_backend_restart.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LocalSunoDb-v2.16
+          path: LocalSunoDb_v2.16.zip
+          if-no-files-found: error
+          retention-days: 2
