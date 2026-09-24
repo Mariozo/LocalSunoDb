@@ -1,0 +1,122 @@
+name: Build v2.19 browser-verified ZIP
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-v219:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install browser test dependencies
+        run: |
+          python -m pip install pytest playwright
+          python -m playwright install --with-deps chromium
+      - name: Build exact v2.19 ZIP
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import zipfile
+
+          files = [
+              Path("LocalSunoDb.py"),
+              Path("ls_core/runtime.py"),
+              Path("ls_library/templates/library.html"),
+          ]
+          out = Path("LocalSunoDb_v2.19.zip")
+          with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:
+              for path in files:
+                  if not path.is_file():
+                      raise SystemExit(f"Missing file: {path}")
+                  archive.write(path, path.as_posix())
+          with zipfile.ZipFile(out) as archive:
+              assert archive.namelist() == [p.as_posix() for p in files]
+          PY
+      - name: Verify ZIP contract and line endings
+        run: |
+          python - <<'PY'
+          import zipfile
+
+          with zipfile.ZipFile("LocalSunoDb_v2.19.zip") as z:
+              data = {name: z.read(name) for name in z.namelist()}
+
+          entry = data["LocalSunoDb.py"].decode("utf-8")
+          runtime = data["ls_core/runtime.py"].decode("utf-8")
+          template = data["ls_library/templates/library.html"].decode("utf-8")
+
+          assert "# Based on: v2.18" in entry
+          assert 'APP_VERSION = "v2.19"' in entry
+          assert 'APP_BASED_ON = "v2.18"' in entry
+          assert 'APP_VERSION = "v2.19"' in runtime
+          assert 'APP_BASED_ON = "v2.18"' in runtime
+
+          tail = template[template.rfind("@@LS94@@"):]
+          assert "@@LS94@@\n@@LS95@@\n@@LS96@@\n    </script>" in tail
+          assert "    @@LS97@@\n    @@LS98@@\n    @@LS99@@\n</body>" in tail
+
+          for name, blob in data.items():
+              crlf = blob.count(b"\r\n")
+              lf = blob.count(b"\n")
+              bare_lf = lf - crlf
+              if crlf and bare_lf:
+                  raise SystemExit(f"Mixed line endings: {name}")
+          PY
+      - name: Apply ZIP over exact v2.18 baseline
+        run: |
+          git worktree add baseline-v218 ebb12ddf6d8242a88a7227624d67a0e22c35c74b
+          unzip -o LocalSunoDb_v2.19.zip -d baseline-v218
+          cp -R tests/browser baseline-v218/tests/
+      - name: Verify exact overlaid artifact syntax
+        run: |
+          python -m py_compile baseline-v218/LocalSunoDb.py baseline-v218/ls_core/runtime.py
+      - name: Seed exact browser fixture
+        run: python baseline-v218/tests/browser/seed_select_audio_fixture.py
+      - name: Start exact overlaid Local Suno
+        run: |
+          cd baseline-v218
+          python LocalSunoDb.py --ls-restarted > ../browser-server.log 2>&1 &
+          echo $! > ../browser-server.pid
+          cd ..
+          python - <<'PY'
+          import time
+          from urllib.request import urlopen
+          for _ in range(120):
+              try:
+                  with urlopen("http://127.0.0.1:8765/app-version", timeout=1) as response:
+                      text = response.read().decode("utf-8", "replace")
+                      if response.status == 200 and "v2.19" in text:
+                          raise SystemExit(0)
+              except Exception:
+                  time.sleep(0.25)
+          raise SystemExit("Exact v2.19 overlay did not start")
+          PY
+      - name: Run browser flow on exact delivered overlay
+        run: |
+          cd baseline-v218
+          python tests/browser/test_select_audio_flow.py
+      - name: Run Playlist regressions on exact delivered overlay
+        run: |
+          cp tests/test_local_playlists.py baseline-v218/tests/test_local_playlists.py
+          cd baseline-v218
+          python -m pytest -q tests/test_local_playlists.py
+      - name: Upload exact ZIP and browser proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: LocalSunoDb-v2.19-browser-verified
+          path: |
+            LocalSunoDb_v2.19.zip
+            baseline-v218/browser-artifacts/
+            browser-server.log
+          if-no-files-found: error
+          retention-days: 2
+      - name: Stop exact Local Suno
+        if: always()
+        run: |
+          if [ -f browser-server.pid ]; then kill "$(cat browser-server.pid)" || true; fi
