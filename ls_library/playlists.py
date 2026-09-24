@@ -743,10 +743,11 @@ def render_playlist_library_actions_script():
   if (!selector || !summary || !menu || !table) return;
 
   let menuLoadToken = 0;
+  let addInFlight = false;
 
   const setEnabledState = () => {
     const count = getSelectedTrackIds().length;
-    const enabled = count > 0;
+    const enabled = count > 0 && !addInFlight;
     selector.classList.toggle("is-enabled", enabled);
     summary.setAttribute("aria-disabled", enabled ? "false" : "true");
     summary.title = enabled
@@ -759,6 +760,7 @@ def render_playlist_library_actions_script():
   };
 
   const renderMenu = async () => {
+    if (addInFlight) return;
     const ids = getSelectedTrackIds();
     if (!ids.length) {
       selector.removeAttribute("open");
@@ -802,6 +804,7 @@ def render_playlist_library_actions_script():
         button.addEventListener("click", async (event) => {
           event.preventDefault();
           event.stopPropagation();
+          if (addInFlight || button.disabled) return;
           const selectedIds = getSelectedTrackIds();
           if (!selectedIds.length) {
             selector.removeAttribute("open");
@@ -809,7 +812,11 @@ def render_playlist_library_actions_script():
             return;
           }
 
+          addInFlight = true;
+          menuLoadToken += 1;
           button.disabled = true;
+          selector.removeAttribute("open");
+          setEnabledState();
           try {
             const result = await addTracks(playlist.id, selectedIds);
             const added = Number(result.playlist?.added_count || 0);
@@ -825,6 +832,7 @@ def render_playlist_library_actions_script():
           } catch (error) {
             window.alert(error.message);
           } finally {
+            addInFlight = false;
             button.disabled = false;
             setEnabledState();
           }
