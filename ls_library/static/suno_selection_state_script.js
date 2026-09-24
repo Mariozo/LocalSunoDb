@@ -28,6 +28,11 @@
 
         window.LS = window.LS || {};
         window.LS.library = Object.assign(window.LS.library || {}, {
+            getSelectedTrackIds() {
+                return getSelectedWavTrackRows()
+                    .map((row) => String(row.dataset.trackId || "").trim())
+                    .filter(Boolean);
+            },
             getSelectedWavTrackIds() {
                 return getSelectedWavTrackRows()
                     .map((row) => String(row.dataset.trackId || "").trim())
@@ -49,12 +54,6 @@
             if (openSelected) {
                 openSelected.disabled = checkedCount <= 1;
             }
-            if (compareThisButton) {
-                compareThisButton.style.display = "none";
-                compareThisButton.disabled = true;
-                compareThisButton.innerText = "Compare This";
-                compareThisButton.title = "Compare selected WAV files from the Player bar.";
-            }
 
             document.dispatchEvent(new CustomEvent(
                 "ls-library-wav-selection-changed",
@@ -67,10 +66,10 @@
                 }
             ));
 
-            if (wavSelectModeButton) {
-                wavSelectModeButton.innerText = LS_WAV_PICKER_MODE
-                    ? "Cancel WAV selection"
-                    : (table.classList.contains("selection-mode") ? "Unselect WAV" : "Select WAV");
+            if (wavSelectModeButton && LS_WAV_PICKER_MODE) {
+                wavSelectModeButton.style.display = "";
+                wavSelectModeButton.innerText = "Cancel Audio selection";
+                wavSelectModeButton.title = "Return to Downloader without selecting audio";
             }
         }
 
