@@ -3219,6 +3219,259 @@ def scan_local_inventory():
     }
 
 
+
+def _local_import_track_id(key):
+    digest = hashlib.sha1(str(key or "").encode("utf-8", errors="replace")).hexdigest()[:24]
+    return "local-" + digest
+
+
+def _local_import_file_descriptor(root_path, path_obj):
+    relative = path_obj.relative_to(root_path)
+    parts = list(relative.parts)
+    category = parts[0] if parts and parts[0] in ("Song", "Instrumental") else ""
+    structured = bool(category and len(parts) >= 3 and str(parts[1]).strip())
+
+    if structured:
+        title = str(parts[1]).strip()
+        track_key = "structured|" + category.casefold() + "|" + title.casefold()
+        track_id = _local_import_track_id(track_key)
+        is_stem_folder = any(str(part).casefold() == "stems" for part in parts[2:-1])
+        stem_label = detect_stem_label(path_obj) if (
+            is_stem_folder or STEM_SUFFIX_PATTERN.search(path_obj.stem)
+        ) else ""
+        role = "stem" if stem_label else "main"
+        variant_folder = path_obj.parent
+        if variant_folder.name.casefold() == "stems":
+            variant_folder = variant_folder.parent
+        try:
+            variant_no = int(variant_folder.name)
+            if variant_no <= 0:
+                variant_no = None
+        except Exception:
+            variant_no = 1
+        kind = category
+    else:
+        title = path_obj.stem.strip() or path_obj.name
+        track_key = "file|" + relative.as_posix().casefold()
+        track_id = _local_import_track_id(track_key)
+        role = "main"
+        stem_label = ""
+        variant_folder = path_obj.parent
+        variant_no = 1
+        kind = None
+
+    stat = path_obj.stat()
+    modified_at = datetime.fromtimestamp(stat.st_mtime).isoformat(timespec="seconds")
+    if os.name == "nt":
+        created_at = datetime.fromtimestamp(stat.st_ctime).isoformat(timespec="seconds")
+        created_source = "filesystem_created_at"
+    else:
+        created_at = modified_at
+        created_source = "modified_time"
+
+    return {
+        "track_id": track_id,
+        "title": title,
+        "kind": kind,
+        "path": str(path_obj),
+        "folder_path": str(variant_folder),
+        "variant_no": variant_no,
+        "variant_label": str(variant_folder.name or variant_no or "1"),
+        "role": role,
+        "stem_label": stem_label,
+        "format": path_obj.suffix.lower().lstrip("."),
+        "size_bytes": int(stat.st_size or 0),
+        "modified_at": modified_at,
+        "created_at": created_at,
+        "created_source": created_source,
+        "chronology_at": created_at or modified_at,
+    }
+
+
+def import_local_audio_library(root_folder):
+    """Import local audio into the canonical DB without changing user files.
+
+    Ordinary folders use one audio file per track. The established
+    Song/Instrumental -> title -> variant layout is grouped into one track with
+    variants and stems.
+    """
+    root_text = str(root_folder or "").strip().strip('"')
+    if not root_text:
+        raise ValueError("Choose the local audio library folder first.")
+
+    root_path = Path(root_text)
+    if not root_path.exists() or not root_path.is_dir():
+        raise ValueError("Audio library folder not found.")
+
+    ensure_local_suno_runtime_database()
+
+    descriptors = []
+    errors = []
+    for current_folder, dirnames, filenames in os.walk(str(root_path)):
+        dirnames.sort(key=lv_sort_key)
+        filenames.sort(key=lv_sort_key)
+        folder_path = Path(current_folder)
+        for filename in filenames:
+            path_obj = folder_path / filename
+            if path_obj.suffix.lower() not in _DATA_AUDIO_EXTENSIONS:
+                continue
+            try:
+                descriptors.append(_local_import_file_descriptor(root_path, path_obj))
+            except Exception as exc:
+                errors.append(f"{path_obj}: {exc}")
+
+    if not descriptors:
+        return {
+            "ok": False,
+            "error": "No supported audio files were found in the selected folder.",
+            "root": str(root_path),
+            "audio_file_count": 0,
+            "error_count": len(errors),
+            "errors": errors[:20],
+        }
+
+    by_track = {}
+    for item in descriptors:
+        by_track.setdefault(item["track_id"], []).append(item)
+
+    conn = get_connection()
+    added_tracks = 0
+    existing_tracks = 0
+    added_media = 0
+    existing_media = 0
+    added_variants = 0
+    try:
+        cur = conn.cursor()
+        existing_paths = {
+            str(row[0]).casefold()
+            for row in cur.execute("SELECT path FROM main.media_files").fetchall()
+        }
+
+        for track_id, track_items in by_track.items():
+            first = track_items[0]
+            track_exists = cur.execute(
+                "SELECT 1 FROM main.tracks WHERE id = ? LIMIT 1",
+                (track_id,),
+            ).fetchone() is not None
+
+            if track_exists:
+                existing_tracks += 1
+            else:
+                cur.execute("""
+                    INSERT INTO main.tracks(
+                        id, title, created_at, workspace_name, source_type,
+                        display_tags, kind, library_status, updated_at
+                    ) VALUES (?, ?, ?, 'Local', 'local', '', ?, 'active', ?)
+                """, (
+                    track_id,
+                    first["title"],
+                    min(str(item["created_at"] or "") for item in track_items),
+                    first["kind"],
+                    now_iso_local(),
+                ))
+                cur.execute("""
+                    INSERT OR IGNORE INTO main.track_user(
+                        track_id, rating, tags, marks, manual_category, updated_at
+                    ) VALUES (?, 0, '', 0, '', ?)
+                """, (track_id, now_iso_local()))
+                added_tracks += 1
+
+            by_variant = {}
+            for item in track_items:
+                by_variant.setdefault(item["folder_path"], []).append(item)
+
+            for variant_folder, variant_items in by_variant.items():
+                existing_variant = cur.execute("""
+                    SELECT id
+                      FROM main.track_variants
+                     WHERE track_id = ? AND lower(folder_path) = lower(?)
+                     ORDER BY id
+                     LIMIT 1
+                """, (track_id, variant_folder)).fetchone()
+
+                if existing_variant:
+                    variant_id = int(existing_variant[0])
+                else:
+                    variant_kind = (
+                        "main"
+                        if any(item["role"] == "main" for item in variant_items)
+                        else "stems_only"
+                    )
+                    variant_no = next(
+                        (item["variant_no"] for item in variant_items if item["variant_no"] is not None),
+                        None,
+                    )
+                    variant_label = next(
+                        (item["variant_label"] for item in variant_items if item["variant_label"]),
+                        "",
+                    )
+                    cur.execute("""
+                        INSERT INTO main.track_variants(
+                            track_id, variant_no, label, folder_path, variant_kind
+                        ) VALUES (?, ?, ?, ?, ?)
+                    """, (
+                        track_id,
+                        variant_no,
+                        variant_label,
+                        variant_folder,
+                        variant_kind,
+                    ))
+                    variant_id = int(cur.lastrowid)
+                    added_variants += 1
+
+                for item in variant_items:
+                    path_key = item["path"].casefold()
+                    if path_key in existing_paths:
+                        existing_media += 1
+                        continue
+                    cur.execute("""
+                        INSERT INTO main.media_files(
+                            variant_id, path, role, format, stem_label, size_bytes,
+                            modified_at, file_created_at, file_created_at_source,
+                            chronology_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        variant_id,
+                        item["path"],
+                        item["role"],
+                        item["format"],
+                        item["stem_label"],
+                        item["size_bytes"],
+                        item["modified_at"],
+                        item["created_at"],
+                        item["created_source"],
+                        item["chronology_at"],
+                    ))
+                    existing_paths.add(path_key)
+                    added_media += 1
+
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+    try:
+        inventory = scan_local_inventory()
+    except Exception as exc:
+        inventory = {"ok": False, "error": str(exc)}
+
+    return {
+        "ok": True,
+        "root": str(root_path),
+        "audio_file_count": len(descriptors),
+        "added_tracks": added_tracks,
+        "existing_tracks": existing_tracks,
+        "added_variants": added_variants,
+        "added_media": added_media,
+        "existing_media": existing_media,
+        "error_count": len(errors),
+        "errors": errors[:20],
+        "inventory": inventory,
+    }
+
+
 def get_track_row_for_meta(track_id):
     conn = get_connection()
     cur = conn.cursor()
