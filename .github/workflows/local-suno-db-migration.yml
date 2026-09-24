@@ -92,6 +92,6 @@ jobs:
           body = body.rsplit("</script>", 1)[0]
           Path("playlist_actions_v218.js").write_text(body, encoding="utf-8", newline="\n")
           '@ | python -
-          node --check playlist_actions_v217.js
+          node --check playlist_actions_v218.js
           git diff --check HEAD^1 HEAD
       - run: python -m pytest -q tests/test_local_suno_migration.py tests/test_local_suno_runtime.py tests/test_backend_restart.py tests/test_popup_theme_contract.py tests/test_local_playlists.py tests/test_elza_selection_regression.py
