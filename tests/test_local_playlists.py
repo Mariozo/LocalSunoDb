@@ -87,28 +87,29 @@ def test_playlist_bulk_add_rejects_empty_selection(isolated_store):
 
 
 
-def test_playlist_add_songs_enters_targeted_library_mode(isolated_store, monkeypatch):
+def test_playlist_add_songs_opens_shared_local_library_flow(isolated_store, monkeypatch):
     monkeypatch.setattr(playlists, "esc", lambda value: str(value), raising=False)
     playlist = playlists.create_local_playlist("Vārda diena")
     page = playlists.render_playlists_page(playlist["id"]).decode("utf-8")
 
-    assert "playlist_add=" + playlist["id"] in page
     assert "local_audio_filter=with" in page
+    assert "playlist_add=" not in page
+    assert "atzīmē dziesmas ar apli uz Cover" in page
 
 
-def test_library_playlist_script_has_direct_target_mode():
+def test_library_playlist_script_uses_cover_selection_and_playlist_list():
     script = playlists.render_playlist_library_actions_script()
 
-    assert "getSelectedLocalWavTrackIds" in script
-    assert 'params.get("playlist_add")' in script
-    assert 'table.classList.remove("selection-mode")' in script
-    assert 'wavButton.textContent = "Select WAV"' in script
-    assert '"Add to " + (playlistAddName || "Playlist") + " (" + count + ")"' in script
+    assert "getSelectedTrackIds" in script
+    assert 'params.get("playlist_add")' not in script
+    assert 'table.classList.remove("selection-mode")' not in script
+    assert '"+ Add song (1)"' in script
+    assert '"+ Add songs (" + count + ")"' in script
+    assert 'selectedButton.title = "Add songs to Playlist"' in script
+    assert 'menu.id = "playlist-add-chooser"' in script
+    assert 'playlist.track_count' in script
+    assert 'String(playlist.name || "Playlist") + " (" + count + ")"' in script
     assert '"/playlist-add-tracks"' in script
-    assert 'window.location.href = "/playlists?id="' in script
-    assert '.join("\\n")' in script
-    assert 'enter number:\\n\\n0. + New Playlist\\n' in script
-    assert 'playlist.name + "\\nAdded: "' in script
 
 
 
@@ -135,3 +136,60 @@ def test_single_row_playlist_add_is_not_exposed_in_three_dot_menu():
     assert 'menu-add-playlist' not in render_source
     assert '/playlists?add_track=' not in render_source
     assert 'event.target.closest(".menu-add-playlist")' not in script
+
+def test_v216_selection_ui_contract_keeps_compare_only_in_player():
+    root = Path(__file__).resolve().parents[1]
+    template = (root / "ls_library" / "templates" / "library.html").read_text(encoding="utf-8")
+    state_script = (root / "ls_library" / "static" / "suno_selection_state_script.js").read_text(encoding="utf-8")
+    actions_script = (root / "ls_library" / "static" / "suno_selection_actions_script.js").read_text(encoding="utf-8")
+    list_css = (root / "ls_library" / "static" / "suno_page_suno_library_list_style_assets.css").read_text(encoding="utf-8")
+    player_script = (root / "ls_player" / "static" / "suno_global_player_script_assets.js").read_text(encoding="utf-8")
+    render_source = (root / "ls_library" / "render.py").read_text(encoding="utf-8")
+
+    assert 'id="audio-selection-label"' in template
+    assert ">Select Audio</span>" in template
+    assert 'id="compare-this-btn"' not in template
+    assert 'title="Add songs to Playlist"' in template
+    assert "getSelectedTrackIds()" in state_script
+    assert 'table.classList.add("selection-mode")' not in actions_script
+    assert 'table.classList.remove("selection-mode")' not in actions_script
+    assert ".ls-track-select-control" in list_css
+    assert "opacity: 1;" in list_css
+    assert 'class="small-action compare-btn"' not in render_source
+    assert 'document.getElementById("ls-global-player-compare")' in player_script
+    assert '"ls-library-wav-selection-changed"' in player_script
+    assert "isLocalWavCompareReady" in player_script
+
+
+def test_v216_release_identity():
+    root = Path(__file__).resolve().parents[1]
+    entrypoint = (root / "LocalSunoDb.py").read_text(encoding="utf-8")
+    runtime = (root / "ls_core" / "runtime.py").read_text(encoding="utf-8")
+
+    assert '# Based on: v2.15' in entrypoint
+    assert 'APP_VERSION = "v2.16"' in entrypoint
+    assert 'APP_BASED_ON = "v2.15"' in entrypoint
+    assert 'APP_VERSION = "v2.16"' in runtime
+    assert 'APP_BASED_ON = "v2.15"' in runtime
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    [
+        "LocalSunoDb.py",
+        "ls_core/runtime.py",
+        "ls_library/playlists.py",
+        "ls_library/render.py",
+        "ls_library/templates/library.html",
+        "ls_library/static/suno_selection_state_script.js",
+        "ls_library/static/suno_selection_actions_script.js",
+        "ls_library/static/suno_page_suno_library_list_style_assets.css",
+        "ls_library/static/suno_filter_layout_dock_style_assets.css",
+        "tests/test_local_playlists.py",
+    ],
+)
+def test_v216_changed_text_files_have_consistent_line_endings(relative_path):
+    root = Path(__file__).resolve().parents[1]
+    data = (root / relative_path).read_bytes()
+    assert b"\r" not in data.replace(b"\r\n", b"")
+
