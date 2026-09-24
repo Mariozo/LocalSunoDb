@@ -85,7 +85,10 @@ def main():
             page.keyboard.press("F4")
             finder = page.locator("#finder-search-box")
             finder.wait_for(state="visible", timeout=3000)
-            assert page.locator("#finder-search-input").evaluate("el => el === document.activeElement")
+            page.wait_for_function(
+                "() => document.getElementById('finder-search-input') === document.activeElement",
+                timeout=1500,
+            )
             page.keyboard.press("Escape")
 
             # Select newest track from its Cover circle and add to Vārda diena.
