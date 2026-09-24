@@ -1,11 +1,13 @@
 import json
 import sqlite3
+import sys
 from pathlib import Path
-
-from ls_data import local_suno_migration as migration
 
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+
+from ls_data import local_suno_migration as migration
 DATA_DIR = ROOT / "Data"
 DB_PATH = DATA_DIR / "local_suno.db"
 PLAYLISTS_PATH = DATA_DIR / "localsunodb_playlists.json"
