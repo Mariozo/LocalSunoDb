@@ -589,7 +589,7 @@ def render_playlists_page(playlist_id="", add_track_id=""):
                 <div class="playlist-actions">
                   <button type="button" class="playlist-primary" id="playlist-play-all">▶ Play</button>
                   <button type="button" class="playlist-secondary" id="playlist-rename">Edit playlist details</button>
-                  <a class="playlist-secondary" href="/?{urllib.parse.urlencode({'playlist_add': active['id'], 'local_audio_filter': 'with'})}">＋ Add songs</a>
+                  <a class="playlist-secondary" href="/?{urllib.parse.urlencode({'local_audio_filter': 'with'})}">＋ Add songs</a>
                   <button type="button" class="playlist-secondary playlist-danger" id="playlist-delete">Delete playlist</button>
                 </div>
               </div>
@@ -645,7 +645,11 @@ def render_playlist_library_actions_script():
   const post = async (path, values={}) => {
     const body = new URLSearchParams();
     Object.entries(values).forEach(([key, value]) => body.set(key, String(value ?? "")));
-    const response = await fetch(path, {method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:body.toString()});
+    const response = await fetch(path, {
+      method:"POST",
+      headers:{"Content-Type":"application/x-www-form-urlencoded"},
+      body:body.toString()
+    });
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error(data.error || "Playlist operation failed.");
     return data;
@@ -663,13 +667,10 @@ def render_playlist_library_actions_script():
       });
   };
 
-  const addTracks = async (playlistId, trackIds) => {
-    const ids = cleanTrackIds(trackIds);
-    if (!ids.length) throw new Error("No tracks selected.");
-    return await post("/playlist-add-tracks", {
-      playlist_id: playlistId,
-      track_ids: ids.join(","),
-    });
+  const getSelectedTrackIds = () => {
+    const wavIds = window.LS?.library?.getSelectedLocalWavTrackIds?.();
+    if (Array.isArray(wavIds)) return cleanTrackIds(wavIds);
+    return [];
   };
 
   const fetchPlaylists = async () => {
@@ -679,155 +680,157 @@ def render_playlist_library_actions_script():
     return Array.isArray(data.playlists) ? data.playlists : [];
   };
 
-  const choosePlaylist = async (trackIds) => {
+  const addTracks = async (playlistId, trackIds) => {
     const ids = cleanTrackIds(trackIds);
-    if (!ids.length) return null;
-
-    const playlists = await fetchPlaylists();
-    let playlist = null;
-    if (!playlists.length) {
-      const name = window.prompt("No playlists yet. New playlist name:");
-      if (!name) return null;
-      const created = await post("/playlist-create", {name});
-      playlist = created.playlist;
-    } else {
-      const lines = playlists
-        .map((item, index) => String(index + 1) + ". " + item.name + " (" + item.track_count + ")")
-        .join("\n");
-      const answer = window.prompt(
-        "Add " + ids.length + (ids.length === 1 ? " song" : " songs") +
-        " to Playlist — enter number:\n\n0. + New Playlist\n" + lines,
-        "1"
-      );
-      if (answer === null || String(answer).trim() === "") return null;
-      const number = Number.parseInt(answer, 10);
-      if (number === 0) {
-        const name = window.prompt("New playlist name:");
-        if (!name) return null;
-        const created = await post("/playlist-create", {name});
-        playlist = created.playlist;
-      } else {
-        const index = number - 1;
-        if (!Number.isInteger(index) || index < 0 || index >= playlists.length) {
-          throw new Error("Invalid playlist number.");
-        }
-        playlist = playlists[index];
-      }
-    }
-
-    const result = await addTracks(playlist.id, ids);
-    const added = Number(result.playlist?.added_count || 0);
-    const skipped = ids.length - added;
-    const suffix = skipped > 0 ? " · " + skipped + " already there" : "";
-    window.alert("Playlist: " + playlist.name + "\nAdded: " + added + suffix);
-    return result;
-  };
-
-  const getSelectedTrackIds = () => {
-    const wavIds = window.LS?.library?.getSelectedLocalWavTrackIds?.();
-    if (Array.isArray(wavIds)) return cleanTrackIds(wavIds);
-    return Array.from(
-      document.querySelectorAll("#tracks-table tbody .track-check:checked")
-    ).map((check) => String(check.value || "").trim()).filter(Boolean);
+    if (!ids.length) throw new Error("No Local WAV tracks selected.");
+    return await post("/playlist-add-tracks", {
+      playlist_id: playlistId,
+      track_ids: ids.join(","),
+    });
   };
 
   const selectedButton = document.getElementById("add-selected-playlist-btn");
   const table = document.getElementById("tracks-table");
-  const params = new URLSearchParams(window.location.search);
-  const playlistAddId = String(params.get("playlist_add") || "").trim();
-  let playlistAddName = "";
+  if (!selectedButton || !table) return;
+
+  selectedButton.title = "Add songs to Playlist";
 
   const syncSelectedButton = () => {
-    if (!selectedButton) return;
     const count = getSelectedTrackIds().length;
+    const selectionMode = table.classList.contains("selection-mode");
     selectedButton.disabled = count < 1;
-    if (playlistAddId) {
-      selectedButton.style.display = count > 0 ? "" : "none";
-      selectedButton.textContent = count > 0
-        ? "Add to " + (playlistAddName || "Playlist") + " (" + count + ")"
-        : "Add to " + (playlistAddName || "Playlist");
-      selectedButton.title = playlistAddName
-        ? "Add " + count + " selected local WAV " + (count === 1 ? "track" : "tracks") + " to " + playlistAddName
-        : "Add selected local WAV tracks to this playlist";
-      return;
-    }
-    selectedButton.style.display = count > 0 ? "" : "none";
-    selectedButton.textContent = count > 0 ? "Add to Playlist (" + count + ")" : "Add to Playlist";
+    selectedButton.style.display = selectionMode && count > 0 ? "" : "none";
+    selectedButton.textContent = count === 1
+      ? "+ Add song (1)"
+      : "+ Add songs (" + count + ")";
+    selectedButton.title = "Add songs to Playlist";
   };
 
-  const enterPlaylistAddMode = async () => {
-    if (!playlistAddId || !table) return;
+  const closeChooser = () => {
+    document.getElementById("playlist-add-chooser")?.remove();
+  };
+
+  const buildChooser = async () => {
+    const ids = getSelectedTrackIds();
+    if (!ids.length) return;
+
+    closeChooser();
     const playlists = await fetchPlaylists();
-    const playlist = playlists.find((item) => String(item.id || "") === playlistAddId);
-    if (!playlist) throw new Error("Playlist not found.");
-    playlistAddName = String(playlist.name || "Playlist");
 
-    table.querySelectorAll("tbody .track-check:checked").forEach((check) => {
-      check.checked = false;
+    const backdrop = document.createElement("div");
+    backdrop.id = "playlist-add-chooser";
+    backdrop.style.cssText = [
+      "position:fixed","inset:0","z-index:10020",
+      "display:flex","align-items:center","justify-content:center",
+      "background:rgba(0,0,0,.62)","padding:24px"
+    ].join(";");
+
+    const card = document.createElement("div");
+    card.style.cssText = [
+      "width:min(520px,calc(100vw - 48px))","max-height:min(640px,calc(100vh - 48px))",
+      "overflow:auto","border:1px solid rgba(255,255,255,.16)",
+      "border-radius:16px","background:#121516","color:#fff",
+      "box-shadow:0 24px 70px rgba(0,0,0,.45)","padding:18px"
+    ].join(";");
+
+    const head = document.createElement("div");
+    head.style.cssText = "display:flex;align-items:center;gap:12px;margin-bottom:14px;";
+    const title = document.createElement("strong");
+    title.textContent = ids.length === 1
+      ? "Add song to Playlist"
+      : "Add " + ids.length + " songs to Playlist";
+    title.style.cssText = "font-size:18px;";
+    const close = document.createElement("button");
+    close.type = "button";
+    close.textContent = "×";
+    close.title = "Close";
+    close.style.cssText = "margin-left:auto;border:0;background:transparent;color:#fff;font-size:26px;cursor:pointer;";
+    close.addEventListener("click", closeChooser);
+    head.appendChild(title);
+    head.appendChild(close);
+    card.appendChild(head);
+
+    const list = document.createElement("div");
+    list.style.cssText = "display:flex;flex-direction:column;gap:8px;";
+
+    const addPlaylistButton = (label, onClick) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = label;
+      button.style.cssText = [
+        "width:100%","text-align:left","border:1px solid rgba(255,255,255,.12)",
+        "border-radius:12px","background:#202526","color:#fff",
+        "padding:12px 14px","cursor:pointer","font:inherit"
+      ].join(";");
+      button.addEventListener("click", onClick);
+      list.appendChild(button);
+    };
+
+    addPlaylistButton("+ New Playlist", async () => {
+      const name = window.prompt("New playlist name:");
+      if (!name) return;
+      try {
+        const created = await post("/playlist-create", {name});
+        const result = await addTracks(created.playlist.id, ids);
+        window.alert(
+          "Playlist: " + created.playlist.name +
+          "\nAdded: " + Number(result.playlist?.added_count || 0)
+        );
+        closeChooser();
+      } catch (error) {
+        window.alert(error.message);
+      }
     });
-    table.classList.remove("selection-mode");
 
-    const wavButton = document.getElementById("wav-select-mode-btn");
-    if (wavButton) {
-      wavButton.style.display = "";
-      wavButton.textContent = "Select WAV";
-      wavButton.title = "Select local WAV tracks to add to " + playlistAddName;
+    playlists.forEach((playlist) => {
+      const count = Number(playlist.track_count || 0);
+      addPlaylistButton(
+        String(playlist.name || "Playlist") + " (" + count + ")",
+        async () => {
+          try {
+            const result = await addTracks(playlist.id, ids);
+            const added = Number(result.playlist?.added_count || 0);
+            const skipped = ids.length - added;
+            const suffix = skipped > 0 ? " · " + skipped + " already there" : "";
+            window.alert(
+              "Playlist: " + playlist.name +
+              "\nAdded: " + added + suffix
+            );
+            closeChooser();
+          } catch (error) {
+            window.alert(error.message);
+          }
+        }
+      );
+    });
+
+    if (!playlists.length) {
+      const empty = document.createElement("div");
+      empty.textContent = "No playlists yet.";
+      empty.style.cssText = "padding:10px 2px;color:#aaa;";
+      list.appendChild(empty);
     }
 
-    const panel = document.querySelector("main > .panel");
-    if (panel && !document.getElementById("playlist-add-mode-banner")) {
-      const banner = document.createElement("div");
-      banner.id = "playlist-add-mode-banner";
-      banner.style.cssText = "display:flex;align-items:center;gap:12px;margin:0 0 12px;padding:10px 14px;border:1px solid rgba(255,255,255,.16);border-radius:12px;background:rgba(255,255,255,.06);color:#fff;";
-      const text = document.createElement("strong");
-      text.textContent = "Add to " + playlistAddName + " · Local only · press Select WAV";
-      const back = document.createElement("a");
-      back.href = "/playlists?id=" + encodeURIComponent(playlistAddId);
-      back.textContent = "Back to playlist";
-      back.style.cssText = "margin-left:auto;color:inherit;text-decoration:underline;";
-      banner.appendChild(text);
-      banner.appendChild(back);
-      panel.appendChild(banner);
-    }
-    syncSelectedButton();
+    card.appendChild(list);
+    backdrop.appendChild(card);
+    backdrop.addEventListener("click", (event) => {
+      if (event.target === backdrop) closeChooser();
+    });
+    document.body.appendChild(backdrop);
   };
+
+  selectedButton.addEventListener("click", () => {
+    buildChooser().catch((error) => window.alert(error.message));
+  });
 
   document.addEventListener("change", (event) => {
     if (event.target?.matches?.("#tracks-table .track-check")) syncSelectedButton();
   });
   document.addEventListener("ls-library-wav-selection-changed", syncSelectedButton);
-
-  if (selectedButton) {
-    selectedButton.addEventListener("click", async () => {
-      const ids = getSelectedTrackIds();
-      if (!ids.length) return;
-      selectedButton.disabled = true;
-      try {
-        if (playlistAddId) {
-          const result = await addTracks(playlistAddId, ids);
-          const added = Number(result.playlist?.added_count || 0);
-          window.location.href = "/playlists?id=" + encodeURIComponent(playlistAddId) + "&added=" + encodeURIComponent(String(added));
-          return;
-        }
-        await choosePlaylist(ids);
-      } catch (error) {
-        window.alert(error.message);
-      } finally {
-        syncSelectedButton();
-      }
-    });
-  }
-
-  // Playlist additions use the shared Select WAV multi-selection flow.
-
-  enterPlaylistAddMode().catch((error) => {
-    window.alert(error.message);
-  });
   window.setTimeout(syncSelectedButton, 0);
 })();
 </script>
 """
-
 
 def playlists_json_payload():
     return {"ok": True, "playlists": get_local_playlists()}
