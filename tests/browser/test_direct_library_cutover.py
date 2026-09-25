@@ -211,15 +211,14 @@ def main():
             assert row_ids(page) == ["canon-001"]
             assert_count_matches_rows(page, params) == 1
 
-            # Exact tag through the same filter panel.
+            # Exact tag through Finder structured-search UI. The fixture
+            # track tags need not also exist in the user's global tag catalog.
             open_view(page)
-            page.locator("#ls-add-filter-button").click()
-            page.locator("#user-tag-panel").wait_for(state="visible")
-            tag_button = page.locator('.user-tag-toggle[data-tag="#rock"]').first
-            tag_button.wait_for(state="visible", timeout=5000)
-            tag_button.click()
+            page.locator("#open-f4-search-btn").click()
+            finder = page.locator("#finder-search-input")
+            finder.fill("#rock")
             with page.expect_navigation(wait_until="domcontentloaded", timeout=10000):
-                page.locator("#user-tag-filter-apply").click()
+                finder.press("Enter")
             wait_rows(page)
             params = {"tag_filter": "#rock"}
             assert current_param(page, "tag_filter") == "#rock"
