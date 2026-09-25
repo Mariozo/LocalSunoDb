@@ -72,7 +72,7 @@ def main():
 
         try:
             open_view(page)
-            assert page.title() == "LS v2.27"
+            assert page.title() == "LS v2.27.1"
             assert request_count(page) == 75
             assert "75 tracks" in page.locator("#ls-filter-result-count").inner_text()
 
@@ -87,6 +87,24 @@ def main():
             assert row_ids(page) == ["canon-002"]
             assert page.locator("tr.track-row").first.get_attribute("data-main-category") == "Instrumental"
             assert_count_matches_rows(page, params) == 1
+
+            # Broad Song / Instrumental category filters use the same canonical
+            # category contract on the real browser path.
+            params = {"category_filter": "Song"}
+            open_view(page, params)
+            assert all(
+                page.locator("tr.track-row").nth(i).get_attribute("data-main-category") == "Song"
+                for i in range(page.locator("tr.track-row").count())
+            )
+            assert_count_matches_rows(page, params) == 38
+
+            params = {"category_filter": "Instrumental"}
+            open_view(page, params)
+            assert all(
+                page.locator("tr.track-row").nth(i).get_attribute("data-main-category") == "Instrumental"
+                for i in range(page.locator("tr.track-row").count())
+            )
+            assert_count_matches_rows(page, params) == 37
 
             # Type comes from tracks.source_task, not Category.
             params = {"kind_filter": "Cover"}
