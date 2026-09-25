@@ -156,10 +156,9 @@ def get_canonical_connection(database_id=None):
     database_path = Path(target["path"])
 
     if target["id"] == PRIMARY_DATABASE_ID:
-        ensure_local_suno_runtime_database()
         database_path = DB_PATH
-    elif not database_path.is_file():
-        raise FileNotFoundError(f"Database file not found: {database_path}")
+    if not database_path.is_file():
+        raise FileNotFoundError(f"Canonical database file not found: {database_path}")
 
     conn = sqlite3.connect(database_path)
     conn.row_factory = sqlite3.Row
