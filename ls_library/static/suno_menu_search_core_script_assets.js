@@ -35,6 +35,14 @@
         const freshInstallChooseRoot = document.getElementById("fresh-install-choose-root");
         const freshInstallImport = document.getElementById("fresh-install-import");
         const freshInstallStatus = document.getElementById("fresh-install-status");
+        const musicDbNameInput = document.getElementById("music-db-name-input");
+        const musicDbGenreInput = document.getElementById("music-db-genre-input");
+        const musicDbRootInput = document.getElementById("music-db-root-input");
+        const musicDbChooseRoot = document.getElementById("music-db-choose-root");
+        const musicDbImport = document.getElementById("music-db-import");
+        const musicDbStatus = document.getElementById("music-db-status");
+        const musicDbList = document.getElementById("music-db-list");
+        const musicDbPreview = document.getElementById("music-db-preview");
         const settingsModal = document.getElementById("settings-modal");
         const settingsModalClose = document.getElementById("settings-modal-close");
         const audioLibraryRootInput = document.getElementById("audio-library-root-input");
