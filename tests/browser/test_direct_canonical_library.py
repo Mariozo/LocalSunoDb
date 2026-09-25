@@ -151,16 +151,17 @@ def main():
                 assert response.ok, response.status
                 payload = response.json()
                 html = payload.get("html") or ""
-                marker = 'data-track-id="'
-                pos = 0
-                while True:
-                    pos = html.find(marker, pos)
-                    if pos < 0:
-                        break
-                    pos += len(marker)
-                    end = html.find('"', pos)
-                    reached.append(html[pos:end])
-                    pos = end + 1
+                reached.extend(
+                    page.evaluate(
+                        """(html) => {
+                          const template = document.createElement('template');
+                          template.innerHTML = html;
+                          return Array.from(template.content.querySelectorAll('tr.track-row'))
+                            .map(row => row.dataset.trackId || '');
+                        }""",
+                        html,
+                    )
+                )
                 if not payload.get("has_more"):
                     break
                 cursor = payload.get("next_cursor") or ""
