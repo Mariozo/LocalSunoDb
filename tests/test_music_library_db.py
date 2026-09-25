@@ -171,6 +171,22 @@ def test_reads_mp3_and_flac_metadata_and_deduplicates_covers(isolated_music_db, 
     assert flac["cover_sha1"]
     assert cover_count == 2
 
+    search_1975 = music_library.search_music_database("Jazz", "1975")
+    assert search_1975["shown"] == 2
+    assert {row["title"] for row in search_1975["rows"]} == {"Spirit", "We Got By"}
+
+    search_artist = music_library.search_music_database("Jazz", "Brad Mehldau")
+    assert search_artist["shown"] == 1
+    assert search_artist["rows"][0]["album"] == "Test Album"
+
+    cover_payload = music_library.get_music_database_cover(
+        "Jazz",
+        spirit["cover_sha1"],
+    )
+    assert cover_payload is not None
+    assert cover_payload["mime_type"] == "image/jpeg"
+    assert cover_payload["image_data"] == cover
+
     second = music_library.create_or_update_music_database("Jazz", root, "Jazz")
     assert second["added"] == 0
     assert second["updated"] == 0
