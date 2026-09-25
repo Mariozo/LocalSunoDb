@@ -1,4 +1,9 @@
 from ls_core.runtime import *
+from ls_data.music_library import (
+    create_or_update_music_database,
+    list_music_databases,
+    music_database_preview,
+)
 
 
 _SAVED_VIEW_REUSABLE_PARAMS = {
@@ -41,6 +46,46 @@ def _saved_view_reusable_query(value):
 
 
 class LibraryControllerMixin:
+    def send_music_database_list(self):
+        try:
+            self.send_json_response(list_music_databases())
+        except Exception as exc:
+            self.send_json_response({"ok": False, "error": str(exc)}, status=500)
+
+    def send_music_database_preview(self, params):
+        try:
+            name = str(params.get("name", [""])[0] or "").strip()
+            limit = params.get("limit", ["40"])[0]
+            if not name:
+                self.send_json_response({"ok": False, "error": "Missing DB name."}, status=400)
+                return
+            self.send_json_response(music_database_preview(name, limit=limit))
+        except FileNotFoundError as exc:
+            self.send_json_response({"ok": False, "error": str(exc)}, status=404)
+        except Exception as exc:
+            self.send_json_response({"ok": False, "error": str(exc)}, status=500)
+
+    def import_music_database_now(self):
+        try:
+            length = int(self.headers.get("Content-Length", "0") or "0")
+            raw_body = self.rfile.read(length).decode("utf-8", errors="replace")
+            params = urllib.parse.parse_qs(raw_body, keep_blank_values=True)
+            name = str(params.get("name", [""])[0] or "").strip()
+            root = str(params.get("root_folder", [""])[0] or "").strip()
+            genre = str(params.get("default_genre", [""])[0] or "").strip()
+            if not name:
+                self.send_json_response({"ok": False, "error": "Ievadi DB nosaukumu."}, status=400)
+                return
+            if not root:
+                self.send_json_response({"ok": False, "error": "Izvēlies mūzikas mapi."}, status=400)
+                return
+            result = create_or_update_music_database(name, root, genre)
+            self.send_json_response(result)
+        except ValueError as exc:
+            self.send_json_response({"ok": False, "error": str(exc)}, status=400)
+        except Exception as exc:
+            self.send_json_response({"ok": False, "error": str(exc)}, status=500)
+
     def send_fresh_install_state(self):
         try:
             db_state = get_local_library_database_state()
@@ -221,6 +266,10 @@ class LibraryControllerMixin:
 
         if path == "/delete-saved-view":
             self.delete_saved_view()
+            return
+
+        if path == "/music-db-import":
+            self.import_music_database_now()
             return
 
         if path == "/import-local-library":
