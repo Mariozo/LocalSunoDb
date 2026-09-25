@@ -370,10 +370,15 @@
             }
 
             databases.forEach((item) => {
+                const row = document.createElement("div");
+                row.style.display = "flex";
+                row.style.gap = "6px";
+
                 const button = document.createElement("button");
                 button.type = "button";
                 button.style.textAlign = "left";
                 button.style.padding = "8px 10px";
+                button.style.flex = "1";
                 const summary = [
                     String(item.name || item.db_file || "Music DB"),
                     String(Number(item.track_count || 0)) + " dziesmas",
@@ -382,6 +387,7 @@
                 ];
                 if (item.default_genre) { summary.push(String(item.default_genre)); }
                 button.textContent = summary.join(" · ");
+                button.title = "Atlasīt DB atkārtotam scan / iestatījumiem";
                 button.addEventListener("click", async () => {
                     if (musicDbNameInput) { musicDbNameInput.value = String(item.name || ""); }
                     if (musicDbGenreInput) { musicDbGenreInput.value = String(item.default_genre || ""); }
@@ -397,7 +403,27 @@
                         }
                     }
                 });
-                musicDbList.appendChild(button);
+
+                const openButton = document.createElement("button");
+                openButton.type = "button";
+                openButton.textContent = "Atvērt";
+                openButton.title = "Atvērt meklējamo Mūzikas DB sarakstu";
+                openButton.addEventListener("click", () => {
+                    const dbName = String(item.name || "").trim();
+                    window.location.href = dbName
+                        ? "/music-db?name=" + encodeURIComponent(dbName)
+                        : "/music-db";
+                });
+
+                row.appendChild(button);
+                row.appendChild(openButton);
+                musicDbList.appendChild(row);
+            });
+        }
+
+        if (openMusicDbBrowserButton) {
+            openMusicDbBrowserButton.addEventListener("click", () => {
+                window.location.href = "/music-db";
             });
         }
 
