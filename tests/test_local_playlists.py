@@ -206,9 +206,9 @@ def test_v227_identity_is_based_on_v220():
     runtime = (root / "ls_core" / "runtime.py").read_text(encoding="utf-8")
 
     assert "# Based on: v2.20" in entrypoint
-    assert 'APP_VERSION = "v2.27"' in entrypoint
+    assert 'APP_VERSION = "v2.27.1"' in entrypoint
     assert 'APP_BASED_ON = "v2.20"' in entrypoint
-    assert 'APP_VERSION = "v2.27"' in runtime
+    assert 'APP_VERSION = "v2.27.1"' in runtime
     assert 'APP_BASED_ON = "v2.20"' in runtime
 
 
