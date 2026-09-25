@@ -30,6 +30,8 @@ GitHub PRs, CI, and release packaging must not be used as the primary way to dis
 
 If the relevant behavior has not actually been exercised, report it as **UNVERIFIED**, not PASS.
 
+For user-visible changes, automated PASS does not authorize merge by itself. When the current task requires user acceptance, wait for the user's explicit PASS before opening/finalizing the merge step. A user-reported FAIL must not trigger an automatic revert or a new work line; diagnose it first on the same work line.
+
 ## 4. Test at the level of the problem
 
 Use the narrowest test that can prove the requested behavior.
@@ -40,6 +42,8 @@ Use the narrowest test that can prove the requested behavior.
 - Browser/UI behavior -> real browser-level test when practical.
 
 For UI work such as clicks, dropdowns, visibility, layout, focus, selection, or browser state, unit tests and string assertions are not sufficient evidence of PASS by themselves. The final verification must exercise the real browser behavior when practical.
+
+Before changing product code after a browser/UI FAIL, first prove that the browser is running the intended iteration: verify the visible app version and the versioned JS/CSS asset identity, then rule out stale browser cache/build state. Cache mismatch is a delivery/test problem, not evidence of a product-code defect.
 
 Tests should preserve a **confirmed product contract**, not merely encode an agent's unverified implementation assumption.
 
