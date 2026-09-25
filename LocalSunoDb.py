@@ -3,7 +3,7 @@
 # Based on: v2.20
 # Upgrade probe contract: --ls-update-probe / LS_UPDATE_PROBE_OK
 
-APP_VERSION = "v2.24"
+APP_VERSION = "v2.27"
 APP_BASED_ON = "v2.20"
 
 from datetime import datetime

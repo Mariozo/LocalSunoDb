@@ -947,6 +947,12 @@ def ensure_browser_safe_local_audio(local_path):
     if not source.exists() or not source.is_file():
         raise FileNotFoundError("Local audio file not found")
 
+    # Canonical local media may already be in the exact browser-safe LS format.
+    # In that case serve the linked source directly; do not invoke ffmpeg or
+    # create a redundant cache copy.
+    if _is_browser_safe_pcm16_wav(source):
+        return str(source)
+
     cache_dir = Path(LOCAL_BROWSER_AUDIO_CACHE_DIR)
     cache_dir.mkdir(parents=True, exist_ok=True)
     cache_key = _browser_safe_local_audio_cache_key(source)
