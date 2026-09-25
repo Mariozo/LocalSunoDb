@@ -167,7 +167,7 @@ def main():
             )
             while page.evaluate("() => window.LSLibraryLazyState().hasMore"):
                 before = len(row_ids(page))
-                page.evaluate("() => window.scrollTo(0, document.body.scrollHeight)")
+                page.evaluate("() => { const root = document.querySelector('main'); root.scrollTo(0, root.scrollHeight); }")
                 page.wait_for_function(
                     "(n) => window.LSLibraryLazyState().loadedCount > n || !window.LSLibraryLazyState().hasMore",
                     arg=before,
