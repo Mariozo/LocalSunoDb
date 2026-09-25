@@ -4419,6 +4419,16 @@ def copy_sqlite_snapshot(source_path, target_path):
     return True
 
 
+def normalize_search_scope_flag(value, default=False):
+    """Normalize Library checkbox/query booleans inside the DATA layer."""
+    text = str(value).strip().lower()
+    if text in {"1", "true", "yes", "on"}:
+        return True
+    if text in {"0", "false", "no", "off"}:
+        return False
+    return bool(default)
+
+
 def normalize_multi_filter_values(value):
     """Normalize repeated URL values while preserving punctuation in names."""
     raw_values = value if isinstance(value, (list, tuple, set)) else [value]
