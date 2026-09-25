@@ -126,10 +126,19 @@ def main():
             params = {"kind_filter": "Cover"}
             assert_count_matches_rows(page, params) == 25
 
-            # Liked is canonical tracks.is_liked.
-            params = {"kind_filter": "__liked__"}
-            open_view(page, params)
+            # Liked is canonical tracks.is_liked. Exercise the real Type
+            # dropdown so auto-submit/navigation is part of the proof.
+            open_view(page)
+            type_select = page.locator('select[name="kind_filter"]')
+            with page.expect_navigation(wait_until="domcontentloaded", timeout=10000):
+                type_select.select_option("__liked__")
+            wait_rows(page)
+            assert page.locator('select[name="kind_filter"]').input_value() == "__liked__"
+            assert page.evaluate(
+                "() => new URL(window.location.href).searchParams.get('kind_filter')"
+            ) == "__liked__"
             assert page.locator(".like-toggle-btn.liked").count() == page.locator("tr.track-row").count()
+            params = {"kind_filter": "__liked__"}
             assert_count_matches_rows(page, params) > 3
 
             # Flags: one flag and a required combination.
