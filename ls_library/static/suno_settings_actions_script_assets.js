@@ -308,3 +308,192 @@
                 loadFreshInstallState(true).catch(() => {});
             }, 0);
         }
+
+
+        async function loadMusicDbPreview(name) {
+            if (!musicDbPreview || !name) { return; }
+            const response = await fetch(
+                "/music-db-preview?name=" + encodeURIComponent(name) + "&limit=40",
+                {cache:"no-store"}
+            );
+            const payload = await response.json();
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload.error || "DB priekšskatījumu neizdevās nolasīt.");
+            }
+            musicDbPreview.replaceChildren();
+            const heading = document.createElement("div");
+            heading.style.fontWeight = "700";
+            heading.style.marginBottom = "8px";
+            heading.textContent = payload.name + " · metadatu secības priekšskatījums";
+            musicDbPreview.appendChild(heading);
+
+            (payload.rows || []).forEach((row) => {
+                const line = document.createElement("div");
+                line.style.padding = "3px 0";
+                const bits = [];
+                if (row.artist) { bits.push(String(row.artist)); }
+                if (row.year) { bits.push(String(row.year)); }
+                if (row.album) { bits.push(String(row.album)); }
+                const no = Number(row.track_no || 0);
+                const disc = Number(row.disc_no || 0);
+                if (disc > 0) { bits.push("CD " + disc); }
+                if (no > 0) { bits.push("#" + no); }
+                if (row.genre) { bits.push(String(row.genre)); }
+                if (Number(row.has_cover || 0)) { bits.push("🖼"); }
+                const prefix = bits.length ? bits.join(" · ") + " — " : "";
+                line.textContent = prefix + String(row.title || row.path || "");
+                musicDbPreview.appendChild(line);
+            });
+            if (!(payload.rows || []).length) {
+                const empty = document.createElement("div");
+                empty.textContent = "DB vēl nav dziesmu.";
+                musicDbPreview.appendChild(empty);
+            }
+            musicDbPreview.style.display = "block";
+        }
+
+        async function loadMusicDbList() {
+            if (!musicDbList) { return; }
+            const response = await fetch("/music-db-list", {cache:"no-store"});
+            const payload = await response.json();
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload.error || "Mūzikas DB sarakstu neizdevās nolasīt.");
+            }
+            musicDbList.replaceChildren();
+            const databases = Array.isArray(payload.databases) ? payload.databases : [];
+            if (!databases.length) {
+                const empty = document.createElement("div");
+                empty.className = "muted";
+                empty.textContent = "Atsevišķas mūzikas DB vēl nav izveidotas.";
+                musicDbList.appendChild(empty);
+                return;
+            }
+
+            databases.forEach((item) => {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.style.textAlign = "left";
+                button.style.padding = "8px 10px";
+                const summary = [
+                    String(item.name || item.db_file || "Music DB"),
+                    String(Number(item.track_count || 0)) + " dziesmas",
+                    String(Number(item.artist_count || 0)) + " autori",
+                    String(Number(item.cover_count || 0)) + " attēli"
+                ];
+                if (item.default_genre) { summary.push(String(item.default_genre)); }
+                button.textContent = summary.join(" · ");
+                button.addEventListener("click", async () => {
+                    if (musicDbNameInput) { musicDbNameInput.value = String(item.name || ""); }
+                    if (musicDbGenreInput) { musicDbGenreInput.value = String(item.default_genre || ""); }
+                    if (musicDbRootInput) { musicDbRootInput.value = String(item.root_folder || ""); }
+                    if (musicDbStatus) {
+                        musicDbStatus.textContent = String(item.db_path || "");
+                    }
+                    try {
+                        await loadMusicDbPreview(String(item.name || ""));
+                    } catch (error) {
+                        if (musicDbStatus) {
+                            musicDbStatus.textContent = String(error && error.message || error);
+                        }
+                    }
+                });
+                musicDbList.appendChild(button);
+            });
+        }
+
+        if (musicDbChooseRoot && musicDbRootInput) {
+            musicDbChooseRoot.addEventListener("click", async () => {
+                musicDbChooseRoot.disabled = true;
+                if (musicDbStatus) {
+                    musicDbStatus.textContent = "Izvēlies mūzikas kolekcijas mapi…";
+                }
+                try {
+                    const response = await fetch("/choose-music-db-root", {cache:"no-store"});
+                    const text = await response.text();
+                    if (!response.ok) {
+                        throw new Error(text || "Mapi neizdevās izvēlēties.");
+                    }
+                    if (text) {
+                        musicDbRootInput.value = text;
+                        if (musicDbStatus) { musicDbStatus.textContent = "Izvēlēta: " + text; }
+                    } else if (musicDbStatus) {
+                        musicDbStatus.textContent = "Mapes izvēle atcelta.";
+                    }
+                } catch (error) {
+                    if (musicDbStatus) {
+                        musicDbStatus.textContent = String(error && error.message || error);
+                    }
+                } finally {
+                    musicDbChooseRoot.disabled = false;
+                }
+            });
+        }
+
+        if (musicDbImport && musicDbNameInput && musicDbRootInput) {
+            musicDbImport.addEventListener("click", async () => {
+                if (musicDbImport.disabled) { return; }
+                const name = String(musicDbNameInput.value || "").trim();
+                const root = String(musicDbRootInput.value || "").trim();
+                const genre = String(musicDbGenreInput?.value || "").trim();
+                if (!name || !root) {
+                    if (musicDbStatus) {
+                        musicDbStatus.textContent = "Ievadi DB nosaukumu un izvēlies mūzikas mapi.";
+                    }
+                    return;
+                }
+
+                musicDbImport.disabled = true;
+                if (musicDbChooseRoot) { musicDbChooseRoot.disabled = true; }
+                if (musicDbStatus) {
+                    musicDbStatus.textContent = "Nolasa metadatus un veido " + name + " DB…";
+                }
+                try {
+                    const body = new URLSearchParams();
+                    body.set("name", name);
+                    body.set("root_folder", root);
+                    body.set("default_genre", genre);
+                    const response = await fetch("/music-db-import", {
+                        method:"POST",
+                        headers:{"Content-Type":"application/x-www-form-urlencoded"},
+                        body:body.toString()
+                    });
+                    const payload = await response.json();
+                    if (!response.ok || !payload.ok) {
+                        throw new Error(payload.error || "Mūzikas DB izveide neizdevās.");
+                    }
+                    if (musicDbStatus) {
+                        musicDbStatus.textContent =
+                            "Gatavs: " + payload.track_count + " dziesmas · +" +
+                            payload.added + " jaunas · " + payload.updated + " atjaunotas · " +
+                            payload.unchanged + " nemainītas · " + payload.cover_count +
+                            " unikāli albuma attēli" +
+                            (payload.errors ? " · kļūdas: " + payload.errors : "");
+                    }
+                    await loadMusicDbList();
+                    await loadMusicDbPreview(payload.name);
+                } catch (error) {
+                    if (musicDbStatus) {
+                        musicDbStatus.textContent = String(error && error.message || error);
+                    }
+                } finally {
+                    musicDbImport.disabled = false;
+                    if (musicDbChooseRoot) { musicDbChooseRoot.disabled = false; }
+                }
+            });
+        }
+
+        if (openFreshInstallSetupButton) {
+            openFreshInstallSetupButton.addEventListener("click", () => {
+                loadMusicDbList().catch((error) => {
+                    if (musicDbStatus) {
+                        musicDbStatus.textContent = String(error && error.message || error);
+                    }
+                });
+            });
+        }
+
+        if (freshInstallModal) {
+            window.setTimeout(() => {
+                loadMusicDbList().catch(() => {});
+            }, 0);
+        }
