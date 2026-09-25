@@ -99,7 +99,8 @@ jobs:
           audio_source = Path("ls_audio/service.py").read_text(encoding="utf-8")
           assert "if _is_browser_safe_pcm16_wav(source):" in audio_source
           lazy_source = Path("ls_library/static/suno_library_lazy_loader.js").read_text(encoding="utf-8")
-          assert "root: null" in lazy_source
+          assert 'const scrollRoot = table ? table.closest("main") : null;' in lazy_source
+          assert "root: scrollRoot" in lazy_source
           assert "root: tableWrap" not in lazy_source
           PY
 
