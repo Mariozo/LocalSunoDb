@@ -172,6 +172,28 @@ def get_connection(database_id=None):
     configure_legacy_runtime_views(conn)
     return conn
 
+def get_canonical_connection(database_id=None):
+    """Open canonical SQLite tables directly, without legacy TEMP VIEW setup."""
+    if database_id is None or str(database_id or "").strip() == "":
+        target = get_active_database_target()
+    else:
+        target = get_database_target(database_id)
+
+    database_path = Path(target["path"])
+    if target["id"] == PRIMARY_DATABASE_ID:
+        ensure_local_suno_runtime_database()
+        database_path = DB_PATH
+    elif not database_path.is_file():
+        raise FileNotFoundError(f"Database file not found: {database_path}")
+
+    conn = sqlite3.connect(database_path)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.create_function("ls_stem_base_title", 1, ls_stem_base_title)
+    conn.create_function("ls_sort_text", 1, lv_sort_key)
+    return conn
+
+
 def get_table_columns():
     conn = get_connection()
     cur = conn.cursor()
