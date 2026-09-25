@@ -28,6 +28,7 @@
         const statsModalClose = document.getElementById("stats-modal-close");
         const openSettingsButton = document.getElementById("open-settings-modal");
         const openFreshInstallSetupButton = document.getElementById("open-fresh-install-setup-btn");
+        const openMusicDbBrowserButton = document.getElementById("open-music-db-browser-btn");
         const freshInstallModal = document.getElementById("fresh-install-modal");
         const freshInstallClose = document.getElementById("fresh-install-close");
         const freshInstallDbStatus = document.getElementById("fresh-install-db-status");
