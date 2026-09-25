@@ -19,6 +19,18 @@ def isolated_database_context(tmp_path, monkeypatch):
     monkeypatch.setattr(repository, "DB_PATH", primary)
     monkeypatch.setattr(repository, "LEGACY_DB_PATH", legacy)
     monkeypatch.setattr(repository, "REPORTS_DIR", reports)
+    monkeypatch.setattr(
+        repository,
+        "lv_sort_key",
+        lambda value: str(value or "").casefold(),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        repository,
+        "duration_sort_value",
+        lambda value: 0.0,
+        raising=False,
+    )
 
     return {
         "data_dir": data_dir,
