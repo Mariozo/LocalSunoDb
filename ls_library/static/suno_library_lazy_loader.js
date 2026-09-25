@@ -148,7 +148,10 @@
                 loadNextBatch();
             }
         }, {
-            root: tableWrap,
+            // The lazy sentinel is rendered after .table-wrap, not inside it.
+            // Observe it against the viewport so normal page scrolling can
+            // trigger the next canonical Library batch.
+            root: null,
             rootMargin: PREFETCH_MARGIN_PX + "px 0px",
             threshold: 0.01
         });
