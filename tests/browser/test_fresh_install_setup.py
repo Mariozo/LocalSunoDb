@@ -10,6 +10,7 @@ from playwright.sync_api import sync_playwright
 ROOT = Path(__file__).resolve().parents[2]
 BASE_URL = "http://127.0.0.1:8765"
 AUDIO_ROOT = ROOT / "Temp" / "fresh-install-audio"
+MUSIC_ROOT = ROOT / "Temp" / "fresh-install-music"
 
 
 def write_wav(path):
@@ -24,6 +25,9 @@ def write_wav(path):
 def prepare_audio_fixture():
     if AUDIO_ROOT.exists():
         shutil.rmtree(AUDIO_ROOT)
+    if MUSIC_ROOT.exists():
+        shutil.rmtree(MUSIC_ROOT)
+
     write_wav(AUDIO_ROOT / "Loose Track.wav")
     write_wav(AUDIO_ROOT / "Song" / "Family One" / "1" / "Family One.wav")
     write_wav(
@@ -34,6 +38,11 @@ def prepare_audio_fixture():
         / "Stems"
         / "Family One (Vocals).wav"
     )
+
+    album = MUSIC_ROOT / "[1975] - Al Jarreau - We Got By"
+    write_wav(album / "(01) - Al Jarreau - Spirit.wav")
+    write_wav(album / "(02) - Al Jarreau - We Got By.wav")
+    (album / "Folder.jpg").write_bytes(b"\xff\xd8\xff\xe0" + b"browser-cover" * 32)
 
 
 def main():
@@ -85,6 +94,40 @@ def main():
         setup_button.click()
         modal.wait_for(state="visible", timeout=3000)
         assert "2 dziesmas" in page.locator("#fresh-install-db-status").inner_text()
+
+        # Separate non-Suno music DB stays outside the canonical LocalSunoDb.
+        page.locator("#music-db-name-input").fill("Jazz")
+        page.locator("#music-db-genre-input").fill("Jazz")
+        page.locator("#music-db-root-input").fill(str(MUSIC_ROOT))
+        page.locator("#music-db-import").click()
+        page.wait_for_function(
+            "() => document.getElementById('music-db-status')?.textContent?.includes('Gatavs:')",
+            timeout=20000,
+        )
+        db_button = page.locator("#music-db-list button", has_text="Jazz")
+        db_button.wait_for(state="visible", timeout=5000)
+        db_button.click()
+        page.locator("#music-db-preview").wait_for(state="visible", timeout=5000)
+        preview_text = page.locator("#music-db-preview").inner_text()
+        assert "Al Jarreau" in preview_text, preview_text
+        assert "1975" in preview_text, preview_text
+        assert "We Got By" in preview_text, preview_text
+
+        db_response = page.request.get(BASE_URL + "/music-db-list")
+        assert db_response.ok, db_response.status
+        databases = db_response.json()["databases"]
+        jazz = next(item for item in databases if item["name"] == "Jazz")
+        assert jazz["track_count"] == 2, jazz
+        assert jazz["artist_count"] == 1, jazz
+        assert jazz["cover_count"] == 1, jazz
+        assert Path(jazz["root_folder"]) == MUSIC_ROOT
+
+        # Re-scan is incremental and must not duplicate the catalog.
+        page.locator("#music-db-import").click()
+        page.wait_for_function(
+            "() => document.getElementById('music-db-status')?.textContent?.includes('2 nemainītas')",
+            timeout=20000,
+        )
 
         assert not page_errors, page_errors
         browser.close()
