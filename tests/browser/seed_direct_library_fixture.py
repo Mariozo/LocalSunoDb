@@ -16,12 +16,13 @@ TEMP_DIR = ROOT / "Temp" / "direct-library-fixture"
 
 
 def write_wav(path: Path):
+    """Write the exact browser-safe WAV format used by LS playback."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with wave.open(str(path), "wb") as wav_file:
-        wav_file.setnchannels(1)
+        wav_file.setnchannels(2)
         wav_file.setsampwidth(2)
-        wav_file.setframerate(8000)
-        wav_file.writeframes(b"\x00\x00" * 8000)
+        wav_file.setframerate(48000)
+        wav_file.writeframes(b"\x00\x00\x00\x00" * 48000)
 
 
 def main():
