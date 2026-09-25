@@ -700,6 +700,91 @@ def list_music_databases():
     return {"ok": True, "databases": result}
 
 
+def search_music_database(name, query="", limit=300):
+    path = _db_path(name)
+    if not path.is_file():
+        raise FileNotFoundError("Mūzikas DB nav atrasta.")
+
+    limit = max(1, min(1000, int(limit or 300)))
+    query = str(query or "").strip()
+    conn = _connect(path)
+    _ensure_schema(conn)
+
+    params = []
+    where = ""
+    if query:
+        like = f"%{query}%"
+        where = """
+         WHERE title LIKE ? COLLATE NOCASE
+            OR artist LIKE ? COLLATE NOCASE
+            OR album_artist LIKE ? COLLATE NOCASE
+            OR album LIKE ? COLLATE NOCASE
+            OR CAST(year AS TEXT) LIKE ?
+            OR genre LIKE ? COLLATE NOCASE
+        """
+        params = [like, like, like, like, like, like]
+
+    rows = [
+        dict(row)
+        for row in conn.execute(
+            f"""
+            SELECT id, title, artist, album_artist, album, year,
+                   track_no, track_total, disc_no, disc_total, genre,
+                   format, path, duration_seconds, cover_sha1
+              FROM tracks
+              {where}
+             ORDER BY
+                   CASE WHEN TRIM(artist)='' THEN 1 ELSE 0 END,
+                   artist COLLATE NOCASE,
+                   CASE WHEN year IS NULL THEN 1 ELSE 0 END,
+                   year,
+                   album COLLATE NOCASE,
+                   COALESCE(disc_no, 0),
+                   COALESCE(track_no, 999999),
+                   title COLLATE NOCASE
+             LIMIT ?
+            """,
+            (*params, limit),
+        )
+    ]
+    info = _read_info(conn)
+    total = int(conn.execute("SELECT COUNT(*) FROM tracks").fetchone()[0] or 0)
+    conn.close()
+    return {
+        "ok": True,
+        "name": info.get("name") or path.stem,
+        "db_path": str(path),
+        "root_folder": info.get("root_folder") or "",
+        "default_genre": info.get("default_genre") or "",
+        "query": query,
+        "total": total,
+        "shown": len(rows),
+        "rows": rows,
+    }
+
+
+def get_music_database_cover(name, sha1_value):
+    path = _db_path(name)
+    if not path.is_file():
+        return None
+    sha1_value = str(sha1_value or "").strip().lower()
+    if not re.fullmatch(r"[0-9a-f]{40}", sha1_value):
+        return None
+    conn = _connect(path)
+    _ensure_schema(conn)
+    row = conn.execute(
+        "SELECT mime_type, image_data FROM covers WHERE sha1=? LIMIT 1",
+        (sha1_value,),
+    ).fetchone()
+    conn.close()
+    if not row:
+        return None
+    return {
+        "mime_type": str(row["mime_type"] or "image/jpeg"),
+        "image_data": bytes(row["image_data"] or b""),
+    }
+
+
 def music_database_preview(name, limit=40):
     path = _db_path(name)
     if not path.is_file():
