@@ -4418,8 +4418,8 @@ def copy_sqlite_snapshot(source_path, target_path):
     return True
 
 
-def normalize_search_scope_flag(value, default=False):
-    """Normalize Library checkbox/query booleans inside the DATA layer."""
+def _canonical_normalize_search_scope_flag(value, default=False):
+    """Normalize Direct Library checkbox/query booleans inside DATA without shadowing CORE."""
     text = str(value).strip().lower()
     if text in {"1", "true", "yes", "on"}:
         return True
@@ -4575,9 +4575,9 @@ def append_mark_tag_presence_filters(
     ui_columns=None,
 ):
     """Apply canonical track_user presence filters."""
-    if normalize_search_scope_flag(search_marks, False):
+    if _canonical_normalize_search_scope_flag(search_marks, False):
         where_parts.append("IFNULL(u.marks, 0) != 0")
-    if normalize_search_scope_flag(search_tags, False):
+    if _canonical_normalize_search_scope_flag(search_tags, False):
         where_parts.append("TRIM(COALESCE(u.tags, '')) != ''")
 
 def normalize_flag_filter(value):
@@ -4663,9 +4663,9 @@ def normalize_track_ids_filter(value):
 
 def build_searchable_parts(search_name=True, search_lyrics=False, search_prompt=False):
     """Build canonical Direct Library text-search expressions."""
-    search_name = normalize_search_scope_flag(search_name, True)
-    search_lyrics = normalize_search_scope_flag(search_lyrics, False)
-    search_prompt = normalize_search_scope_flag(search_prompt, False)
+    search_name = _canonical_normalize_search_scope_flag(search_name, True)
+    search_lyrics = _canonical_normalize_search_scope_flag(search_lyrics, False)
+    search_prompt = _canonical_normalize_search_scope_flag(search_prompt, False)
 
     parts = ["lower(COALESCE(t.id, ''))"]
     if search_name:
