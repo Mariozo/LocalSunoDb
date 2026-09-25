@@ -1,4 +1,4 @@
-name: Dev v2.27 Direct Canonical Library proof
+name: Dev v2.27.1 Direct Canonical Library proof
 
 on:
   push:
@@ -22,7 +22,7 @@ jobs:
           python -m pip install pytest playwright
           python -m playwright install --with-deps chromium
 
-      - name: Build exact v2.27 user-test overlay
+      - name: Build exact v2.27.1 user-test overlay
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -37,7 +37,7 @@ jobs:
               Path("ls_library/static/suno_library_lazy_loader.js"),
               Path("ls_web/app.py"),
           ]
-          out = Path("LocalSunoDb_v2.27.zip")
+          out = Path("LocalSunoDb_v2.27.1.zip")
           with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:
               for item in files:
                   if not item.is_file():
@@ -108,7 +108,7 @@ jobs:
         run: |
           git worktree add exact-overlay 26e62b38b46e9829c043d8bbc4ff5402184b60e9
           rm -f exact-overlay/ls_data/database_context.py exact-overlay/ls_web/app.py
-          unzip -o LocalSunoDb_v2.27.zip -d exact-overlay
+          unzip -o LocalSunoDb_v2.27.1.zip -d exact-overlay
           test -f exact-overlay/ls_data/database_context.py
           test -f exact-overlay/ls_web/app.py
           mkdir -p exact-overlay/tests/browser
@@ -148,11 +148,11 @@ jobs:
               try:
                   with urlopen("http://127.0.0.1:8765/app-version", timeout=1) as response:
                       body = response.read().decode("utf-8", "replace")
-                      if response.status == 200 and "v2.27" in body:
+                      if response.status == 200 and "v2.27.1" in body:
                           raise SystemExit(0)
               except Exception:
                   time.sleep(0.25)
-          raise SystemExit("v2.27 exact overlay did not start")
+          raise SystemExit("v2.27.1 exact overlay did not start")
           PY
 
       - name: Run real Direct Library browser cutover
@@ -315,9 +315,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: LocalSunoDb-v2.27-direct-canonical-library
+          name: LocalSunoDb-v2.27.1-direct-canonical-library
           path: |
-            LocalSunoDb_v2.27.zip
+            LocalSunoDb_v2.27.1.zip
             v227-server.log
             baseline-server.log
             direct-server.log
