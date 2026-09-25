@@ -114,11 +114,18 @@ def main():
             duration_ids = row_ids(page)
             assert duration_ids[0] == "cutover-004", duration_ids[:5]
 
-            # Cursor/lazy loading in the actual Library page.
+            # Cursor/lazy loading in the actual Library page.  The Library
+            # loader exposes the same loadNextBatch() function used by its
+            # IntersectionObserver; invoking it avoids headless viewport geometry
+            # differences while exercising the real browser append path.
             open_view(page, {"sort_by": "created", "sort_dir": "desc"})
             initial_loaded = page.locator("tr.track-row").count()
             assert 1 <= initial_loaded <= 40, initial_loaded
-            page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+            page.wait_for_function(
+                "() => typeof window.LSLibraryLoadNextBatch === 'function'",
+                timeout=5000,
+            )
+            page.evaluate("() => window.LSLibraryLoadNextBatch()")
             page.wait_for_function(
                 "(initial) => document.querySelectorAll('tr.track-row').length > initial",
                 arg=initial_loaded,
