@@ -508,7 +508,10 @@ def read_music_file_metadata(path, default_genre="", folder_cover_cache=None):
 
     cover = meta.get("cover")
     if cover is None:
-        cover = _external_cover_for_folder(path.parent, folder_cover_cache or {})
+        cover = _external_cover_for_folder(
+            path.parent,
+            folder_cover_cache if folder_cover_cache is not None else {},
+        )
     meta["cover"] = cover
     return meta
 
