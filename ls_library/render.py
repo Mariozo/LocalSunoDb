@@ -1401,9 +1401,7 @@ def build_library_table_rows(
         created_sort = created_sort_value(row["created_at"])
 
         duration_display = format_duration(row["duration"])
-        duration_sort_source = row["duration"]
-        if "ui_duration_seconds" in row.keys() and row["ui_duration_seconds"] not in [None, ""]:
-            duration_sort_source = row["ui_duration_seconds"]
+        duration_sort_source = row["sort_duration_seconds"] if "sort_duration_seconds" in row.keys() else row["duration"]
         duration_sort = duration_sort_value(duration_sort_source)
 
         style_text = row["style"] if "style" in row.keys() else ""
@@ -1440,10 +1438,10 @@ def build_library_table_rows(
 
         user_tags = normalize_user_tags_text(row["user_tags"] if "user_tags" in row.keys() else "")
 
-        raw_is_liked = row["raw_is_liked"] if "raw_is_liked" in row.keys() else ""
-        like_text = format_like(raw_is_liked)
-        like_sort = like_sort_value(raw_is_liked)
-        like_is_on = normalize_bool_liked(raw_is_liked)
+        liked_value = row["is_liked"] if "is_liked" in row.keys() else 0
+        like_text = format_like(liked_value)
+        like_sort = like_sort_value(liked_value)
+        like_is_on = normalize_bool_liked(liked_value)
         like_button_text = "👍" if like_is_on else "♡"
         like_button_title = "Remove Like" if like_is_on else "Add Like"
         like_button_class = " liked" if like_is_on else ""
@@ -1688,24 +1686,17 @@ def build_library_table_rows(
             or ""
         ).strip()
 
-        local_mp3 = row["local_mp3"]
-        local_wav = row["local_wav"]
         resolved_local_audio = str(local_audio_paths.get(str(track_id or "").lower()) or "").strip()
+        local_wav = resolved_local_audio if resolved_local_audio.lower().endswith(".wav") else ""
+        local_mp3 = resolved_local_audio if resolved_local_audio.lower().endswith(".mp3") else ""
         compare_local_wav = ""
-
-        # Prefer the explicit tracks.local_wav link when it exists. Otherwise use the
-        # real local audio path already resolved by LocalSunoDb for this Track ID.
-        # Compare is intentionally WAV-only.
-        for candidate_path in [str(local_wav or "").strip(), resolved_local_audio]:
-            if not candidate_path:
-                continue
+        if local_wav:
             try:
-                candidate_obj = Path(candidate_path)
-                if candidate_obj.suffix.lower() == ".wav" and candidate_obj.exists() and candidate_obj.is_file():
+                candidate_obj = Path(local_wav)
+                if candidate_obj.exists() and candidate_obj.is_file():
                     compare_local_wav = str(candidate_obj)
-                    break
             except Exception:
-                continue
+                compare_local_wav = ""
 
         # Play colour is a DB-link status, not a filename guess.  The broader
         # resolver above may still help Compare, but it must not turn Play black.
