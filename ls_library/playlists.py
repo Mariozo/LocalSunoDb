@@ -742,6 +742,32 @@ def render_playlist_library_actions_script():
   const table = document.getElementById("tracks-table");
   if (!selector || !summary || !menu || !table) return;
 
+  table.addEventListener("click", (event) => {
+    const addToPlaylist = event.target?.closest?.(".menu-add-playlist");
+    if (!addToPlaylist) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const trigger = addToPlaylist
+      .closest(".row-menu-wrap")
+      ?.querySelector(".row-menu-btn");
+    const trackId = String(trigger?.dataset?.trackId || "").trim();
+    if (!trackId) {
+      window.alert("Track ID is missing.");
+      return;
+    }
+
+    try {
+      const returnUrl =
+        window.location.pathname + window.location.search + window.location.hash;
+      sessionStorage.setItem("ls.library.returnUrl", returnUrl || "/");
+    } catch (_) {}
+
+    window.location.href =
+      "/playlists?add_track=" + encodeURIComponent(trackId);
+  });
+
   let menuLoadToken = 0;
   let addInFlight = false;
 

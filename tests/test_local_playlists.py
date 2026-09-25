@@ -192,13 +192,14 @@ def test_single_track_add_uses_native_playlist_chooser(isolated_store, monkeypat
     assert "1 selected" in html
 
 
-def test_single_row_playlist_add_is_not_exposed_in_three_dot_menu():
+def test_single_row_playlist_add_is_exposed_in_three_dot_menu():
     render_source = (Path(__file__).resolve().parents[1] / "ls_library" / "render.py").read_text(encoding="utf-8")
     script = playlists.render_playlist_library_actions_script()
 
-    assert 'menu-add-playlist' not in render_source
-    assert '/playlists?add_track=' not in render_source
-    assert 'event.target.closest(".menu-add-playlist")' not in script
+    assert 'class="row-menu-item menu-add-playlist">Add to Playlist...</button>' in render_source
+    assert 'event.target?.closest?.(".menu-add-playlist")' in script
+    assert 'sessionStorage.setItem("ls.library.returnUrl", returnUrl || "/")' in script
+    assert '"/playlists?add_track=" + encodeURIComponent(trackId)' in script
 
 def test_v227_identity_is_based_on_v220():
     root = Path(__file__).resolve().parents[1]
