@@ -368,18 +368,13 @@
             border-top: 1px solid #E2E6E4;
         }
 
-        .user-tag-panel.filter-mode .user-tag-filter-actions {
-            position: absolute;
-            right: 14px;
-            bottom: 14px;
-            left: 14px;
-            display: flex;
-            padding-top: 10px;
-            background: inherit;
+        .user-tag-panel.filter-mode {
+            height: calc(100vh - 100px);
+            max-height: calc(100vh - 100px);
         }
 
-        .user-tag-panel.filter-mode .user-tag-panel-body {
-            padding-bottom: 68px;
+        .user-tag-panel.filter-mode .user-tag-filter-actions {
+            display: flex;
         }
 
         .user-tag-panel.filter-mode .user-tag-pin,
