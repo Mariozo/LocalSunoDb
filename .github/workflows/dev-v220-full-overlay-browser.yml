@@ -1,12 +1,12 @@
-name: Dev v2.24 fresh install local library proof
+name: Dev v2.25 New music DB browser proof
 
 on:
   push:
     branches:
-      - feat/fresh-install-local-library
+      - feat/v225-new-music-db
 
 jobs:
-  prove-v224:
+  prove-v225:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,7 +22,7 @@ jobs:
           python -m pip install pytest playwright
           python -m playwright install --with-deps chromium
 
-      - name: Build exact v2.24 user-test overlay
+      - name: Build exact v2.25 user-test overlay
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -31,15 +31,14 @@ jobs:
           files = [
               Path("LocalSunoDb.py"),
               Path("ls_core/runtime.py"),
-              Path("ls_core/service.py"),
-              Path("ls_data/repository.py"),
+              Path("ls_data/music_library.py"),
               Path("ls_library/controller.py"),
               Path("ls_library/templates/library.html"),
               Path("ls_library/static/suno_menu_search_core_script_assets.js"),
               Path("ls_library/static/suno_settings_actions_script_assets.js"),
               Path("ls_web/handler.py"),
           ]
-          out = Path("LocalSunoDb_v2.24.zip")
+          out = Path("LocalSunoDb_v2.25.zip")
           with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:
               for item in files:
                   if not item.is_file():
@@ -56,48 +55,51 @@ jobs:
           python - <<'PY'
           import zipfile
 
-          with zipfile.ZipFile("LocalSunoDb_v2.24.zip") as archive:
+          with zipfile.ZipFile("LocalSunoDb_v2.25.zip") as archive:
               data = {name: archive.read(name).decode("utf-8") for name in archive.namelist()}
 
-          assert 'APP_VERSION = "v2.24"' in data["LocalSunoDb.py"]
-          assert 'APP_VERSION = "v2.24"' in data["ls_core/runtime.py"]
-          assert "create_local_suno_schema" in data["ls_data/repository.py"]
-          assert "def import_local_audio_library" in data["ls_data/repository.py"]
-          assert "def send_fresh_install_state" in data["ls_library/controller.py"]
-          assert "/import-local-library" in data["ls_library/controller.py"]
-          assert "/fresh-install-state" in data["ls_web/handler.py"]
-          assert 'id="fresh-install-modal"' in data["ls_library/templates/library.html"]
-          assert "Izveidot / piepildīt DB" in data["ls_library/templates/library.html"]
-          assert 'fetch("/import-local-library"' in data["ls_library/static/suno_settings_actions_script_assets.js"]
-          assert 'loadFreshInstallState(true)' in data["ls_library/static/suno_settings_actions_script_assets.js"]
+          assert 'APP_VERSION = "v2.25"' in data["LocalSunoDb.py"]
+          assert 'APP_VERSION = "v2.25"' in data["ls_core/runtime.py"]
+          assert "def create_or_update_music_database" in data["ls_data/music_library.py"]
+          assert "def _read_mp3_metadata" in data["ls_data/music_library.py"]
+          assert "def _read_flac_metadata" in data["ls_data/music_library.py"]
+          assert "CREATE TABLE IF NOT EXISTS covers" in data["ls_data/music_library.py"]
+          assert "def import_music_database_now" in data["ls_library/controller.py"]
+          assert "/music-db-import" in data["ls_library/controller.py"]
+          assert "/music-db-list" in data["ls_web/handler.py"]
+          assert "/choose-music-db-root" in data["ls_web/handler.py"]
+          assert 'id="music-db-name-input"' in data["ls_library/templates/library.html"]
+          assert "Atsevišķa mūzikas DB" in data["ls_library/templates/library.html"]
+          assert 'fetch("/music-db-import"' in data["ls_library/static/suno_settings_actions_script_assets.js"]
           PY
 
       - name: Apply exact overlay over current main baseline
         run: |
-          git worktree add baseline-main 9555d0a5062309e1a9966a0723f0df3053cf21fa
-          unzip -o LocalSunoDb_v2.24.zip -d baseline-main
+          git worktree add baseline-main 8cb5f792385fd82a11e81300bd699022a167cab2
+          unzip -o LocalSunoDb_v2.25.zip -d baseline-main
           mkdir -p baseline-main/tests/browser
+          cp tests/test_music_library_db.py baseline-main/tests/
           cp tests/test_fresh_install_local_library.py baseline-main/tests/
           cp tests/test_local_playlists.py baseline-main/tests/
           cp tests/browser/test_fresh_install_setup.py baseline-main/tests/browser/
 
       - name: Syntax checks on delivered overlay
         run: |
-          python -m py_compile             baseline-main/LocalSunoDb.py             baseline-main/ls_core/runtime.py             baseline-main/ls_core/service.py             baseline-main/ls_data/repository.py             baseline-main/ls_library/controller.py             baseline-main/ls_web/handler.py
+          python -m py_compile             baseline-main/LocalSunoDb.py             baseline-main/ls_core/runtime.py             baseline-main/ls_data/music_library.py             baseline-main/ls_library/controller.py             baseline-main/ls_web/handler.py
           node --check baseline-main/ls_library/static/suno_menu_search_core_script_assets.js
           node --check baseline-main/ls_library/static/suno_settings_actions_script_assets.js
 
-      - name: Run focused unit regressions on exact overlay
+      - name: Run focused regressions on exact overlay
         run: |
           cd baseline-main
-          python -m pytest -q tests/test_fresh_install_local_library.py tests/test_local_playlists.py
+          python -m pytest -q             tests/test_music_library_db.py             tests/test_fresh_install_local_library.py             tests/test_local_playlists.py
 
       - name: Start exact delivered overlay as a fresh install
         run: |
           rm -rf baseline-main/Data baseline-main/Temp baseline-main/Reports baseline-main/Logs
           cd baseline-main
-          python LocalSunoDb.py --ls-restarted > ../fresh-install-server.log 2>&1 &
-          echo $! > ../fresh-install-server.pid
+          python LocalSunoDb.py --ls-restarted > ../v225-server.log 2>&1 &
+          echo $! > ../v225-server.pid
           cd ..
           python - <<'PY'
           import time
@@ -107,14 +109,14 @@ jobs:
               try:
                   with urlopen("http://127.0.0.1:8765/app-version", timeout=1) as response:
                       body = response.read().decode("utf-8", "replace")
-                      if response.status == 200 and "v2.24" in body:
+                      if response.status == 200 and "v2.25" in body:
                           raise SystemExit(0)
               except Exception:
                   time.sleep(0.25)
-          raise SystemExit("v2.24 fresh install did not start")
+          raise SystemExit("v2.25 fresh install did not start")
           PY
 
-      - name: Run fresh-install browser flow
+      - name: Run New DB browser flow
         run: |
           cd baseline-main
           python tests/browser/test_fresh_install_setup.py
@@ -123,16 +125,16 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: LocalSunoDb-v2.24-fresh-install-browser-verified
+          name: LocalSunoDb-v2.25-new-music-db-browser-verified
           path: |
-            LocalSunoDb_v2.24.zip
-            fresh-install-server.log
+            LocalSunoDb_v2.25.zip
+            v225-server.log
           if-no-files-found: error
           retention-days: 2
 
       - name: Stop exact overlay
         if: always()
         run: |
-          if [ -f fresh-install-server.pid ]; then
-            kill "$(cat fresh-install-server.pid)" || true
+          if [ -f v225-server.pid ]; then
+            kill "$(cat v225-server.pid)" || true
           fi
