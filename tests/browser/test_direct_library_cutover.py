@@ -167,7 +167,7 @@ def main():
             )
             while page.evaluate("() => window.LSLibraryLazyState().hasMore"):
                 before = len(row_ids(page))
-                page.evaluate("() => { const root = document.querySelector('main'); root.scrollTo(0, root.scrollHeight); }")
+                page.locator("#library-lazy-sentinel").scroll_into_view_if_needed(timeout=5000)
                 page.wait_for_function(
                     "(n) => window.LSLibraryLazyState().loadedCount > n || !window.LSLibraryLazyState().hasMore",
                     arg=before,
