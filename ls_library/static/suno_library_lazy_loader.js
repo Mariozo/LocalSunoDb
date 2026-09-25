@@ -139,6 +139,9 @@
             try { console.error("LocalSunoDb Library lazy load failed", error); } catch (_) {}
         } finally {
             loading = false;
+            if (hasMore) {
+                window.setTimeout(loadIfNearBottom, 0);
+            }
         }
     }
 
@@ -178,7 +181,7 @@
     }
 
     sentinel.addEventListener("click", () => {
-        if (failed && !loading) { loadNextBatch(); }
+        if (!loading && hasMore) { loadNextBatch(); }
     });
 
     window.LSLibraryLoadNextBatch = loadNextBatch;
