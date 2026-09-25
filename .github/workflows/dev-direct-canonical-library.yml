@@ -1,0 +1,115 @@
+name: Dev Direct Canonical Library proof
+
+on:
+  push:
+    branches:
+      - feat/direct-canonical-library
+
+jobs:
+  prove-direct-library:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install focused test dependencies
+        run: |
+          python -m pip install pytest playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Syntax check changed Python
+        run: |
+          python -m py_compile             ls_data/repository.py             ls_library/render.py             tests/test_direct_canonical_library.py             tests/browser/seed_direct_canonical_library_fixture.py             tests/browser/test_direct_canonical_library.py             tests/browser/measure_library_http.py
+
+      - name: Run focused canonical regressions
+        run: |
+          python -m pytest -q             tests/test_direct_canonical_library.py             tests/test_local_suno_runtime.py             tests/test_local_playlists.py
+
+      - name: Benchmark pre-cutover main baseline
+        run: |
+          git worktree add baseline-main 8fdf5da73467058844fc169e4dc86dc92d11b4ad
+          cp tests/browser/seed_direct_canonical_library_fixture.py baseline-main/tests/browser/
+          cp tests/browser/measure_library_http.py baseline-main/tests/browser/
+          cd baseline-main
+          rm -rf Data Temp Reports Logs
+          python tests/browser/seed_direct_canonical_library_fixture.py
+          python LocalSunoDb.py --ls-restarted > ../before-server.log 2>&1 &
+          echo $! > ../before-server.pid
+          cd ..
+          python - <<'PY'
+          import time
+          from urllib.request import urlopen
+          for _ in range(120):
+              try:
+                  with urlopen("http://127.0.0.1:8765/app-version", timeout=1) as response:
+                      if response.status == 200:
+                          raise SystemExit(0)
+              except Exception:
+                  time.sleep(0.25)
+          raise SystemExit("baseline server did not start")
+          PY
+          cd baseline-main
+          python tests/browser/measure_library_http.py before ../before-timings.json
+          cd ..
+          kill "$(cat before-server.pid)"
+
+      - name: Run Direct Library real browser cutover
+        run: |
+          rm -rf Data Temp Reports Logs browser-artifacts
+          python tests/browser/seed_direct_canonical_library_fixture.py
+          python LocalSunoDb.py --ls-restarted > after-server.log 2>&1 &
+          echo $! > after-server.pid
+          python - <<'PY'
+          import time
+          from urllib.request import urlopen
+          for _ in range(120):
+              try:
+                  with urlopen("http://127.0.0.1:8765/app-version", timeout=1) as response:
+                      if response.status == 200:
+                          raise SystemExit(0)
+              except Exception:
+                  time.sleep(0.25)
+          raise SystemExit("Direct Library server did not start")
+          PY
+          python tests/browser/test_direct_canonical_library.py
+          python tests/browser/measure_library_http.py after after-timings.json
+          kill "$(cat after-server.pid)"
+
+      - name: Compare before and after timings
+        run: |
+          python - <<'PY'
+          import json
+          before = json.load(open("before-timings.json", encoding="utf-8"))
+          after = json.load(open("after-timings.json", encoding="utf-8"))
+          print("Direct Library timing comparison (median ms)")
+          for name in before["cases"]:
+              b = before["cases"][name]["median_ms"]
+              a = after["cases"][name]["median_ms"]
+              ratio = (a / b) if b else 0
+              print(f"{name}: before={b:.3f} after={a:.3f} ratio={ratio:.3f}")
+          PY
+
+      - name: Upload Direct Library proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: direct-canonical-library-proof
+          path: |
+            before-timings.json
+            after-timings.json
+            before-server.log
+            after-server.log
+            browser-artifacts/direct-canonical-library/
+          if-no-files-found: warn
+          retention-days: 3
+
+      - name: Stop servers
+        if: always()
+        run: |
+          if [ -f before-server.pid ]; then kill "$(cat before-server.pid)" || true; fi
+          if [ -f after-server.pid ]; then kill "$(cat after-server.pid)" || true; fi
