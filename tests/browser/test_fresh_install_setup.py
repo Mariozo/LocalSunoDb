@@ -129,6 +129,36 @@ def main():
             timeout=20000,
         )
 
+        # Minimal Music DB browser is reachable from Tools.
+        page.locator("#fresh-install-close").click()
+        modal.wait_for(state="hidden", timeout=3000)
+        page.locator("#ls-sidebar-tools-trigger").click()
+        page.locator("#open-music-db-browser-btn").click()
+        page.wait_for_url("**/music-db", timeout=5000)
+
+        page.locator(".music-table tbody tr").first.wait_for(state="visible", timeout=5000)
+        browser_text = page.locator(".music-table tbody").inner_text()
+        assert "Al Jarreau" in browser_text, browser_text
+        assert "We Got By" in browser_text, browser_text
+        assert "1975" in browser_text, browser_text
+
+        cover = page.locator('img.music-cover[src*="/music-db-cover"]').first
+        cover.wait_for(state="visible", timeout=5000)
+        page.wait_for_function(
+            "(img) => img.complete && img.naturalWidth > 0",
+            arg=cover.element_handle(),
+            timeout=5000,
+        )
+
+        search = page.locator('.music-controls input[name="q"]')
+        search.fill("Spirit")
+        page.locator('.music-controls button[type="submit"]').click()
+        page.wait_for_url("**q=Spirit", timeout=5000)
+        search_rows = page.locator(".music-table tbody tr")
+        assert search_rows.count() == 1
+        assert "Spirit" in search_rows.first.inner_text()
+        assert "We Got By" in search_rows.first.inner_text()
+
         assert not page_errors, page_errors
         browser.close()
     return 0
