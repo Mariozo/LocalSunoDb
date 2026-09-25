@@ -223,6 +223,7 @@ def _load_runtime_modules():
         "ls_core.runtime",
         "ls_core.service",
         "ls_core.probe",
+        "ls_data.database_context",
         "ls_data.repository",
         "ls_suno.service",
         "ls_audio.service",
