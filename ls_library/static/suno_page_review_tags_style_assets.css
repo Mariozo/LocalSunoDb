@@ -369,7 +369,17 @@
         }
 
         .user-tag-panel.filter-mode .user-tag-filter-actions {
+            position: absolute;
+            right: 14px;
+            bottom: 14px;
+            left: 14px;
             display: flex;
+            padding-top: 10px;
+            background: inherit;
+        }
+
+        .user-tag-panel.filter-mode .user-tag-panel-body {
+            padding-bottom: 68px;
         }
 
         .user-tag-panel.filter-mode .user-tag-pin,
