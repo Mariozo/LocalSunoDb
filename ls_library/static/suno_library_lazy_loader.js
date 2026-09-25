@@ -148,7 +148,10 @@
                 loadNextBatch();
             }
         }, {
-            root: tableWrap,
+            // .table-wrap only owns horizontal overflow. Vertical scrolling is
+            // the page viewport, so the observer must use the viewport as its
+            // root or the sentinel never becomes a real scroll trigger.
+            root: null,
             rootMargin: PREFETCH_MARGIN_PX + "px 0px",
             threshold: 0.01
         });
