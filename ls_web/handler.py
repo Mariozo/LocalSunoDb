@@ -420,6 +420,19 @@ class LocalSunoDbHandler(LibraryControllerMixin, DownloaderControllerMixin, Medi
             self.send_settings_json()
             return
 
+        if path == "/music-db-list":
+            self.send_music_database_list()
+            return
+
+        if path == "/music-db-preview":
+            self.send_music_database_preview(params)
+            return
+
+        if path == "/choose-music-db-root":
+            selected = choose_folder_dialog("", "Select music library folder")
+            self.send_text_response(200, selected or "")
+            return
+
         if path == "/fresh-install-state":
             self.send_fresh_install_state()
             return
