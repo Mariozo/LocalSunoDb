@@ -947,6 +947,12 @@ def ensure_browser_safe_local_audio(local_path):
     if not source.exists() or not source.is_file():
         raise FileNotFoundError("Local audio file not found")
 
+    # Canonical media_files may already point at browser-safe PCM16 WAV audio.
+    # Serve that source directly instead of requiring an unnecessary ffmpeg
+    # transcode/cache round-trip.  The user file remains read-only.
+    if _is_browser_safe_pcm16_wav(source):
+        return str(source)
+
     cache_dir = Path(LOCAL_BROWSER_AUDIO_CACHE_DIR)
     cache_dir.mkdir(parents=True, exist_ok=True)
     cache_key = _browser_safe_local_audio_cache_key(source)
