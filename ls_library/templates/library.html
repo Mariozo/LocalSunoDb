@@ -904,6 +904,37 @@
             <p style="margin-top:20px;"><strong>3. Piepildīt DB ar lokālajām dziesmām</strong></p>
             <button type="button" class="green" id="fresh-install-import">Importēt lokālās dziesmas</button>
             <div id="fresh-install-status" style="margin-top:12px;min-height:24px;"></div>
+
+            <hr style="border:0;border-top:1px solid #34343a;margin:26px 0 20px;">
+
+            <h3 style="margin:0 0 8px;">Atsevišķa mūzikas DB</h3>
+            <p class="muted" style="margin-top:0;">
+                Ne-Suno kolekcijām. Šī DB ir pilnīgi atsevišķa no LocalSunoDb un nekad netiek sapludināta pēc dziesmas nosaukuma.
+                MP3/FLAC metadatos tiek nolasīts nosaukums, autors, albums, izdošanas gads, celiņa/diska numurs, žanrs un albuma attēls.
+            </p>
+            <div style="display:grid;grid-template-columns:150px minmax(0,1fr);gap:8px 10px;align-items:center;">
+                <label for="music-db-name-input">DB nosaukums</label>
+                <input type="text" id="music-db-name-input" maxlength="80" placeholder="Piemēram: Jazz">
+                <label for="music-db-genre-input">Noklusējuma žanrs</label>
+                <input type="text" id="music-db-genre-input" maxlength="80" placeholder="Piemēram: Jazz (nav obligāti)">
+                <label for="music-db-root-input">Mūzikas mape</label>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <input type="text" id="music-db-root-input" style="flex:1;min-width:0;" placeholder="Izvēlies mapi ar mūzikas kolekciju">
+                    <button type="button" id="music-db-choose-root">Izvēlēties…</button>
+                </div>
+            </div>
+            <p class="muted" style="margin-top:8px;">
+                Faila sākuma numurs, piemēram, “(01) -”, netiek izmantots kā DB identitāte. Kārtībai primāri izmanto faila metadatu Track/Disc laukus.
+                Ja failā metadatu trūkst, LS izmanto tikai drošus mapes/faila fallback laukus.
+            </p>
+            <button type="button" class="green" id="music-db-import">Izveidot / atjaunot atsevišķo DB</button>
+            <div id="music-db-status" style="margin-top:12px;min-height:24px;"></div>
+
+            <div style="margin-top:16px;">
+                <strong>Izveidotās mūzikas DB</strong>
+                <div id="music-db-list" style="display:grid;gap:6px;margin-top:8px;"></div>
+            </div>
+            <div id="music-db-preview" style="display:none;margin-top:14px;padding:10px 12px;border:1px solid #34343a;border-radius:10px;max-height:240px;overflow:auto;font-size:13px;"></div>
         </div>
     </div>
 
