@@ -35,6 +35,7 @@ jobs:
               Path("ls_data/repository.py"),
               Path("ls_audio/service.py"),
               Path("ls_library/static/suno_library_lazy_loader.js"),
+              Path("ls_library/static/suno_page_review_tags_style_assets.css"),
               Path("ls_web/app.py"),
           ]
           out = Path("LocalSunoDb_v2.27.1.zip")

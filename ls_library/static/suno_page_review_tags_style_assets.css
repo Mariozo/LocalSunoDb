@@ -138,6 +138,7 @@
             padding: 12px 14px 14px 14px;
             overflow: hidden;
             display: flex;
+            flex: 1 1 auto;
             flex-direction: column;
             min-height: 0;
             gap: 10px;
@@ -282,6 +283,7 @@
         }
 
         .user-tag-panel-scroll {
+            flex: 1 1 auto;
             min-height: 0;
             overflow-y: auto;
             padding-right: 3px;
@@ -358,6 +360,7 @@
 
         .user-tag-filter-actions {
             display: none;
+            flex: 0 0 auto;
             align-items: center;
             justify-content: flex-end;
             gap: 8px;
