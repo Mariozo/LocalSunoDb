@@ -32,6 +32,7 @@ jobs:
               Path("LocalSunoDb.py"),
               Path("ls_core/runtime.py"),
               Path("ls_data/repository.py"),
+              Path("ls_audio/service.py"),
           ]
           out = Path("LocalSunoDb_v2.27.zip")
           with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:
@@ -90,6 +91,8 @@ jobs:
           assert "t.avg_bpm" in function_body("search_tracks", "count_tracks")
           assert "t.style_tags" in direct_sections
           assert "t.is_liked" in direct_sections
+          audio_source = Path("ls_audio/service.py").read_text(encoding="utf-8")
+          assert "if _is_browser_safe_pcm16_wav(source):" in audio_source
           PY
 
       - name: Apply exact overlay over current main baseline
@@ -106,7 +109,7 @@ jobs:
 
       - name: Syntax checks on exact overlay
         run: |
-          python -m py_compile             exact-overlay/LocalSunoDb.py             exact-overlay/ls_core/runtime.py             exact-overlay/ls_data/repository.py             exact-overlay/tests/test_direct_canonical_library.py             exact-overlay/tests/browser/seed_direct_library_fixture.py             exact-overlay/tests/browser/test_direct_library_cutover.py
+          python -m py_compile             exact-overlay/LocalSunoDb.py             exact-overlay/ls_core/runtime.py             exact-overlay/ls_data/repository.py             exact-overlay/ls_audio/service.py             exact-overlay/tests/test_direct_canonical_library.py             exact-overlay/tests/browser/seed_direct_library_fixture.py             exact-overlay/tests/browser/test_direct_library_cutover.py
 
       - name: Run focused canonical regressions
         run: |
