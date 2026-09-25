@@ -32,6 +32,39 @@ def open_view(page, params=None):
     wait_rows(page)
 
 
+def current_param(page, name):
+    return page.evaluate(
+        "(name) => new URL(window.location.href).searchParams.get(name)",
+        name,
+    )
+
+
+def click_multi_filter(page, param, value):
+    details = page.locator(f'details[data-multi-filter="{param}"]')
+    details.locator("summary").click()
+    option = page.locator(
+        f'.library-multi-option[data-multi-filter-param="{param}"]'
+        f'[data-multi-filter-value="{value}"]'
+    )
+    with page.expect_navigation(wait_until="domcontentloaded", timeout=10000):
+        option.click()
+    wait_rows(page)
+
+
+def choose_auto_submit(page, name, value):
+    select = page.locator(f'select[name="{name}"]')
+    with page.expect_navigation(wait_until="domcontentloaded", timeout=10000):
+        select.select_option(value)
+    wait_rows(page)
+
+
+def click_sort(page, column):
+    button = page.locator(f'.sort-control[data-column="{column}"]')
+    with page.expect_navigation(wait_until="domcontentloaded", timeout=10000):
+        button.click()
+    wait_rows(page)
+
+
 def request_count(page, params=None):
     query = ("?" + urlencode(params or {}, doseq=True)) if params else ""
     response = page.request.get(BASE_URL + "/library-count" + query)
@@ -76,30 +109,43 @@ def main():
             assert request_count(page) == 75
             assert "75 tracks" in page.locator("#ls-filter-result-count").inner_text()
 
-            # Text search.
-            open_view(page, {"q": "Alpha Search"})
+            # Text search through the real Finder UI.
+            open_view(page)
+            page.locator("#open-f4-search-btn").click()
+            finder = page.locator("#finder-search-input")
+            finder.fill("Alpha Search")
+            with page.expect_navigation(wait_until="domcontentloaded", timeout=10000):
+                finder.press("Enter")
+            wait_rows(page)
+            assert current_param(page, "q") == "Alpha Search"
             assert row_ids(page) == ["canon-001"]
             assert_count_matches_rows(page, {"q": "Alpha Search"}) == 1
 
             # Category: track_user.manual_category overrides tracks.kind.
+            open_view(page, {"q": "Manual Category"})
+            click_multi_filter(page, "category_filter", "Instrumental")
             params = {"q": "Manual Category", "category_filter": "Instrumental"}
-            open_view(page, params)
+            assert current_param(page, "category_filter") == "Instrumental"
             assert row_ids(page) == ["canon-002"]
             assert page.locator("tr.track-row").first.get_attribute("data-main-category") == "Instrumental"
             assert_count_matches_rows(page, params) == 1
 
             # Broad Song / Instrumental category filters use the same canonical
-            # category contract on the real browser path.
+            # category contract through the actual Category menu.
+            open_view(page)
+            click_multi_filter(page, "category_filter", "Song")
             params = {"category_filter": "Song"}
-            open_view(page, params)
+            assert current_param(page, "category_filter") == "Song"
             assert all(
                 page.locator("tr.track-row").nth(i).get_attribute("data-main-category") == "Song"
                 for i in range(page.locator("tr.track-row").count())
             )
             assert_count_matches_rows(page, params) == 38
 
+            open_view(page)
+            click_multi_filter(page, "category_filter", "Instrumental")
             params = {"category_filter": "Instrumental"}
-            open_view(page, params)
+            assert current_param(page, "category_filter") == "Instrumental"
             assert all(
                 page.locator("tr.track-row").nth(i).get_attribute("data-main-category") == "Instrumental"
                 for i in range(page.locator("tr.track-row").count())
@@ -141,35 +187,61 @@ def main():
             params = {"kind_filter": "__liked__"}
             assert_count_matches_rows(page, params) > 3
 
-            # Flags: one flag and a required combination.
+            # Flags through the actual Flags and Tags filter panel.
+            open_view(page)
+            page.locator("#ls-add-filter-button").click()
+            page.locator("#user-tag-panel").wait_for(state="visible")
+            page.locator('#user-flag-panel-stars .review-star[data-mask="1"]').click()
+            with page.expect_navigation(wait_until="domcontentloaded", timeout=10000):
+                page.locator("#user-tag-filter-apply").click()
+            wait_rows(page)
             params = {"flag_filter": "1"}
-            open_view(page, params)
+            assert current_param(page, "flag_filter") == "1"
             assert set(row_ids(page)) >= {"canon-001", "canon-002"}
             assert_count_matches_rows(page, params) == 2
 
+            page.locator("#ls-add-filter-button").click()
+            page.locator("#user-tag-panel").wait_for(state="visible")
+            page.locator('#user-flag-panel-stars .review-star[data-mask="4"]').click()
+            with page.expect_navigation(wait_until="domcontentloaded", timeout=10000):
+                page.locator("#user-tag-filter-apply").click()
+            wait_rows(page)
             params = {"flag_filter": "1,4"}
-            open_view(page, params)
+            assert current_param(page, "flag_filter") == "1,4"
             assert row_ids(page) == ["canon-001"]
             assert_count_matches_rows(page, params) == 1
 
-            # Exact tag.
+            # Exact tag through the same filter panel.
+            open_view(page)
+            page.locator("#ls-add-filter-button").click()
+            page.locator("#user-tag-panel").wait_for(state="visible")
+            tag_button = page.locator('.user-tag-toggle[data-tag="#rock"]').first
+            tag_button.wait_for(state="visible", timeout=5000)
+            tag_button.click()
+            with page.expect_navigation(wait_until="domcontentloaded", timeout=10000):
+                page.locator("#user-tag-filter-apply").click()
+            wait_rows(page)
             params = {"tag_filter": "#rock"}
-            open_view(page, params)
+            assert current_param(page, "tag_filter") == "#rock"
             assert set(row_ids(page)) == {"canon-001", "canon-002"}
             assert_count_matches_rows(page, params) == 2
 
-            # Workspace.
+            # Workspace through the real multi-select menu.
+            open_view(page)
+            click_multi_filter(page, "workspace", "Studio B")
             params = {"workspace": "Studio B"}
-            open_view(page, params)
+            assert current_param(page, "workspace") == "Studio B"
             assert all(
                 page.locator("tr.track-row").nth(i).get_attribute("data-workspace") == "Studio B"
                 for i in range(page.locator("tr.track-row").count())
             )
             assert_count_matches_rows(page, params) == 25
 
-            # Local / Suno source split uses canonical variants + media_files.
+            # Local / Suno source split through the Audio dropdown.
+            open_view(page)
+            choose_auto_submit(page, "local_audio_filter", "with")
             params = {"local_audio_filter": "with"}
-            open_view(page, params)
+            assert current_param(page, "local_audio_filter") == "with"
             assert all(
                 page.locator("tr.track-row .play-btn").nth(i).get_attribute("data-has-local-audio") == "true"
                 for i in range(page.locator("tr.track-row .play-btn").count())
@@ -177,21 +249,36 @@ def main():
             local_count = assert_count_matches_rows(page, params)
             assert local_count == 26
 
+            open_view(page)
+            choose_auto_submit(page, "local_audio_filter", "without")
             params = {"local_audio_filter": "without"}
-            open_view(page, params)
+            assert current_param(page, "local_audio_filter") == "without"
             assert all(
                 page.locator("tr.track-row .play-btn").nth(i).get_attribute("data-has-local-audio") == "false"
                 for i in range(page.locator("tr.track-row .play-btn").count())
             )
             assert_count_matches_rows(page, params) == 49
 
-            # Sorts are server-side canonical values.
-            open_view(page, {"sort_by": "title", "sort_dir": "asc"})
+            # Sorts through the visible sort buttons; values remain server-side.
+            open_view(page)
+            click_sort(page, 2)
+            assert current_param(page, "sort_by") == "title"
+            assert current_param(page, "sort_dir") == "asc"
             assert row_ids(page)[0] == "canon-001"
-            open_view(page, {"sort_by": "created", "sort_dir": "desc"})
+
+            open_view(page)
+            click_sort(page, 4)
+            click_sort(page, 4)
+            assert current_param(page, "sort_by") == "created"
+            assert current_param(page, "sort_dir") == "desc"
             created_ids = row_ids(page)
             assert created_ids[0] != created_ids[-1]
-            open_view(page, {"sort_by": "duration", "sort_dir": "desc"})
+
+            open_view(page)
+            click_sort(page, 5)
+            click_sort(page, 5)
+            assert current_param(page, "sort_by") == "duration"
+            assert current_param(page, "sort_dir") == "desc"
             assert row_ids(page)[0] == "canon-075"
 
             # Real lazy-loading path: first 32, then normal page scrolling
