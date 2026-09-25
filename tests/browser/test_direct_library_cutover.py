@@ -106,15 +106,24 @@ def main():
             )
             assert_count_matches_rows(page, params) == 37
 
-            # Type comes from tracks.source_task, not Category.
-            params = {"kind_filter": "Cover"}
-            open_view(page, params)
+            # Type comes from tracks.source_task, not Category. Exercise the
+            # actual Type dropdown so auto-submit/navigation is part of the proof.
+            open_view(page)
+            type_select = page.locator('select[name="kind_filter"]')
+            with page.expect_navigation(wait_until="domcontentloaded", timeout=10000):
+                type_select.select_option("Cover")
+            wait_rows(page)
+            assert page.locator('select[name="kind_filter"]').input_value() == "Cover"
+            assert page.evaluate(
+                "() => new URL(window.location.href).searchParams.get('kind_filter')"
+            ) == "Cover"
             rows = page.locator("tr.track-row")
             assert rows.count() > 0
             assert all(
                 rows.nth(i).get_attribute("data-kind") == "Cover"
                 for i in range(rows.count())
             )
+            params = {"kind_filter": "Cover"}
             assert_count_matches_rows(page, params) == 25
 
             # Liked is canonical tracks.is_liked.
