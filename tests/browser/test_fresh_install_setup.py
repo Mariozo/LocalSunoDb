@@ -1,3 +1,4 @@
+import base64
 import json
 import shutil
 import sys
@@ -42,7 +43,9 @@ def prepare_audio_fixture():
     album = MUSIC_ROOT / "[1975] - Al Jarreau - We Got By"
     write_wav(album / "(01) - Al Jarreau - Spirit.wav")
     write_wav(album / "(02) - Al Jarreau - We Got By.wav")
-    (album / "Folder.jpg").write_bytes(b"\xff\xd8\xff\xe0" + b"browser-cover" * 32)
+    (album / "Folder.png").write_bytes(base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+    ))
 
 
 def main():
