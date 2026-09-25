@@ -167,7 +167,43 @@ def main():
             )
             while page.evaluate("() => window.LSLibraryLazyState().hasMore"):
                 before = len(row_ids(page))
+                before_geometry = page.evaluate("""() => {
+                    const root = document.querySelector("main");
+                    const sentinel = document.getElementById("library-lazy-sentinel");
+                    const rr = root.getBoundingClientRect();
+                    const sr = sentinel.getBoundingClientRect();
+                    return {
+                        state: window.LSLibraryLazyState(),
+                        scrollTop: root.scrollTop,
+                        scrollHeight: root.scrollHeight,
+                        clientHeight: root.clientHeight,
+                        rootTop: rr.top,
+                        rootBottom: rr.bottom,
+                        sentinelTop: sr.top,
+                        sentinelBottom: sr.bottom,
+                        sentinelHidden: sentinel.hidden
+                    };
+                }""")
+                print("LAZY_BEFORE", json.dumps(before_geometry, sort_keys=True))
                 page.locator("#library-lazy-sentinel").scroll_into_view_if_needed(timeout=5000)
+                after_geometry = page.evaluate("""() => {
+                    const root = document.querySelector("main");
+                    const sentinel = document.getElementById("library-lazy-sentinel");
+                    const rr = root.getBoundingClientRect();
+                    const sr = sentinel.getBoundingClientRect();
+                    return {
+                        state: window.LSLibraryLazyState(),
+                        scrollTop: root.scrollTop,
+                        scrollHeight: root.scrollHeight,
+                        clientHeight: root.clientHeight,
+                        rootTop: rr.top,
+                        rootBottom: rr.bottom,
+                        sentinelTop: sr.top,
+                        sentinelBottom: sr.bottom,
+                        sentinelHidden: sentinel.hidden
+                    };
+                }""")
+                print("LAZY_AFTER", json.dumps(after_geometry, sort_keys=True))
                 page.wait_for_function(
                     "(n) => window.LSLibraryLazyState().loadedCount > n || !window.LSLibraryLazyState().hasMore",
                     arg=before,
