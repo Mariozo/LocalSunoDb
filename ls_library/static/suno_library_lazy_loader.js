@@ -142,6 +142,18 @@
         }
     }
 
+    function loadIfNearBottom() {
+        if (!scrollRoot || loading || !hasMore) { return; }
+        const remaining = scrollRoot.scrollHeight - scrollRoot.scrollTop - scrollRoot.clientHeight;
+        if (remaining <= PREFETCH_MARGIN_PX) {
+            loadNextBatch();
+        }
+    }
+
+    if (scrollRoot) {
+        scrollRoot.addEventListener("scroll", loadIfNearBottom, { passive: true });
+    }
+
     function startObserver() {
         if (observer || !hasMore) { return; }
         observer = new IntersectionObserver((entries) => {
@@ -162,6 +174,7 @@
         loadResultCount();
         await loadNextBatch();
         startObserver();
+        loadIfNearBottom();
     }
 
     sentinel.addEventListener("click", () => {
