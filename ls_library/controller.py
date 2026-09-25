@@ -41,6 +41,59 @@ def _saved_view_reusable_query(value):
 
 
 class LibraryControllerMixin:
+    def send_fresh_install_state(self):
+        try:
+            db_state = get_local_library_database_state()
+            settings = get_settings()
+            root = str(get_audio_library_root_folder() or "").strip()
+            try:
+                root_ready = bool(root and Path(root).exists() and Path(root).is_dir())
+            except Exception:
+                root_ready = False
+            setup_complete = bool(
+                settings.get("initial_setup_complete")
+                or int(db_state.get("track_count") or 0) > 0
+            )
+            payload = dict(db_state)
+            payload.update({
+                "audio_library_root_folder": root,
+                "root_ready": root_ready,
+                "setup_complete": setup_complete,
+                "needs_setup": not setup_complete,
+            })
+            self.send_json_response(payload)
+        except Exception as exc:
+            self.send_json_response({"ok": False, "error": str(exc)}, status=500)
+
+    def import_local_library_now(self):
+        try:
+            length = int(self.headers.get("Content-Length", "0") or "0")
+            raw_body = self.rfile.read(length).decode("utf-8", errors="replace")
+            params = urllib.parse.parse_qs(raw_body, keep_blank_values=True)
+            requested_root = str(
+                params.get("audio_library_root_folder", [""])[0] or ""
+            ).strip()
+            if requested_root:
+                ok, message = set_audio_library_root_folder(requested_root)
+                if not ok:
+                    self.send_json_response({"ok": False, "error": message}, status=400)
+                    return
+            root = get_audio_library_root_folder()
+            result = import_local_audio_library(root)
+            if not result.get("ok"):
+                self.send_json_response(result, status=400)
+                return
+            save_settings({
+                "initial_setup_complete": True,
+                "local_library_initialized_at": now_iso_local(),
+            })
+            result["setup_complete"] = True
+            self.send_json_response(result)
+        except ValueError as exc:
+            self.send_json_response({"ok": False, "error": str(exc)}, status=400)
+        except Exception as exc:
+            self.send_json_response({"ok": False, "error": str(exc)}, status=500)
+
     def scan_local_inventory_now(self):
         try:
             result = scan_local_inventory()
@@ -168,6 +221,10 @@ class LibraryControllerMixin:
 
         if path == "/delete-saved-view":
             self.delete_saved_view()
+            return
+
+        if path == "/import-local-library":
+            self.import_local_library_now()
             return
 
         if path == "/scan-local-inventory":

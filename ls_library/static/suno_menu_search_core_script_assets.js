@@ -27,6 +27,14 @@
         const statsModal = document.getElementById("stats-modal");
         const statsModalClose = document.getElementById("stats-modal-close");
         const openSettingsButton = document.getElementById("open-settings-modal");
+        const openFreshInstallSetupButton = document.getElementById("open-fresh-install-setup-btn");
+        const freshInstallModal = document.getElementById("fresh-install-modal");
+        const freshInstallClose = document.getElementById("fresh-install-close");
+        const freshInstallDbStatus = document.getElementById("fresh-install-db-status");
+        const freshInstallRootInput = document.getElementById("fresh-install-root-input");
+        const freshInstallChooseRoot = document.getElementById("fresh-install-choose-root");
+        const freshInstallImport = document.getElementById("fresh-install-import");
+        const freshInstallStatus = document.getElementById("fresh-install-status");
         const settingsModal = document.getElementById("settings-modal");
         const settingsModalClose = document.getElementById("settings-modal-close");
         const audioLibraryRootInput = document.getElementById("audio-library-root-input");

@@ -576,10 +576,23 @@ def find_profile_image_path():
         pass
     return None
 
+def _legacy_existing_audio_root():
+    """Keep old installs working without exposing a machine-specific default to new users."""
+    for candidate in (r"E:\Audio-Lib-NEW", r"E:\Audio Lib"):
+        try:
+            path_obj = Path(candidate)
+            if path_obj.exists() and path_obj.is_dir():
+                return str(path_obj)
+        except Exception:
+            pass
+    return ""
+
+
 def get_settings():
+    legacy_audio_root = _legacy_existing_audio_root()
     default = {
-        "audio_library_root_folder": r"E:\Audio-Lib-NEW",
-        "stem_root_folder": r"E:\Audio-Lib-NEW",
+        "audio_library_root_folder": legacy_audio_root,
+        "stem_root_folder": legacy_audio_root,
         "ls_update_check_interval_seconds": 10,
         "autoplay_list": False,
         "ls_elza_background_opacity": 50,
@@ -727,7 +740,7 @@ def get_audio_library_root_folder():
     return str(
         settings.get("audio_library_root_folder")
         or settings.get("stem_root_folder")
-        or r"E:\Audio-Lib-NEW"
+        or ""
     )
 
 def set_audio_library_root_folder(folder_path):

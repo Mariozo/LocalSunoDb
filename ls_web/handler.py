@@ -420,6 +420,10 @@ class LocalSunoDbHandler(LibraryControllerMixin, DownloaderControllerMixin, Medi
             self.send_settings_json()
             return
 
+        if path == "/fresh-install-state":
+            self.send_fresh_install_state()
+            return
+
         if path == "/choose-audio-library-root":
             self.choose_audio_library_root()
             return
