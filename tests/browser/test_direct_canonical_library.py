@@ -118,12 +118,48 @@ def main():
             open_view(page, {"sort_by": "created", "sort_dir": "desc"})
             initial_loaded = page.locator("tr.track-row").count()
             assert 1 <= initial_loaded <= 40, initial_loaded
-            for _ in range(8):
-                page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                page.wait_for_timeout(500)
-                if page.locator("tr.track-row").count() >= 75:
+            page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+            page.wait_for_function(
+                "(initial) => document.querySelectorAll('tr.track-row').length > initial",
+                arg=initial_loaded,
+                timeout=6000,
+            )
+            assert page.locator("tr.track-row").count() > initial_loaded
+
+            # Follow the same browser JSON cursor contract until exhausted and
+            # prove every canonical row is reachable exactly once.
+            cursor = ""
+            reached = []
+            while True:
+                params = {
+                    "batch": "40",
+                    "sort_by": "created",
+                    "sort_dir": "desc",
+                }
+                if cursor:
+                    params["cursor"] = cursor
+                response = page.request.get(
+                    BASE_URL + "/library-rows?" + urlencode(params, doseq=True)
+                )
+                assert response.ok, response.status
+                payload = response.json()
+                html = payload.get("html") or ""
+                marker = 'data-track-id="'
+                pos = 0
+                while True:
+                    pos = html.find(marker, pos)
+                    if pos < 0:
+                        break
+                    pos += len(marker)
+                    end = html.find('"', pos)
+                    reached.append(html[pos:end])
+                    pos = end + 1
+                if not payload.get("has_more"):
                     break
-            assert page.locator("tr.track-row").count() == 75
+                cursor = payload.get("next_cursor") or ""
+                assert cursor
+            assert len(reached) == 75, len(reached)
+            assert len(set(reached)) == 75
 
             # Local playback contract: the rendered Play control points at the
             # canonical media_files path, and the browser can fetch that audio.
