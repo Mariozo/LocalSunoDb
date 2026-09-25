@@ -30,6 +30,12 @@ from pathlib import Path, PurePosixPath
 from ls_core.runtime import *
 from ls_data.local_suno_migration import create_schema as create_local_suno_schema, migrate as migrate_local_suno_database
 from ls_data.local_suno_runtime import configure_legacy_runtime_views
+from ls_data.database_context import (
+    PRIMARY_DATABASE_ID,
+    get_active_database_path,
+    get_active_database_target,
+    get_database_target,
+)
 
 
 # DATA-private copies of stable v5.394 domain constants used by repository
@@ -137,9 +143,27 @@ def get_local_library_database_state():
         "is_empty": track_count == 0,
     }
 
-def get_connection():
-    ensure_local_suno_runtime_database()
-    conn = sqlite3.connect(DB_PATH)
+def get_connection(database_id=None):
+    """Open the selected library DB through one connection factory.
+
+    Existing callers need no changes: without an explicit database_id they use
+    the effective active target.  The built-in main DB keeps the legacy
+    create/migrate behavior; registered secondary DBs are never created or
+    migrated implicitly.
+    """
+    if database_id is None or str(database_id or "").strip() == "":
+        target = get_active_database_target()
+    else:
+        target = get_database_target(database_id)
+
+    database_path = Path(target["path"])
+    if target["id"] == PRIMARY_DATABASE_ID:
+        ensure_local_suno_runtime_database()
+        database_path = DB_PATH
+    elif not database_path.is_file():
+        raise FileNotFoundError(f"Database file not found: {database_path}")
+
+    conn = sqlite3.connect(database_path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.create_function("ls_stem_base_title", 1, ls_stem_base_title)
@@ -1288,8 +1312,9 @@ def backup_db_before_user_tag_delete():
     backup_dir = BASE_DIR / "Backup"
     backup_dir.mkdir(exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    target = backup_dir / f"{DB_PATH.stem}_BEFORE_USER_TAG_DELETE_{stamp}{DB_PATH.suffix}"
-    shutil.copy2(DB_PATH, target)
+    database_path = get_active_database_path()
+    target = backup_dir / f"{database_path.stem}_BEFORE_USER_TAG_DELETE_{stamp}{database_path.suffix}"
+    shutil.copy2(database_path, target)
     return target
 
 def backup_tags_file_before_user_tag_delete():
@@ -1667,8 +1692,9 @@ def backup_db_before_local_variant_delete():
     backup_dir = BASE_DIR / "Backup"
     backup_dir.mkdir(exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    target = backup_dir / f"{DB_PATH.stem}_BEFORE_LOCAL_VARIANT_DELETE_{stamp}{DB_PATH.suffix}"
-    shutil.copy2(DB_PATH, target)
+    database_path = get_active_database_path()
+    target = backup_dir / f"{database_path.stem}_BEFORE_LOCAL_VARIANT_DELETE_{stamp}{database_path.suffix}"
+    shutil.copy2(database_path, target)
     return target
 
 def _normalized_absolute_path(path_value):
@@ -3673,7 +3699,8 @@ def backup_db_before_structured_repair():
     backup_dir = BASE_DIR / "Backup"
     backup_dir.mkdir(exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    target = backup_dir / f"{DB_PATH.stem}_BEFORE_PROVEN_META_REPAIR_{stamp}{DB_PATH.suffix}"
+    database_path = get_active_database_path()
+    target = backup_dir / f"{database_path.stem}_BEFORE_PROVEN_META_REPAIR_{stamp}{database_path.suffix}"
     source = get_connection()
     destination = sqlite3.connect(target)
     try:
@@ -3821,7 +3848,7 @@ def backup_db_before_intent_audit():
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     target = (
         backup_dir
-        / f"{DB_PATH.stem}_BEFORE_INTENT_AUDIT_{stamp}{DB_PATH.suffix}"
+        / f"{get_active_database_path().stem}_BEFORE_INTENT_AUDIT_{stamp}{get_active_database_path().suffix}"
     )
     source = get_connection()
     destination = sqlite3.connect(target)
@@ -4085,7 +4112,7 @@ def backup_db_before_category_assignment():
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     target = (
         backup_dir
-        / f"{DB_PATH.stem}_BEFORE_CATEGORY_ASSIGNMENT_{stamp}{DB_PATH.suffix}"
+        / f"{get_active_database_path().stem}_BEFORE_CATEGORY_ASSIGNMENT_{stamp}{get_active_database_path().suffix}"
     )
     source = get_connection()
     destination = sqlite3.connect(target)
@@ -4124,7 +4151,8 @@ def backup_db_before_metadata_import():
     backup_dir = BASE_DIR / "Backup"
     backup_dir.mkdir(exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    target = backup_dir / f"{DB_PATH.stem}_BEFORE_SUNO_META_REFRESH_{stamp}{DB_PATH.suffix}"
+    database_path = get_active_database_path()
+    target = backup_dir / f"{database_path.stem}_BEFORE_SUNO_META_REFRESH_{stamp}{database_path.suffix}"
     # The live LS database uses WAL mode. SQLite's backup API includes committed
     # WAL pages and therefore creates a consistent snapshot; copying only the
     # main .db file could silently omit recent changes.
