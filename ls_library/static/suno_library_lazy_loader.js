@@ -2,6 +2,7 @@
     const table = document.getElementById("tracks-table");
     const tbody = table ? table.querySelector("tbody") : null;
     const tableWrap = table ? table.closest(".table-wrap") : null;
+    const scrollRoot = table ? table.closest("main") : null;
     const sentinel = document.getElementById("library-lazy-sentinel");
     const resultCount = document.getElementById("ls-filter-result-count");
     if (!table || !tbody || !tableWrap || !sentinel) { return; }
@@ -148,10 +149,9 @@
                 loadNextBatch();
             }
         }, {
-            // The lazy sentinel is rendered after .table-wrap, not inside it.
-            // Observe it against the viewport so normal page scrolling can
-            // trigger the next canonical Library batch.
-            root: null,
+            // The Library's vertical scrollbar belongs to <main>. The sentinel
+            // is a sibling after .table-wrap but remains inside that scroll root.
+            root: scrollRoot,
             rootMargin: PREFETCH_MARGIN_PX + "px 0px",
             threshold: 0.01
         });
