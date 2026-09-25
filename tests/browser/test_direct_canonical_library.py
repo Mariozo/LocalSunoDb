@@ -125,16 +125,26 @@ def main():
                 timeout=5000,
             )
             initial_loaded = page.locator("tr.track-row").count()
-            assert 1 <= initial_loaded <= 40, initial_loaded
+            assert 1 <= initial_loaded <= 75, initial_loaded
             lazy_state = page.evaluate("() => window.LSLibraryLazyState()")
-            assert lazy_state["hasMore"] is True, lazy_state
-            page.locator("#library-lazy-sentinel").scroll_into_view_if_needed()
-            page.wait_for_function(
-                "(initial) => document.querySelectorAll('tr.track-row').length > initial",
-                arg=initial_loaded,
-                timeout=6000,
+
+            # With the viewport observer and prefetch margin, Chromium may have
+            # already appended a second batch before this assertion runs.  That
+            # is valid production behavior.  Otherwise bring the real sentinel
+            # into view and require an observer-driven append.
+            if initial_loaded <= lazy_state["batchSize"] and lazy_state["hasMore"]:
+                page.locator("#library-lazy-sentinel").scroll_into_view_if_needed()
+                page.wait_for_function(
+                    "(initial) => document.querySelectorAll('tr.track-row').length > initial",
+                    arg=initial_loaded,
+                    timeout=6000,
+                )
+            loaded_after_observer = page.locator("tr.track-row").count()
+            assert loaded_after_observer > lazy_state["batchSize"], (
+                initial_loaded,
+                loaded_after_observer,
+                lazy_state,
             )
-            assert page.locator("tr.track-row").count() > initial_loaded
 
             # Follow the same browser JSON cursor contract until exhausted and
             # prove every canonical row is reachable exactly once.
