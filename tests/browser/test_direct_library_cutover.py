@@ -158,7 +158,8 @@ def main():
             open_view(page, {"sort_by": "duration", "sort_dir": "desc"})
             assert row_ids(page)[0] == "canon-075"
 
-            # Real lazy-loading path: first 32, then cursor batches to all 75.
+            # Real lazy-loading path: first 32, then normal page scrolling
+            # must trigger cursor batches to all 75. Do not call the test hook.
             open_view(page, {"sort_by": "title", "sort_dir": "asc"})
             page.wait_for_function(
                 "() => window.LSLibraryLazyState && window.LSLibraryLazyState().loadedCount >= 32",
@@ -166,7 +167,7 @@ def main():
             )
             while page.evaluate("() => window.LSLibraryLazyState().hasMore"):
                 before = len(row_ids(page))
-                page.evaluate("() => window.LSLibraryLoadNextBatch()")
+                page.evaluate("() => window.scrollTo(0, document.body.scrollHeight)")
                 page.wait_for_function(
                     "(n) => window.LSLibraryLazyState().loadedCount > n || !window.LSLibraryLazyState().hasMore",
                     arg=before,
