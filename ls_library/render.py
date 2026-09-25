@@ -1856,6 +1856,7 @@ def build_library_table_rows(
                             >⋮</button>
                             <div class="row-menu hidden">
                                 <button type="button" class="row-menu-item menu-open-suno">Open in Suno</button>
+                                <button type="button" class="row-menu-item menu-add-playlist">Add to Playlist...</button>
                                 <button type="button" class="row-menu-item menu-copy-id">Copy Track ID</button>
                                 <button type="button" class="row-menu-item menu-edit-title">Edit LS title...</button>
                                 <button type="button" class="row-menu-item menu-edit-lyrics">Edit Lyrics...</button>
