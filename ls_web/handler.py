@@ -29,6 +29,8 @@ from pathlib import Path, PurePosixPath
 from ls_core.runtime import *
 from ls_web.assets import read_static_asset
 from ls_library.controller import LibraryControllerMixin
+from ls_library.music_browser import render_music_database_page
+from ls_data.music_library import get_music_database_cover
 from ls_downloader.controller import DownloaderControllerMixin
 from ls_audio.controller import AudioControllerMixin
 from ls_media.controller import MediaControllerMixin
@@ -107,6 +109,28 @@ class LocalSunoDbHandler(LibraryControllerMixin, DownloaderControllerMixin, Medi
 
     def handle_page_get_request(self, path, params):
         """Render top-level LocalSunoDb pages and lazy Library row chunks."""
+        if path == "/music-db":
+            name = params.get("name", [""])[0]
+            query = params.get("q", [""])[0]
+            self.send_html(render_music_database_page(name, query))
+            return
+
+        if path == "/music-db-cover":
+            name = params.get("name", [""])[0]
+            sha1_value = params.get("sha1", [""])[0]
+            cover = get_music_database_cover(name, sha1_value)
+            if not cover or not cover.get("image_data"):
+                self.send_error(404, "Cover not found")
+                return
+            payload = cover["image_data"]
+            self.send_response(200)
+            self.send_header("Content-Type", cover.get("mime_type") or "image/jpeg")
+            self.send_header("Content-Length", str(len(payload)))
+            self.send_header("Cache-Control", "public, max-age=31536000, immutable")
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+
         if path == "/playlists":
             playlist_id = params.get("id", [""])[0]
             add_track_id = params.get("add_track", [""])[0]
