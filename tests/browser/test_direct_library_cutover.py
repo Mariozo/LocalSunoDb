@@ -105,7 +105,7 @@ def main():
 
         try:
             open_view(page)
-            assert page.title() == "LS v2.27.1"
+            assert page.title() == "LS v2.28"
             assert request_count(page) == 75
             assert "75 tracks" in page.locator("#ls-filter-result-count").inner_text()
 
