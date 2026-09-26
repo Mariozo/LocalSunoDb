@@ -209,8 +209,8 @@ def test_v229_identity_is_based_on_v228():
     assert "# Based on: v2.28" in entrypoint
     assert 'APP_VERSION = "v2.29"' in entrypoint
     assert 'APP_BASED_ON = "v2.28"' in entrypoint
-    assert 'APP_VERSION = "v2.28"' in runtime
-    assert 'APP_BASED_ON = "v2.27"' in runtime
+    assert 'APP_VERSION = "v2.29"' in runtime
+    assert 'APP_BASED_ON = "v2.28"' in runtime
 
 
 def test_v220_library_header_shows_visible_version_identity():
