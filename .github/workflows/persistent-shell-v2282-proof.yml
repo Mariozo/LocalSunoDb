@@ -120,6 +120,9 @@ jobs:
               response = page.goto(base + "/", wait_until="domcontentloaded", timeout=30000)
               assert response and response.ok, response.status if response else None
               page.wait_for_timeout(500)
+              setup_modal = page.locator("#fresh-install-modal")
+              if setup_modal.count():
+                  setup_modal.evaluate("(el) => el.remove()")
 
               assert page.locator(".ls-sidebar-title-full").inner_text().strip() == "LS v2.28.2"
               expected = [
