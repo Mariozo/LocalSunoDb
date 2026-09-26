@@ -94,15 +94,36 @@ def ls_stem_base_title(value):
 _LOCAL_SUNO_DB_INIT_LOCK = threading.Lock()
 
 
-def _backup_primary_db_before_schema_upgrade(current_version):
+def _canonical_schema_present(database_path):
+    """Return True only for a LocalSuno canonical Track/Variant/Media database."""
+    database_path = Path(database_path)
+    if not database_path.is_file():
+        return False
+    conn = sqlite3.connect(database_path)
+    try:
+        names = {
+            row[0]
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+        return {
+            "tracks", "track_user", "track_variants", "media_files"
+        }.issubset(names)
+    finally:
+        conn.close()
+
+
+def _backup_db_before_schema_upgrade(database_path, current_version):
     """Create one consistent safety snapshot before an in-place schema upgrade."""
+    database_path = Path(database_path)
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     target = BACKUP_DIR / (
-        f"{DB_PATH.stem}_BEFORE_SCHEMA_V{int(current_version)}_TO_V"
-        f"{int(LOCAL_SUNO_SCHEMA_VERSION)}_{stamp}{DB_PATH.suffix}"
+        f"{database_path.stem}_BEFORE_SCHEMA_V{int(current_version)}_TO_V"
+        f"{int(LOCAL_SUNO_SCHEMA_VERSION)}_{stamp}{database_path.suffix}"
     )
-    source = sqlite3.connect(DB_PATH)
+    source = sqlite3.connect(database_path)
     destination = sqlite3.connect(target)
     try:
         source.backup(destination)
@@ -115,8 +136,36 @@ def _backup_primary_db_before_schema_upgrade(current_version):
     return target
 
 
+def _prepare_canonical_database(database_path):
+    """Upgrade one canonical DB and import the retired Local Family JSON once."""
+    database_path = Path(database_path)
+    if not _canonical_schema_present(database_path):
+        return False
+
+    conn = sqlite3.connect(database_path)
+    try:
+        current_version = int(
+            conn.execute("PRAGMA user_version").fetchone()[0] or 0
+        )
+    finally:
+        conn.close()
+
+    if current_version < LOCAL_SUNO_SCHEMA_VERSION:
+        _backup_db_before_schema_upgrade(database_path, current_version)
+
+    conn = sqlite3.connect(database_path)
+    try:
+        upgrade_local_suno_schema(conn)
+        conn.commit()
+    finally:
+        conn.close()
+
+    _import_local_family_json_into_db_once(database_path)
+    return True
+
+
 def ensure_local_suno_runtime_database():
-    """Ensure the primary canonical DB exists and is upgraded in place."""
+    """Ensure primary and effective active canonical DBs are ready for v2.29."""
     with _LOCAL_SUNO_DB_INIT_LOCK:
         DB_PATH.parent.mkdir(parents=True, exist_ok=True)
         REPORTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -147,25 +196,15 @@ def ensure_local_suno_runtime_database():
                         except OSError:
                             pass
 
-        conn = sqlite3.connect(DB_PATH)
+        _prepare_canonical_database(DB_PATH)
+
+        active_path = Path(get_active_database_path())
         try:
-            current_version = int(
-                conn.execute("PRAGMA user_version").fetchone()[0] or 0
-            )
-        finally:
-            conn.close()
-
-        if current_version < LOCAL_SUNO_SCHEMA_VERSION:
-            _backup_primary_db_before_schema_upgrade(current_version)
-
-        conn = sqlite3.connect(DB_PATH)
-        try:
-            upgrade_local_suno_schema(conn)
-            conn.commit()
-        finally:
-            conn.close()
-
-        _import_local_family_json_into_db_once()
+            same_database = active_path.resolve() == Path(DB_PATH).resolve()
+        except OSError:
+            same_database = str(active_path) == str(DB_PATH)
+        if not same_database:
+            _prepare_canonical_database(active_path)
 
 
 def get_local_library_database_state():
@@ -4125,9 +4164,10 @@ def _read_local_family_json_migration_source():
         return default
 
 
-def _import_local_family_json_into_db_once():
-    """Import legacy Local Family JSON without making it a runtime source."""
-    if not DB_PATH.is_file() or not LOCAL_FAMILY_MAP_PATH.is_file():
+def _import_local_family_json_into_db_once(database_path=None):
+    """Import legacy Local Family JSON into one canonical DB exactly once."""
+    database_path = Path(database_path or DB_PATH)
+    if not database_path.is_file() or not LOCAL_FAMILY_MAP_PATH.is_file():
         return 0
 
     data = _read_local_family_json_migration_source()
@@ -4135,7 +4175,7 @@ def _import_local_family_json_into_db_once():
     if not tracks:
         return 0
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(database_path)
     try:
         conn.execute("PRAGMA foreign_keys = ON")
         upgrade_local_suno_schema(conn)
