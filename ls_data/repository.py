@@ -29,6 +29,7 @@ from pathlib import Path, PurePosixPath
 
 from ls_core.runtime import *
 from ls_data.local_suno_migration import (
+    SCHEMA_VERSION as LOCAL_SUNO_SCHEMA_VERSION,
     create_schema as create_local_suno_schema,
     migrate as migrate_local_suno_database,
     upgrade_schema as upgrade_local_suno_schema,
@@ -92,6 +93,28 @@ def ls_stem_base_title(value):
 
 _LOCAL_SUNO_DB_INIT_LOCK = threading.Lock()
 
+
+def _backup_primary_db_before_schema_upgrade(current_version):
+    """Create one consistent safety snapshot before an in-place schema upgrade."""
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    target = BACKUP_DIR / (
+        f"{DB_PATH.stem}_BEFORE_SCHEMA_V{int(current_version)}_TO_V"
+        f"{int(LOCAL_SUNO_SCHEMA_VERSION)}_{stamp}{DB_PATH.suffix}"
+    )
+    source = sqlite3.connect(DB_PATH)
+    destination = sqlite3.connect(target)
+    try:
+        source.backup(destination)
+        check = destination.execute("PRAGMA quick_check").fetchone()
+        if not check or str(check[0]).lower() != "ok":
+            raise RuntimeError("Schema-upgrade backup integrity check failed")
+    finally:
+        destination.close()
+        source.close()
+    return target
+
+
 def ensure_local_suno_runtime_database():
     """Ensure the primary canonical DB exists and is upgraded in place."""
     with _LOCAL_SUNO_DB_INIT_LOCK:
@@ -123,6 +146,17 @@ def ensure_local_suno_runtime_database():
                             temp_path.unlink()
                         except OSError:
                             pass
+
+        conn = sqlite3.connect(DB_PATH)
+        try:
+            current_version = int(
+                conn.execute("PRAGMA user_version").fetchone()[0] or 0
+            )
+        finally:
+            conn.close()
+
+        if current_version < LOCAL_SUNO_SCHEMA_VERSION:
+            _backup_primary_db_before_schema_upgrade(current_version)
 
         conn = sqlite3.connect(DB_PATH)
         try:
