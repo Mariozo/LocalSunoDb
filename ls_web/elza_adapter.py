@@ -381,10 +381,21 @@ def get_ls_elza_selection_result(intent, limit=20):
         for item in (intent.get("exclude_ui_types") or [])
         if str(item or "").strip()
     }
+    anywhere_query = str(intent.get("anywhere_query") or "").strip()
+    anywhere_tokens = [
+        token
+        for token in re.findall(
+            r"[^\W_]+",
+            ls_elza_fold_text(anywhere_query),
+            flags=re.UNICODE,
+        )
+        if token
+    ]
     needs_exact_track_view = (
         exact_flag_mask is not None
         or bool(local_audio_extensions)
         or bool(excluded_ui_types)
+        or bool(anywhere_tokens)
     )
 
     def row_text(row, key):
@@ -434,6 +445,25 @@ def get_ls_elza_selection_result(intent, limit=20):
                     if suffix:
                         row_extensions.add(suffix)
                 if not local_audio_extensions.intersection(row_extensions):
+                    continue
+
+            if anywhere_tokens:
+                searchable_values = (
+                    row_text(row, "id"),
+                    row_text(row, "title"),
+                    row_text(row, "lyrics"),
+                    row_text(row, "prompt"),
+                    row_text(row, "user_tags"),
+                )
+                searchable_values = [
+                    ls_elza_fold_text(value)
+                    for value in searchable_values
+                    if value
+                ]
+                if not all(
+                    any(token in value for value in searchable_values)
+                    for token in anywhere_tokens
+                ):
                     continue
 
             exact_rows.append(row)

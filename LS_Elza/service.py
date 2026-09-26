@@ -223,6 +223,13 @@ new UI filter is required merely because this combination is not exposed in
 the normal filter controls: ls_prepare_selection can return an exact Track ID
 selection and the host will provide the "Atvērt atlasi LS" action.
 
+When the user asks for a word to be found "in a tag or elsewhere", "tagā vai
+citur", "jebkur", "anywhere", or equivalent wording, set anywhere_query to that
+requested word or phrase. anywhere_query means Name/Track ID OR Lyrics OR
+Prompt OR Tags. Do not encode a grammatical phrase such as "#tagā" as a literal
+requested tag. Leave tags empty unless the user names an actual tag value such
+as #Elizabete.
+
 If the user sends only a brief acknowledgement, thanks, approval, farewell, or
 emoji reaction without a new question, reply naturally in one short sentence.
 Do not call tools and do not append database counts, search state, selection,
