@@ -1,5 +1,6 @@
 from ls_core.runtime import *
 from ls_data.repository import get_best_local_audio_path_for_track
+from ls_web.render import render_top_tabs
 
 import uuid as _uuid
 
@@ -368,7 +369,7 @@ def _playlist_page_style():
     :root{color-scheme:dark;font-family:Inter,Segoe UI,Arial,sans-serif}
     *{box-sizing:border-box}body{margin:0;background:#0e0e10;color:#f5f5f5}
     a{color:inherit;text-decoration:none}button,input{font:inherit}
-    .playlist-shell{min-height:100vh;padding-bottom:84px}
+    .playlist-shell{min-height:100vh;padding-bottom:84px;margin-left:var(--ls-suno-sidebar-width);width:calc(100% - var(--ls-suno-sidebar-width))}
     .playlist-topbar{height:64px;border-bottom:1px solid #262629;display:flex;align-items:center;padding:0 28px;gap:24px;position:sticky;top:0;background:#0e0e10;z-index:5}
     .playlist-brand{font-size:23px;font-weight:800;letter-spacing:.04em}.playlist-nav{display:flex;gap:8px}
     .playlist-nav a{padding:10px 14px;border-radius:20px;color:#b8b8bd}.playlist-nav a.active,.playlist-nav a:hover{background:#252528;color:#fff}
@@ -393,7 +394,7 @@ def _playlist_page_style():
     .playlist-track-copy{display:flex;flex-direction:column;gap:5px;min-width:0}.playlist-track-copy strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.playlist-track-copy span{font-size:13px;color:#929299}
     .playlist-track-duration{color:#aaa;text-align:right}.playlist-track-remove{font-size:24px}.playlist-missing-badge{color:#e58c83!important;margin-left:8px}
     .playlist-empty-state{padding:50px;text-align:center;color:#999;border:1px dashed #35353a;border-radius:14px}
-    .playlist-player{position:fixed;left:0;right:0;bottom:0;height:74px;background:#09090a;border-top:1px solid #262629;display:grid;grid-template-columns:minmax(220px,1fr) minmax(360px,700px) minmax(220px,1fr);align-items:center;padding:0 28px;z-index:8}
+    .playlist-player{position:fixed;left:var(--ls-suno-sidebar-width);right:0;bottom:0;height:74px;background:#09090a;border-top:1px solid #262629;display:grid;grid-template-columns:minmax(220px,1fr) minmax(360px,700px) minmax(220px,1fr);align-items:center;padding:0 28px;z-index:8}
     .playlist-player-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.playlist-player-controls{display:flex;align-items:center;justify-content:center;gap:12px}.playlist-player-controls button{border:0;background:transparent;color:#fff;font-size:22px;cursor:pointer}
     .playlist-player audio{width:100%;height:36px}.playlist-player-spacer{min-width:0}
     @media(max-width:800px){.playlist-main{padding:20px}.playlist-hero{align-items:flex-start}.playlist-hero .playlist-cover{width:150px;height:150px;flex-basis:150px}.playlist-track-row{grid-template-columns:28px 34px 48px 32px minmax(0,1fr) 40px}.playlist-track-duration{display:none}.playlist-player{grid-template-columns:1fr;padding:8px 14px;height:92px}.playlist-player-title{display:none}}
@@ -662,15 +663,9 @@ def render_playlists_page(playlist_id="", add_track_id=""):
 <link rel="icon" type="image/x-icon" href="/ls-static/ls_web/static/LS.ico?v={esc(APP_VERSION)}">
 <style>{_playlist_page_style()}</style>
 </head>
-<body>
+<body id="ls-playlists">
+{render_top_tabs("playlists")}
 <div class="playlist-shell">
-<header class="playlist-topbar">
-  <a class="playlist-brand" data-library-return href="/">LS</a>
-  <nav class="playlist-nav">
-    <a data-library-return href="/">Suno Library</a>
-    <a class="active" href="/playlists">Playlists</a>
-  </nav>
-</header>
 {main}
 </div>
 <script>{_playlist_page_script(active_id, pending_track_id if active is None else "")}</script>
