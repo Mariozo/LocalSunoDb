@@ -50,10 +50,91 @@
             const abMarkerA = playerBlock.querySelector(".ab-marker-a");
             const abMarkerB = playerBlock.querySelector(".ab-marker-b");
             const zoomReadout = playerBlock.querySelector(".zoom-readout");
+            const beatCanvas = playerBlock.querySelector(".ls-player-beat-grid");
+            const dynamicZoomButton = playerBlock.querySelector("#ls-global-player-zoom");
+            let beatGrid = null;
+            let beatToken = 0;
             let abStart = null;
             let abEnd = null;
             let zoomStart = 0;
             let zoomEnd = null;
+
+            function syncDynamicZoomIcon(mode) {
+                if (!dynamicZoomButton) { return; }
+                const symbol = dynamicZoomButton.querySelector(".ls-global-player-zoom-symbol");
+                let state = mode || dynamicZoomButton.dataset.zoomState || "in";
+                const duration = audio.duration || 0;
+                const full = duration > 0 && zoomStart <= 0.01 && (zoomEnd === null || Math.abs((zoomEnd || duration) - duration) < 0.05);
+                if (full && state === "out") { state = "in"; }
+                dynamicZoomButton.dataset.zoomState = state;
+                if (symbol) { symbol.textContent = state === "out" ? "−" : (state === "reset" ? "↺" : "+"); }
+                dynamicZoomButton.title = state === "out" ? "Zoom − · Ctrl+rullītis zoom · dubultklikšķis reset" : (state === "reset" ? "Reset zoom" : "Zoom + · Ctrl+rullītis zoom · dubultklikšķis reset");
+                if (state === "reset") {
+                    window.clearTimeout(dynamicZoomButton.__lsResetTimer);
+                    dynamicZoomButton.__lsResetTimer = window.setTimeout(() => syncDynamicZoomIcon("in"), 850);
+                }
+            }
+
+            function drawBeatGrid() {
+                if (!beatCanvas) { return; }
+                const rect = beatCanvas.getBoundingClientRect();
+                const cssWidth = Math.max(1, Math.round(rect.width));
+                const cssHeight = Math.max(1, Math.round(rect.height));
+                const dpr = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
+                beatCanvas.width = Math.round(cssWidth * dpr);
+                beatCanvas.height = Math.round(cssHeight * dpr);
+                const ctx = beatCanvas.getContext("2d");
+                if (!ctx) { return; }
+                ctx.clearRect(0,0,beatCanvas.width,beatCanvas.height);
+                if (!beatGrid || !(audio.duration > 0) || !(beatGrid.bpm > 0)) { return; }
+                ctx.save(); ctx.scale(dpr,dpr);
+                const zoom = getZoomWindow(playerBlock, audio.duration);
+                const period = 60 / beatGrid.bpm;
+                const first = Math.floor((zoom.start - beatGrid.offset) / period) - 1;
+                const last = Math.ceil((zoom.end - beatGrid.offset) / period) + 1;
+                for (let i=first;i<=last;i+=1) {
+                    const t=beatGrid.offset+i*period;
+                    if (t<zoom.start-period || t>zoom.end+period) continue;
+                    const x=(t-zoom.start)/zoom.span*cssWidth;
+                    const bar=((i%4)+4)%4===0;
+                    ctx.strokeStyle=bar?"rgba(235,244,249,.22)":"rgba(235,244,249,.08)";
+                    ctx.lineWidth=bar?1:.6;
+                    ctx.beginPath(); ctx.moveTo(Math.round(x)+.5,0); ctx.lineTo(Math.round(x)+.5,cssHeight); ctx.stroke();
+                }
+                ctx.restore();
+            }
+
+            async function analyzeBeatGrid() {
+                const token=++beatToken; beatGrid=null; drawBeatGrid();
+                const preferred=Number(playerBlock.dataset.bpm||0)||0;
+                const src=String(audio.src||"");
+                if (!src) { return; }
+                try {
+                    const response=await fetch(src,{cache:"force-cache"});
+                    if(!response.ok) return;
+                    const bytes=await response.arrayBuffer();
+                    const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return;
+                    const context=new AC();
+                    try {
+                        const buffer=await context.decodeAudioData(bytes.slice(0));
+                        const data=buffer.getChannelData(0); const sr=buffer.sampleRate||44100; const blockSize=256; const rate=sr/blockSize; const blocks=Math.floor(data.length/blockSize);
+                        if(blocks<256) return;
+                        const onset=new Float32Array(blocks); let fast=0,slow=0,max=0;
+                        for(let b=0;b<blocks;b++){let a=0,d=0,n=0;const st=b*blockSize,en=Math.min(data.length,st+blockSize);for(let p=st+1;p<en;p+=4){const v=data[p]||0;a+=Math.abs(v);d+=Math.abs(v-(data[p-1]||0));n++;}const raw=n?(a/n)*.72+(d/n)*2.2:0;fast=fast*.55+raw*.45;slow=slow*.94+raw*.06;const o=Math.max(0,fast-slow*.92);onset[b]=o;if(o>max)max=o;}
+                        if(!(max>1e-6)) return;
+                        let bpm=preferred; let lag=0;
+                        if(bpm>40&&bpm<240){lag=Math.max(2,Math.round(rate*60/bpm));}
+                        else {
+                            const minLag=Math.floor(rate*60/190),maxLag=Math.ceil(rate*60/58);let bestScore=-1;
+                            for(let l=minLag;l<=maxLag;l++){let c=0,x=0,y=0;for(let i=l;i<blocks;i++){const A=onset[i],B=onset[i-l];c+=A*B;x+=A*A;y+=B*B;}const score=c/Math.sqrt(Math.max(1e-12,x*y));if(score>bestScore){bestScore=score;lag=l;}}
+                            bpm=60*rate/lag;
+                        }
+                        let bestPhase=0,bestScore=-1;
+                        for(let phase=0;phase<lag;phase++){let score=0;for(let i=phase;i<blocks;i+=lag){score+=onset[i];if(i+1<blocks)score+=onset[i+1]*.5;if(i>0)score+=onset[i-1]*.5;}if(score>bestScore){bestScore=score;bestPhase=phase;}}
+                        if(token!==beatToken)return; beatGrid={bpm,offset:bestPhase/rate}; drawBeatGrid();
+                    } finally { try{await context.close();}catch(_){} }
+                } catch (_) {}
+            }
 
             function resetZoomWindow() {
                 const duration = audio.duration || 0;
@@ -65,6 +146,7 @@
                     waveformBox.classList.remove("zoomed");
                 }
                 updateZoomReadout();
+                drawBeatGrid();
             }
 
             function updateWaveformVisualZoom() {
@@ -117,6 +199,7 @@
                 updateZoomReadout();
                 updateProgress(playerBlock);
                 updateABDisplay();
+                drawBeatGrid();
             }
 
             function fmtShortTime(value) {
@@ -216,6 +299,7 @@
                 resetZoomWindow();
                 updateProgress(playerBlock);
                 updateABDisplay();
+                analyzeBeatGrid();
             };
 
             audio.ontimeupdate = () => {
@@ -316,6 +400,7 @@
                     end = audio.duration;
                 }
                 setZoomWindow(start, end);
+                syncDynamicZoomIcon(event.deltaY < 0 ? "in" : "out");
             }, { passive: false });
 
             waveformBox.ondblclick = (event) => {
@@ -323,8 +408,36 @@
                 resetZoomWindow();
                 updateProgress(playerBlock);
                 updateABDisplay();
+                syncDynamicZoomIcon("reset");
             };
+
+            if (dynamicZoomButton) {
+                dynamicZoomButton.onclick = (event) => {
+                    event.preventDefault();
+                    if (!audio.duration) { return; }
+                    const state=dynamicZoomButton.dataset.zoomState||"in";
+                    const z=getZoomWindow(playerBlock,audio.duration);
+                    if(state==="reset"){resetZoomWindow();updateProgress(playerBlock);updateABDisplay();syncDynamicZoomIcon("reset");return;}
+                    const factor=state==="out"?1.62:.62;
+                    const center=(audio.currentTime>=z.start&&audio.currentTime<=z.end)?audio.currentTime:(z.start+z.end)/2;
+                    let span=Math.max(.5,Math.min(audio.duration,z.span*factor));
+                    if(span>=audio.duration-.05){resetZoomWindow();syncDynamicZoomIcon("reset");updateProgress(playerBlock);updateABDisplay();return;}
+                    let start=center-span/2,end=start+span;if(start<0){end-=start;start=0;}if(end>audio.duration){start-=end-audio.duration;end=audio.duration;}
+                    setZoomWindow(start,end);syncDynamicZoomIcon(state==="out"?"out":"in");
+                };
+                dynamicZoomButton.ondblclick = (event) => { event.preventDefault(); resetZoomWindow(); updateProgress(playerBlock); updateABDisplay(); syncDynamicZoomIcon("reset"); };
+            }
+
+            function makeABMarkerDraggable(node, which) {
+                if (!node || !waveformBox) return;
+                let pointer=null;
+                const move=(event)=>{if(pointer!==event.pointerId)return;const rect=waveformBox.getBoundingClientRect();if(!audio.duration||!rect.width)return;const ratio=Math.max(0,Math.min(1,(event.clientX-rect.left)/rect.width));const value=zoomPercentToTime(playerBlock,ratio);if(which==="a"){const hi=abEnd!==null?Math.max(0,abEnd-.05):audio.duration;abStart=Math.max(0,Math.min(value,hi));}else{const lo=abStart!==null?abStart+.05:0;abEnd=Math.max(lo,Math.min(value,audio.duration));}updateABDisplay();event.preventDefault();};
+                const done=(event)=>{if(pointer!==event.pointerId)return;pointer=null;try{node.releasePointerCapture(event.pointerId);}catch(_){} event.preventDefault();};
+                node.onpointerdown=(event)=>{if((which==="a"?abStart:abEnd)===null)return;pointer=event.pointerId;try{node.setPointerCapture(pointer);}catch(_){} move(event);event.stopPropagation();};
+                node.onpointermove=move;node.onpointerup=done;node.onpointercancel=done;
+            }
+            makeABMarkerDraggable(abMarkerA,"a");
+            makeABMarkerDraggable(abMarkerB,"b");
 
             return audio;
         }
-

@@ -4,6 +4,7 @@
 
             const audio = root.querySelector("audio.ls-global-player-audio");
             const playToggle = document.getElementById("ls-global-player-play");
+            const zoomButton = document.getElementById("ls-global-player-zoom");
             const restartButton = document.getElementById("ls-global-player-restart");
             const previousButton = document.getElementById("ls-global-player-previous");
             const nextButton = document.getElementById("ls-global-player-next");
@@ -295,6 +296,7 @@
                 progress.disabled = !enabled || hosted;
                 loopButton.disabled = !enabled || hosted;
                 if (drawerLoopButton) { drawerLoopButton.disabled = !enabled || hosted; }
+                if (zoomButton) { zoomButton.disabled = !enabled || hosted; }
                 expandButton.disabled = !enabled || hosted;
                 if (closeButton) { closeButton.disabled = !enabled; }
                 editButton.disabled = !enabled;
@@ -681,6 +683,7 @@
                 pauseStemsForMainSource();
                 leaveHostedMode();
                 currentSource = requestedSource;
+                root.dataset.bpm = String(current.bpm || 0);
 
                 // v5.510 black-box Player boundary: the Player receives one
                 // browser-playable URL. It does not care whether that URL points
@@ -872,6 +875,7 @@
                     coverFull: button.dataset.coverFull || button.dataset.cover || "",
                     localAudio: button.dataset.localAudio || "",
                     localPath: button.dataset.localPath || "",
+                    bpm: Number(button.dataset.bpm || 0) || 0,
                     webAudio: buildSunoCurrentPlaybackUrl(
                         trackId,
                         button.dataset.audio || ""
@@ -994,188 +998,3 @@
 
             progress.addEventListener("input", async () => {
                 if (!current || currentSource === "suno" || !audio.duration) { return; }
-                pauseStemsForMainSource();
-                audio.currentTime = (Number(progress.value || 0) / 100) * audio.duration;
-                updateProgress(root);
-            });
-
-            function toggleGlobalLoop() {
-                if (!current || currentSource === "suno") { return; }
-                audio.loop = !audio.loop;
-                syncLoopControls();
-                if (audio.loop) {
-                    setAutoplayListEnabled(false, true);
-                    lastActiveAudio = audio;
-                }
-            }
-
-            loopButton.addEventListener("click", () => {
-                toggleGlobalLoop();
-                blurCompactTransportControl(loopButton);
-            });
-            if (drawerLoopButton) {
-                drawerLoopButton.addEventListener("click", () => {
-                    toggleGlobalLoop();
-                    blurCompactTransportControl(drawerLoopButton);
-                });
-            }
-
-            expandButton.addEventListener("click", () => {
-                setExpanded(!root.classList.contains("expanded"));
-            });
-            if (closeButton) { closeButton.addEventListener("click", deactivate); }
-
-            compareButton.addEventListener("click", () => {
-                syncCompareSelectionState();
-                if (compareButton.disabled) { return; }
-                setExpanded(false);
-                leaveHostedMode();
-                audio.pause();
-                pauseStemsForMainSource();
-                document.dispatchEvent(new CustomEvent(
-                    "ls-library-open-selected-wav-compare"
-                ));
-            });
-
-            document.addEventListener(
-                "ls-library-wav-selection-changed",
-                syncCompareSelectionState
-            );
-
-            async function toggleStems() {
-                if (root.classList.contains("stems-mode")) {
-                    setStemMode(false);
-                    return false;
-                }
-                return await openStems();
-            }
-
-            function returnToSunoLibraryWithoutReload() {
-                if (!root.classList.contains("stems-mode")) { return false; }
-                setStemMode(false);
-                setExpanded(false);
-                schedulePlayerAlignment();
-                syncPlayerReservedHeight();
-                focusMainPlayControl();
-                return true;
-            }
-
-            stemsButton.addEventListener("click", async () => {
-                await toggleStems();
-                focusMainPlayControl();
-            });
-
-            if (sidebarStemsButton) {
-                sidebarStemsButton.addEventListener("click", async () => {
-                    if (sidebarStemsButton.disabled || !current || !current.hasStems) { return; }
-                    await toggleStems();
-                    focusMainPlayControl();
-                });
-            }
-
-            if (sidebarSunoLibraryLink) {
-                sidebarSunoLibraryLink.addEventListener("click", (event) => {
-                    if (
-                        event.defaultPrevented ||
-                        event.button !== 0 ||
-                        event.ctrlKey || event.metaKey || event.shiftKey || event.altKey
-                    ) {
-                        return;
-                    }
-                    if (!root.classList.contains("stems-mode")) { return; }
-                    event.preventDefault();
-                    returnToSunoLibraryWithoutReload();
-                });
-            }
-
-            editButton.addEventListener("click", () => {
-                if (!currentFragmentRow || !current) { return; }
-                if (currentSource === "local") {
-                    const localEditButton = currentFragmentRow.querySelector(".edit-local-btn");
-                    if (localEditButton) {
-                        localEditButton.dataset.localPath = current.localPath || "";
-                        localEditButton.click();
-                    }
-                    return;
-                }
-                const sunoEditButton = currentFragmentRow.querySelector(".edit-suno-btn");
-                if (sunoEditButton) { sunoEditButton.click(); }
-            });
-
-            function syncPlaybackSelection() {
-                pauseStemsForMainSource();
-                syncPlayState();
-                syncGlobalPlayerTrackContext();
-            }
-
-            document.addEventListener("ls-selected-track-changed", (event) => {
-                const detail = event && event.detail ? event.detail : {};
-                if (detail.source !== "selection") { return; }
-                const trackId = String(detail.trackId || "").trim();
-                const selectedRow = Array.from(
-                    table.querySelectorAll("tr.track-row")
-                ).find((row) => String(row.dataset.trackId || "") === trackId);
-                const selectedPlayButton = selectedRow
-                    ? selectedRow.querySelector(".ls-cover-play-btn")
-                    : null;
-                if (selectedPlayButton) {
-                    loadFromButton(selectedPlayButton, false);
-                    return;
-                }
-                leaveHostedMode();
-                if (current && !audio.paused) { audio.pause(); }
-                if (
-                    stemPanel &&
-                    currentStemBlock === stemPanel &&
-                    typeof pauseStemBlock === "function"
-                ) {
-                    pauseStemBlock(stemPanel);
-                }
-            });
-
-            audio.addEventListener("play", syncPlaybackSelection);
-            audio.addEventListener("pause", syncPlayState);
-            audio.addEventListener("ended", syncPlayState);
-            audio.addEventListener("timeupdate", syncCompactProgress);
-            audio.addEventListener("loadedmetadata", syncCompactProgress);
-
-            deactivate();
-            return {
-                loadFromButton: loadFromButton,
-                loadFromStemButton: loadFromStemButton,
-                openStems: openStems,
-                toggleStems: toggleStems,
-                returnToSunoLibrary: returnToSunoLibraryWithoutReload,
-                deactivate: deactivate,
-                pauseMainForStems: pauseMainForStems,
-                setStemPlaybackActive: setStemPlaybackActive,
-                getAudio: () => audio,
-                getCurrentTrackId: () => current ? current.trackId : "",
-                getCurrentSource: () => currentSource,
-                hasCurrentTrack: () => Boolean(current),
-                togglePlayback: toggleUnifiedPlayback,
-                activateStemPlayback: activateStemPlayback,
-                isStemsViewOpen: isStemsViewOpen,
-                isStemPlaybackActive: () => stemPlaybackActive,
-                syncStemTransport: syncStemTransport,
-                restart: restartCurrentTrack,
-                previous: () => loadAdjacentTrack(-1),
-                next: () => loadAdjacentTrack(1),
-                focusMainPlay: () => {
-                    window.requestAnimationFrame(() => {
-                        try { playToggle.focus({ preventScroll: true }); }
-                        catch (error) { playToggle.focus(); }
-                    });
-                },
-            };
-        }
-
-        // The Stems engine may publish an initial progress reset while the
-        // global controller is still being constructed. Initialize the shared
-        // reference first so those callbacks see null instead of the temporal
-        // dead zone of a const initializer.
-        let lsGlobalPlayer = null;
-        lsGlobalPlayer = createGlobalPlayerController();
-        window.LS = window.LS || {};
-        window.LS.player = lsGlobalPlayer;
-
