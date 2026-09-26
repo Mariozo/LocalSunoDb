@@ -31,6 +31,24 @@
                 });
             }
 
+            const profileButton = document.getElementById("profile-menu-btn");
+            const profileMenu = document.getElementById("profile-menu");
+            if (profileButton && profileMenu) {
+                profileButton.addEventListener("click", (event) => {
+                    event.stopPropagation();
+                    profileMenu.classList.toggle("hidden");
+                });
+                document.addEventListener("click", (event) => {
+                    if (
+                        !profileMenu.classList.contains("hidden") &&
+                        !profileMenu.contains(event.target) &&
+                        !profileButton.contains(event.target)
+                    ) {
+                        profileMenu.classList.add("hidden");
+                    }
+                });
+            }
+
             // Keep the Library DOM alive while Imports is open.  Imports is shown
             // in a same-origin full-window iframe, so returning to Library does not
             // issue a new GET / request and does not rebuild the 5 MB Library page.
