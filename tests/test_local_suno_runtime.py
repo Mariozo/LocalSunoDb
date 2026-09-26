@@ -223,6 +223,12 @@ def test_existing_db_upgrades_metadata_and_imports_local_family_json(tmp_path, m
     db_path = tmp_path / "Data" / "local_suno.db"
     db_path.parent.mkdir(parents=True)
     _canonical_db(db_path)
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute("PRAGMA user_version = 1")
+        conn.commit()
+    finally:
+        conn.close()
     _wire_repository(monkeypatch, db_path, tmp_path)
 
     family_path = tmp_path / "Data" / "suno_local_family_map.json"
@@ -256,11 +262,9 @@ def test_existing_db_upgrades_metadata_and_imports_local_family_json(tmp_path, m
     backup_conn = sqlite3.connect(backups[0])
     try:
         assert backup_conn.execute("PRAGMA user_version").fetchone()[0] == 1
-        backup_columns = {
-            row[1]
-            for row in backup_conn.execute("PRAGMA table_info(tracks)").fetchall()
-        }
-        assert "artist" not in backup_columns
+        assert backup_conn.execute(
+            "SELECT title FROM tracks WHERE id='t1'"
+        ).fetchone()[0] == "Track 1"
         assert backup_conn.execute("PRAGMA quick_check").fetchone()[0] == "ok"
     finally:
         backup_conn.close()
