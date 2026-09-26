@@ -127,7 +127,13 @@ class UpgradePackage:
 
 
 def parse_version(value: Any) -> tuple[int, int]:
-    match = re.fullmatch(r"v?(\d+)\.(\d+)", str(value or "").strip())
+    """Return the stable release line for a release or visible test iteration.
+
+    User-visible test builds may add a third numeric identity component
+    (for example v2.27.1). Upgrade compatibility is intentionally decided
+    by the stable major/minor release line, so v2.27.1 belongs to v2.27.
+    """
+    match = re.fullmatch(r"v?(\d+)\.(\d+)(?:\.\d+)?", str(value or "").strip())
     if not match:
         raise ValueError(f"Invalid LS version: {value}")
     return int(match.group(1)), int(match.group(2))
