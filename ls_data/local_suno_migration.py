@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path, PureWindowsPath
 from typing import Any
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 _FORBIDDEN_AUDIO_HOSTS = {"studio-api.prod.suno.com", "studio-api-prod.suno.com"}
 
 
@@ -64,6 +64,15 @@ def _float_or_none(value: Any) -> float | None:
         return None
     try:
         return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _int_or_none(value: Any) -> int | None:
+    if value is None or _text(value) == "":
+        return None
+    try:
+        return int(value)
     except (TypeError, ValueError):
         return None
 
@@ -187,6 +196,10 @@ def create_schema(conn: sqlite3.Connection) -> None:
             kind TEXT,
             caption TEXT,
             lyrics TEXT,
+            artist TEXT,
+            album TEXT,
+            track_number INTEGER,
+            lyricist TEXT,
             library_status TEXT NOT NULL DEFAULT 'active',
             finder_hidden INTEGER NOT NULL DEFAULT 0 CHECK(finder_hidden IN (0,1)),
             finder_hidden_reason TEXT,
@@ -240,6 +253,23 @@ def create_schema(conn: sqlite3.Connection) -> None:
             FOREIGN KEY(track_id) REFERENCES tracks(id) ON DELETE CASCADE
         );
 
+        CREATE TABLE track_local_family (
+            track_id TEXT PRIMARY KEY,
+            family_title TEXT NOT NULL,
+            category TEXT NOT NULL DEFAULT '',
+            updated_at TEXT,
+            FOREIGN KEY(track_id) REFERENCES tracks(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE track_local_family_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            track_id TEXT NOT NULL,
+            family_title TEXT NOT NULL,
+            category TEXT NOT NULL DEFAULT '',
+            changed_at TEXT NOT NULL,
+            FOREIGN KEY(track_id) REFERENCES tracks(id) ON DELETE CASCADE
+        );
+
         CREATE TABLE local_playlists (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
@@ -265,8 +295,59 @@ def create_schema(conn: sqlite3.Connection) -> None:
             ON media_files(variant_id) WHERE role='main';
         CREATE INDEX idx_media_chronology ON media_files(chronology_at, id);
         CREATE INDEX idx_media_suno_clip ON media_files(suno_clip_id);
+        CREATE INDEX idx_local_family_title
+            ON track_local_family(family_title COLLATE NOCASE, track_id);
+        CREATE INDEX idx_local_family_history_track
+            ON track_local_family_history(track_id, changed_at);
         CREATE INDEX idx_playlist_items_position
             ON local_playlist_items(playlist_id, position);
+        """
+    )
+    conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+
+
+def upgrade_schema(conn: sqlite3.Connection) -> None:
+    """Upgrade an existing canonical DB in place without rewriting user data."""
+    conn.execute("PRAGMA foreign_keys = ON")
+    if not _table_exists(conn, "tracks"):
+        create_schema(conn)
+        return
+
+    track_columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(tracks)").fetchall()
+    }
+    for name, sql_type in (
+        ("artist", "TEXT"),
+        ("album", "TEXT"),
+        ("track_number", "INTEGER"),
+        ("lyricist", "TEXT"),
+    ):
+        if name not in track_columns:
+            conn.execute(f'ALTER TABLE tracks ADD COLUMN "{name}" {sql_type}')
+
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS track_local_family (
+            track_id TEXT PRIMARY KEY,
+            family_title TEXT NOT NULL,
+            category TEXT NOT NULL DEFAULT '',
+            updated_at TEXT,
+            FOREIGN KEY(track_id) REFERENCES tracks(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS track_local_family_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            track_id TEXT NOT NULL,
+            family_title TEXT NOT NULL,
+            category TEXT NOT NULL DEFAULT '',
+            changed_at TEXT NOT NULL,
+            FOREIGN KEY(track_id) REFERENCES tracks(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_local_family_title
+            ON track_local_family(family_title COLLATE NOCASE, track_id);
+        CREATE INDEX IF NOT EXISTS idx_local_family_history_track
+            ON track_local_family_history(track_id, changed_at);
         """
     )
     conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
