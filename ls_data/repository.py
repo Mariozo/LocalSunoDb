@@ -28,8 +28,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path, PurePosixPath
 
 from ls_core.runtime import *
-from ls_data.local_suno_migration import create_schema as create_local_suno_schema, migrate as migrate_local_suno_database
-from ls_data.local_suno_runtime import configure_legacy_runtime_views
+from ls_data.local_suno_migration import (
+    create_schema as create_local_suno_schema,
+    migrate as migrate_local_suno_database,
+    upgrade_schema as upgrade_local_suno_schema,
+)
 from ls_data.database_context import (
     PRIMARY_DATABASE_ID,
     get_active_database_path,
@@ -90,41 +93,45 @@ def ls_stem_base_title(value):
 _LOCAL_SUNO_DB_INIT_LOCK = threading.Lock()
 
 def ensure_local_suno_runtime_database():
-    """Ensure a usable canonical DB exists on both upgrades and fresh installs."""
-    if DB_PATH.is_file():
-        return
+    """Ensure the primary canonical DB exists and is upgraded in place."""
     with _LOCAL_SUNO_DB_INIT_LOCK:
-        if DB_PATH.is_file():
-            return
-
         DB_PATH.parent.mkdir(parents=True, exist_ok=True)
         REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
-        if LEGACY_DB_PATH.is_file():
-            migrate_local_suno_database(
-                LEGACY_DB_PATH,
-                DB_PATH,
-                REPORTS_DIR / "local_suno_migration_report.json",
-            )
-            return
-
-        temp_path = DB_PATH.with_suffix(DB_PATH.suffix + ".creating")
-        try:
-            if temp_path.exists():
-                temp_path.unlink()
-            conn = sqlite3.connect(temp_path)
-            try:
-                create_local_suno_schema(conn)
-                conn.commit()
-            finally:
-                conn.close()
-            temp_path.replace(DB_PATH)
-        finally:
-            if temp_path.exists():
+        if not DB_PATH.is_file():
+            if LEGACY_DB_PATH.is_file():
+                migrate_local_suno_database(
+                    LEGACY_DB_PATH,
+                    DB_PATH,
+                    REPORTS_DIR / "local_suno_migration_report.json",
+                )
+            else:
+                temp_path = DB_PATH.with_suffix(DB_PATH.suffix + ".creating")
                 try:
-                    temp_path.unlink()
-                except OSError:
-                    pass
+                    if temp_path.exists():
+                        temp_path.unlink()
+                    conn = sqlite3.connect(temp_path)
+                    try:
+                        create_local_suno_schema(conn)
+                        conn.commit()
+                    finally:
+                        conn.close()
+                    temp_path.replace(DB_PATH)
+                finally:
+                    if temp_path.exists():
+                        try:
+                            temp_path.unlink()
+                        except OSError:
+                            pass
+
+        conn = sqlite3.connect(DB_PATH)
+        try:
+            upgrade_local_suno_schema(conn)
+            conn.commit()
+        finally:
+            conn.close()
+
+        _import_local_family_json_into_db_once()
 
 
 def get_local_library_database_state():
@@ -171,10 +178,9 @@ def get_canonical_connection(database_id=None):
 def get_connection(database_id=None):
     """Open the selected library DB through one connection factory.
 
-    Existing callers need no changes: without an explicit database_id they use
-    the effective active target.  The built-in main DB keeps the legacy
-    create/migrate behavior; registered secondary DBs are never created or
-    migrated implicitly.
+    Existing callers use the effective active target. The primary DB is
+    upgraded in place; secondary DBs are opened as-is. No legacy TEMP VIEW
+    compatibility layer is installed.
     """
     if database_id is None or str(database_id or "").strip() == "":
         target = get_active_database_target()
@@ -194,7 +200,6 @@ def get_connection(database_id=None):
     conn.create_function("ls_stem_base_title", 1, ls_stem_base_title)
     conn.create_function("ls_sort_text", 1, lv_sort_key)
     conn.create_function("ls_duration_seconds", 1, duration_sort_value)
-    configure_legacy_runtime_views(conn)
     return conn
 
 def get_table_columns():
