@@ -964,16 +964,10 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
   syncZoomControl();
 
   const setView = view => {{
-    const useGrid = view !== 'list';
-    document.querySelector('.grid-panel')?.classList.toggle('visible', useGrid);
-    document.querySelector('.list-panel')?.classList.toggle('visible', !useGrid);
-    document.getElementById('grid-view')?.classList.toggle('active', useGrid);
-    document.getElementById('list-view')?.classList.toggle('active', !useGrid);
-    try {{
-      const p = new URLSearchParams(location.search);
-      p.set('view', useGrid ? 'grid' : 'list');
-      history.replaceState(history.state, '', '/my-library?' + p.toString());
-    }} catch (_) {{}}
+    const p = new URLSearchParams(location.search);
+    p.delete('ls_embedded');
+    p.set('view', view);
+    shellNavigate('/my-library?' + p.toString());
   }};
   document.getElementById('grid-view')?.addEventListener('click', () => setView('grid'));
   document.getElementById('list-view')?.addEventListener('click', () => setView('list'));
