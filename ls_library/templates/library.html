@@ -201,6 +201,35 @@
     </header>
     @@LS5@@
     @@LS6@@
+    <script>
+    (() => {
+      const action = new URLSearchParams(window.location.search).get("ls_action");
+      if (!action) return;
+      const ids = {
+        explore: "open-f4-search-btn",
+        elza: "ls-elza-open-btn",
+        tools: "ls-sidebar-tools-trigger",
+        stats: "open-stats-modal",
+        settings: "open-settings-modal",
+        auto: "autoplay-top-btn"
+      };
+      const id = ids[action];
+      if (!id) return;
+      window.addEventListener("DOMContentLoaded", () => {
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("ls_action");
+          const query = url.searchParams.toString();
+          window.history.replaceState(
+            window.history.state,
+            "",
+            url.pathname + (query ? "?" + query : "") + url.hash
+          );
+        } catch (_) {}
+        window.setTimeout(() => document.getElementById(id)?.click(), 0);
+      }, {once:true});
+    })();
+    </script>
     <main>
         <div class="panel">
             <form method="get" action="/" id="main-filter-form">
