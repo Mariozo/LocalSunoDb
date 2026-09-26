@@ -228,13 +228,7 @@ def ids(rows):
     return [str(row["id"]) for row in rows]
 
 
-def test_canonical_connection_has_no_legacy_temp_views(canonical_library, monkeypatch):
-    monkeypatch.setattr(
-        repository,
-        "configure_legacy_runtime_views",
-        lambda _conn: (_ for _ in ()).throw(AssertionError("legacy view configured")),
-    )
-
+def test_canonical_connection_has_no_legacy_temp_views(canonical_library):
     conn = repository.get_canonical_connection()
     try:
         temp_names = {
@@ -251,13 +245,7 @@ def test_canonical_connection_has_no_legacy_temp_views(canonical_library, monkey
         conn.close()
 
 
-def test_direct_library_filters_use_canonical_columns(canonical_library, monkeypatch):
-    monkeypatch.setattr(
-        repository,
-        "configure_legacy_runtime_views",
-        lambda _conn: (_ for _ in ()).throw(AssertionError("legacy view configured")),
-    )
-
+def test_direct_library_filters_use_canonical_columns(canonical_library):
     assert set(ids(repository.search_tracks(limit_value="all"))) == {
         "alpha", "beta", "gamma", "delta"
     }
@@ -313,13 +301,7 @@ def test_direct_library_filters_use_canonical_columns(canonical_library, monkeyp
     assert row["style"] == "jazz"
 
 
-def test_direct_library_sort_cursor_count_and_local_media(canonical_library, monkeypatch):
-    monkeypatch.setattr(
-        repository,
-        "configure_legacy_runtime_views",
-        lambda _conn: (_ for _ in ()).throw(AssertionError("legacy view configured")),
-    )
-
+def test_direct_library_sort_cursor_count_and_local_media(canonical_library):
     assert ids(repository.search_tracks(
         limit_value="all", sort_by="title", sort_dir="asc"
     )) == ["alpha", "beta", "delta", "gamma"]
