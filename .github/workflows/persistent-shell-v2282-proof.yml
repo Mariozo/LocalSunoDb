@@ -160,11 +160,23 @@ jobs:
                   "(el) => getComputedStyle(el).display"
               ) == "none"
 
+              print("MYLIB before", {
+                  "parent_url": page.url,
+                  "frame_url": my_frame.url,
+                  "shell_type": my_frame.evaluate("() => typeof window.LSShellNavigate"),
+                  "errors": list(errors),
+              })
               my_frame.locator("#list-view").click()
-              page.wait_for_function(
-                  "() => location.pathname === '/my-library' && new URLSearchParams(location.search).get('view') === 'list'",
-                  timeout=10000,
-              )
+              page.wait_for_timeout(800)
+              print("MYLIB after", {
+                  "parent_url": page.url,
+                  "frames": [frame.url for frame in page.frames],
+                  "errors": list(errors),
+              })
+              assert (
+                  page.url.startswith(base + "/my-library")
+                  and "view=list" in page.url
+              ), (page.url, [frame.url for frame in page.frames], errors)
               page.wait_for_timeout(800)
               list_frame = frame_with(page, "view=list")
               assert list_frame is not None, [frame.url for frame in page.frames]
