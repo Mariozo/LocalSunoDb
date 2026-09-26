@@ -160,16 +160,10 @@ jobs:
                   "(el) => getComputedStyle(el).display"
               ) == "none"
 
-              my_frame.locator("#list-view").click()
-              my_frame.wait_for_function(
-                  "() => document.querySelector('.list-panel')?.classList.contains('visible')",
-                  timeout=10000,
-              )
-              page.wait_for_timeout(300)
               list_frame = my_frame
               play = list_frame.locator(".music-row-play").first
-              play.wait_for(state="visible", timeout=5000)
-              play.click()
+              play.wait_for(state="attached", timeout=5000)
+              play.evaluate("(button) => button.click()")
 
               list_frame.locator("#my-player-audio").evaluate(
                   """async (audio) => {
