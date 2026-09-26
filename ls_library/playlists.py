@@ -407,6 +407,10 @@ def _playlist_page_script(active_playlist_id="", pending_track_id=""):
     (() => {{
       const activePlaylistId = {active_json};
       const pendingTrackId = {pending_json};
+      const shellNavigate = (url) => {{
+        if (typeof window.LSShellNavigate === "function" && window.LSShellNavigate(url)) return;
+        window.location.href = url;
+      }};
       let libraryReturnUrl = "/";
       try {{
         const remembered = String(sessionStorage.getItem("ls.library.returnUrl") || "");
@@ -436,7 +440,7 @@ def _playlist_page_script(active_playlist_id="", pending_track_id=""):
               track_id: pendingTrackId,
             }});
           }}
-          window.location.href = "/playlists?id=" + encodeURIComponent(data.playlist.id);
+          shellNavigate("/playlists?id=" + encodeURIComponent(data.playlist.id));
         }} catch (error) {{ window.alert(error.message); }}
       }});
 
@@ -466,7 +470,7 @@ def _playlist_page_script(active_playlist_id="", pending_track_id=""):
         if (!window.confirm("Delete this playlist? Songs will not be deleted.")) return;
         try {{
           await post("/playlist-delete", {{playlist_id: activePlaylistId}});
-          window.location.href = "/playlists";
+          shellNavigate("/playlists");
         }} catch (error) {{ window.alert(error.message); }}
       }});
 
@@ -660,9 +664,11 @@ def render_playlists_page(playlist_id="", add_track_id=""):
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Playlists · LocalSunoDb</title>
 <link rel="icon" type="image/x-icon" href="/ls-static/ls_web/static/LS.ico?v={esc(APP_VERSION)}">
+<link rel="stylesheet" href="/ls-static/ls_web/static/persistent_shell.css?v={esc(APP_VERSION)}">
+<script src="/ls-static/ls_web/static/persistent_shell.js?v={esc(APP_VERSION)}" defer></script>
 <style>{_playlist_page_style()}</style>
 </head>
-<body>
+<body id="ls-playlists">
 <div class="playlist-shell">
 <header class="playlist-topbar">
   <a class="playlist-brand" data-library-return href="/">LS</a>
@@ -764,8 +770,11 @@ def render_playlist_library_actions_script():
       sessionStorage.setItem("ls.library.returnUrl", returnUrl || "/");
     } catch (_) {}
 
-    window.location.href =
+    const playlistUrl =
       "/playlists?add_track=" + encodeURIComponent(trackId);
+    if (!(typeof window.LSShellNavigate === "function" && window.LSShellNavigate(playlistUrl))) {
+      window.location.href = playlistUrl;
+    }
   });
 
   let menuLoadToken = 0;
