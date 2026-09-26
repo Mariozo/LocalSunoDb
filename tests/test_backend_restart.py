@@ -4,6 +4,7 @@ import re
 from ls_tools import launcher
 from ls_core import runtime
 from ls_web import render as web_render
+from ls_upgrade.package import is_direct_successor, parse_version
 
 
 def test_entrypoint_and_runtime_versions_are_aligned():
@@ -16,6 +17,12 @@ def test_entrypoint_and_runtime_versions_are_aligned():
     assert entry_based_on is not None
     assert entry_version.group(1) == runtime.APP_VERSION
     assert entry_based_on.group(1) == runtime.APP_BASED_ON
+
+
+def test_upgrade_version_parser_accepts_visible_test_iteration_suffix():
+    assert parse_version("v2.27.1") == (2, 27)
+    assert parse_version("2.27.9") == (2, 27)
+    assert is_direct_successor("v2.28", "v2.27.1") is True
 
 
 def test_popup_theme_is_loaded_last_in_library_head():
