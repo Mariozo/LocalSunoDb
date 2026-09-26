@@ -31,6 +31,7 @@ _REQUIRED_FIELDS = {
 _OPTIONAL_FIELDS = {
     "exclude_ui_types",
     "local_audio_extensions",
+    "anywhere_query",
 }
 _ALLOWED_FIELDS = _REQUIRED_FIELDS | _OPTIONAL_FIELDS
 
@@ -135,6 +136,14 @@ def get_selection_tool_definition():
                 "title_query": {
                     "type": "string",
                     "description": "Explicit title/name search text, otherwise empty.",
+                },
+                "anywhere_query": {
+                    "type": "string",
+                    "description": (
+                        "Free-text term that may match Name/Track ID, Lyrics, Prompt, "
+                        "or Tags. Use this for requests such as 'word Elizabete is in "
+                        "a tag or elsewhere'. Leave empty when not requested."
+                    ),
                 },
                 "exact_stem_count": {
                     "type": "integer",
@@ -274,6 +283,7 @@ def normalize_selection_request(arguments):
         "local_family": local_family,
         "local_family_assigned": local_family_assigned,
         "title_query": _clean_text(arguments.get("title_query"), 300),
+        "anywhere_query": _clean_text(arguments.get("anywhere_query"), 300),
         "exact_stem_count": exact_stem_count,
     }
 
