@@ -41,36 +41,112 @@ def render_metadata_backfill_alert_monitor(active_section):
 def render_top_tabs(active="suno"):
     def tab_class(key):
         return "header-tab active" if key == active else "header-tab"
+
     suno_view_url = get_section_view_url("suno")
     downloader_view_url = get_section_view_url("downloader")
-    downloader_subnav_html = ""
-    if active == "downloader":
-        downloader_subnav_html = """
-                <div class="ls-sidebar-subnav" aria-label="Importa rīki">
-                    <button type="button" class="ls-sidebar-subtab active" data-downloader-section-target="connection" title="Suno savienojums"><span class="ls-sidebar-icon" aria-hidden="true">↔</span><span class="ls-sidebar-label">Savienojums</span></button>
-                    <button type="button" class="ls-sidebar-subtab" data-downloader-section-target="audio" title="WAV imports"><span class="ls-sidebar-icon" aria-hidden="true">♪</span><span class="ls-sidebar-label">WAV imports</span></button>
-                    <button type="button" class="ls-sidebar-subtab" data-downloader-section-target="metadata" title="Metadati"><span class="ls-sidebar-icon" aria-hidden="true">◎</span><span class="ls-sidebar-label">Metadati</span></button>
-                </div>
-        """
+
+    nav_html = f"""
+                <a class="{tab_class('suno')}" href="{esc(suno_view_url)}" title="Suno Library">
+                    <span class="ls-sidebar-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M7.2 18.2H6a4 4 0 0 1-.6-7.95A6.5 6.5 0 0 1 18 8.2a4.6 4.6 0 0 1-.5 9.18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            <path d="M14.5 10.2v7.1a2 2 0 1 1-1.4-1.9v-4.5l4.1-.9v5.9a2 2 0 1 1-1.4-1.9v-4.1l-2.7.6" fill="currentColor"/>
+                        </svg>
+                    </span>
+                    <span class="ls-sidebar-label">Suno Library</span>
+                </a>
+                <a class="{tab_class('my_library')}" href="/my-library" title="My Library">
+                    <span class="ls-sidebar-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M4 6.5 12 3l8 3.5v11L12 21l-8-3.5v-11Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+                            <path d="M8 9.5h8M8 13h8M8 16.5h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                        </svg>
+                    </span>
+                    <span class="ls-sidebar-label">My Library</span>
+                </a>
+                <a class="{tab_class('playlists')}" href="/playlists" title="Playlists">
+                    <span class="ls-sidebar-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M6 6h12M6 12h12M6 18h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            <path d="M4 6h.01M4 12h.01M4 18h.01" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+                        </svg>
+                    </span>
+                    <span class="ls-sidebar-label">Playlists</span>
+                </a>
+                <button type="button" class="header-tab ls-sidebar-stems-tab"
+                        title="Stems ir pieejami Suno Library izvēlētajai dziesmai"
+                        aria-label="Stems" disabled>
+                    <span class="ls-sidebar-stems-branch" aria-hidden="true"></span>
+                    <span class="ls-sidebar-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        </svg>
+                    </span>
+                    <span class="ls-sidebar-label">Stems</span>
+                </button>
+                <a class="{tab_class('downloader')}" href="{esc(downloader_view_url)}" title="Imports">
+                    <span class="ls-sidebar-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M12 3.5v11m0 0 4-4m-4 4-4-4M5 18v2h14v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </span>
+                    <span class="ls-sidebar-label">Imports</span>
+                </a>
+                <a class="header-tab" href="/?ls_action=explore" title="Explore">
+                    <span class="ls-sidebar-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <circle cx="10.7" cy="10.7" r="6.2" stroke="currentColor" stroke-width="2"/>
+                            <path d="m15.3 15.3 4.4 4.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </span>
+                    <span class="ls-sidebar-label">Explore</span>
+                </a>
+                <a class="header-tab" href="/?ls_action=elza" title="Open LS Elza">
+                    <span class="ls-sidebar-icon ls-sidebar-question-icon" aria-hidden="true">?</span>
+                    <span class="ls-sidebar-label">LS Elza</span>
+                </a>
+                <a class="header-tab" href="/?ls_action=tools" title="Rīki">
+                    <span class="ls-sidebar-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M14.7 6.3a4.2 4.2 0 0 0-5.3 5.3L4 17l3 3 5.4-5.4a4.2 4.2 0 0 0 5.3-5.3l-2.6 2.6-3-3 2.6-2.6Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                        </svg>
+                    </span>
+                    <span class="ls-sidebar-label">Rīki</span>
+                </a>
+    """
+
+    actions_html = """
+                <a class="ls-sidebar-bottom-item" href="/?ls_action=auto" title="Auto">
+                    <span class="ls-sidebar-icon" aria-hidden="true">▶</span>
+                    <span class="ls-sidebar-label">Auto</span>
+                </a>
+                <a class="ls-sidebar-bottom-item" href="/?ls_action=stats" title="Stats">
+                    <span class="ls-sidebar-icon" aria-hidden="true">▥</span>
+                    <span class="ls-sidebar-label">Stats</span>
+                </a>
+                <a class="ls-sidebar-bottom-item" href="/?ls_action=settings" title="Settings">
+                    <span class="ls-sidebar-icon" aria-hidden="true">⚙</span>
+                    <span class="ls-sidebar-label">Settings</span>
+                </a>
+                <a class="ls-sidebar-bottom-item" href="/help" title="Help">
+                    <span class="ls-sidebar-icon" aria-hidden="true">?</span>
+                    <span class="ls-sidebar-label">Help</span>
+                </a>
+    """
+
     values = [
         APP_VERSION,
         esc(get_cached_suno_credits_display()),
         esc(get_cached_suno_credits_display()),
-        tab_class('suno'),
-        esc(suno_view_url),
-        tab_class('downloader'),
-        esc(downloader_view_url),
-        downloader_subnav_html,
-        render_ls_elza_button(),
-        esc(suno_view_url),
+        nav_html,
+        actions_html,
         render_suno_credits_monitor(),
-        render_metadata_backfill_alert_monitor(active)
+        render_metadata_backfill_alert_monitor(active),
     ]
     result = render_template_tokens('ls_web/templates/secondary_sidebar.html', values)
     result = result.replace('@@LSCSS@@', '<link rel="stylesheet" href="' + asset_url('ls_web/static/secondary_sidebar.css') + '">')
     result = result.replace('@@LSJS@@', '<script src="' + asset_url('ls_web/static/secondary_sidebar.js') + '"></script>')
     return result
-
 
 
 def render_ls_update_monitor():
