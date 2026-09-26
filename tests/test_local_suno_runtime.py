@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from datetime import datetime
 
@@ -243,7 +244,7 @@ def test_existing_db_upgrades_metadata_and_imports_local_family_json(tmp_path, m
         },
     }
     family_path.write_text(
-        __import__("json").dumps(family_payload, ensure_ascii=False),
+        json.dumps(family_payload, ensure_ascii=False),
         encoding="utf-8",
     )
     source_before = family_path.read_text(encoding="utf-8")
