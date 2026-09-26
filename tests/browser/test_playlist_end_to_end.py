@@ -100,7 +100,9 @@ def main():
                 add_one.click()
             assert "add_track=browser-1" in page.url, page.url
 
-            add_target = page.get_by_role("button", name="Add song to Tautas dziesmas", exact=True)
+            add_target = page.locator("form.playlist-add-target").filter(
+                has_text="Tautas dziesmas"
+            ).locator("button")
             add_target.wait_for(state="visible", timeout=3000)
             with page.expect_navigation(wait_until="domcontentloaded", timeout=10000):
                 add_target.click()
