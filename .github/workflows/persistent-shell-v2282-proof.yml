@@ -160,10 +160,17 @@ jobs:
                   "(el) => getComputedStyle(el).display"
               ) == "none"
 
-              list_frame = my_frame
+              my_frame.locator("#list-view").click()
+              page.wait_for_function(
+                  "() => location.pathname === '/my-library' && new URLSearchParams(location.search).get('view') === 'list'",
+                  timeout=10000,
+              )
+              page.wait_for_timeout(800)
+              list_frame = frame_with(page, "view=list")
+              assert list_frame is not None, [frame.url for frame in page.frames]
               play = list_frame.locator(".music-row-play").first
-              play.wait_for(state="attached", timeout=5000)
-              play.evaluate("(button) => button.click()")
+              play.wait_for(state="visible", timeout=5000)
+              play.click()
 
               list_frame.locator("#my-player-audio").evaluate(
                   """async (audio) => {
