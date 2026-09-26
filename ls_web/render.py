@@ -12,9 +12,11 @@ from ls_core.assets import asset_text, asset_url, render_template_tokens, styles
 def render_ls_web_runtime_assets():
     return (
         '<link rel="stylesheet" href="' + asset_url('ls_web/static/common.css') + '">'
+        + '<link rel="stylesheet" href="' + asset_url('ls_web/static/persistent_shell.css') + '">'
         + '<script src="' + asset_url('ls_web/static/event_bus.js') + '"></script>'
         + '<script src="' + asset_url('ls_web/static/changelog_menu.js') + '"></script>'
         + '<script src="' + asset_url('ls_web/static/import_branding.js') + '"></script>'
+        + '<script src="' + asset_url('ls_web/static/persistent_shell.js') + '"></script>'
     )
 
 def render_ls_popup_theme_assets():
