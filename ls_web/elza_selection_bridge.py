@@ -170,6 +170,10 @@ def build_host_selection_intent(
         filters["search_name"] = True
         labels.append(f"Name: {title_query}")
 
+    anywhere_query = _clean_text(request.get("anywhere_query"), 300)
+    if anywhere_query:
+        labels.append(f"Anywhere: {anywhere_query}")
+
     try:
         exact_stem_count = int(request.get("exact_stem_count") or 0)
     except (TypeError, ValueError):
@@ -181,6 +185,7 @@ def build_host_selection_intent(
         or local_audio_extensions
         or exclude_ui_types
         or local_family_assigned is not None
+        or bool(anywhere_query)
     ):
         return {
             "error": (
@@ -197,6 +202,7 @@ def build_host_selection_intent(
         "local_family_assigned": local_family_assigned,
         "local_audio_extensions": local_audio_extensions,
         "exclude_ui_types": exclude_ui_types,
+        "anywhere_query": anywhere_query,
     }
 
     if exact_flags:
@@ -215,6 +221,7 @@ def build_host_selection_intent(
         and not exact_stem_count
         and not exclude_ui_types
         and local_family_assigned is None
+        and not anywhere_query
     ):
         return {"error": "Elza neatrada nevienu droši izpildāmu LS atlases nosacījumu."}
 
