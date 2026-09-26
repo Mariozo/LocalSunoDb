@@ -101,6 +101,12 @@
             line-height: 1;
         }
 
+        .ls-sidebar-icon svg {
+            width: 22px;
+            height: 22px;
+            display: block;
+        }
+
         .ls-sidebar-label {
             min-width: 0;
             overflow: hidden;
