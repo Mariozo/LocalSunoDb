@@ -223,6 +223,8 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>My Library · LS {_esc(APP_VERSION)}</title>
 <link rel="icon" type="image/x-icon" href="/ls-static/ls_web/static/LS.ico?v={_esc(APP_VERSION)}">
+<link rel="stylesheet" href="/ls-static/ls_web/static/persistent_shell.css?v={_esc(APP_VERSION)}">
+<script src="/ls-static/ls_web/static/persistent_shell.js?v={_esc(APP_VERSION)}" defer></script>
 <style>
 :root{{color-scheme:dark;--bg:#0d0d0f;--panel:#171719;--line:#29292d;--muted:#9a9aa2;--text:#f2f2f4;--accent:#efefef;--side:258px}}
 *{{box-sizing:border-box}}html,body{{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:Segoe UI,Arial,sans-serif}}body{{display:flex}}
@@ -251,7 +253,7 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
 @media(max-width:900px){{:root{{--side:205px}}.main{{padding:20px 20px 262px}}.top{{grid-template-columns:1fr auto}}.db-select{{grid-column:1/2}}.new-db{{grid-column:2/3}}.view-toggle{{position:absolute;right:0;top:62px}}.album-grid{{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}}.my-music-player{{left:var(--side);grid-template-columns:1fr auto;grid-template-rows:auto auto auto;padding:9px 11px}}.my-player-middle{{grid-column:1/-1;grid-row:1}}.my-player-track{{grid-column:1;grid-row:2}}.my-player-transport{{grid-column:2;grid-row:2}}.my-player-ab{{grid-column:1/-1;grid-row:3}}}}
 </style>
 </head>
-<body>
+<body id="ls-my-library">
 {_sidebar()}
 <main class="main">
   <form class="top" method="get" action="/my-library" id="search-form">
@@ -319,10 +321,14 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
 (() => {{
   const db = document.getElementById('db-select');
   const query = {json.dumps(query)};
+  const shellNavigate = url => {{
+    if (typeof window.LSShellNavigate === 'function' && window.LSShellNavigate(url)) return;
+    location.href = url;
+  }};
   db?.addEventListener('change', () => {{
     const value = String(db.value || '').trim();
     const p = new URLSearchParams(); if (value) p.set('db', value); if (query) p.set('q', query);
-    location.href = '/my-library' + (p.toString() ? '?' + p.toString() : '');
+    shellNavigate('/my-library' + (p.toString() ? '?' + p.toString() : ''));
   }});
   const modal = document.getElementById('new-db-modal');
   const openModal = () => {{ modal.classList.add('open'); modal.setAttribute('aria-hidden','false'); }};
@@ -346,7 +352,7 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
       const data = await r.json();
       if (!r.ok || !data.ok) throw new Error(data.error || 'DB izveide neizdevās.');
       status.className='status ok'; status.textContent=`Gatavs: ${{data.track_count}} dziesmas · pievienotas ${{data.added}} · atjaunotas ${{data.updated}}.`;
-      setTimeout(() => location.href='/my-library?db=' + encodeURIComponent(data.name), 500);
+      setTimeout(() => shellNavigate('/my-library?db=' + encodeURIComponent(data.name)), 500);
     }} catch (e) {{ status.className='status error'; status.textContent=String(e.message || e); }} finally {{ button.disabled=false; }}
   }});
   const playerRoot = document.getElementById('my-music-player');
@@ -958,7 +964,7 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
   syncZoomControl();
 
   const setView = view => {{
-    const p = new URLSearchParams(location.search); p.set('view',view); location.href='/my-library?' + p.toString();
+    const p = new URLSearchParams(location.search); p.set('view',view); shellNavigate('/my-library?' + p.toString());
   }};
   document.getElementById('grid-view')?.addEventListener('click', () => setView('grid'));
   document.getElementById('list-view')?.addEventListener('click', () => setView('list'));
