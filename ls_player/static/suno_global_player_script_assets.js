@@ -4,6 +4,7 @@
 
             const audio = root.querySelector("audio.ls-global-player-audio");
             const playToggle = document.getElementById("ls-global-player-play");
+            const zoomButton = document.getElementById("ls-global-player-zoom");
             const restartButton = document.getElementById("ls-global-player-restart");
             const previousButton = document.getElementById("ls-global-player-previous");
             const nextButton = document.getElementById("ls-global-player-next");
@@ -295,6 +296,7 @@
                 progress.disabled = !enabled || hosted;
                 loopButton.disabled = !enabled || hosted;
                 if (drawerLoopButton) { drawerLoopButton.disabled = !enabled || hosted; }
+                if (zoomButton) { zoomButton.disabled = !enabled || hosted; }
                 expandButton.disabled = !enabled || hosted;
                 if (closeButton) { closeButton.disabled = !enabled; }
                 editButton.disabled = !enabled;
@@ -681,6 +683,7 @@
                 pauseStemsForMainSource();
                 leaveHostedMode();
                 currentSource = requestedSource;
+                root.dataset.bpm = String(current.bpm || 0);
 
                 // v5.510 black-box Player boundary: the Player receives one
                 // browser-playable URL. It does not care whether that URL points
@@ -872,6 +875,7 @@
                     coverFull: button.dataset.coverFull || button.dataset.cover || "",
                     localAudio: button.dataset.localAudio || "",
                     localPath: button.dataset.localPath || "",
+                    bpm: Number(button.dataset.bpm || 0) || 0,
                     webAudio: buildSunoCurrentPlaybackUrl(
                         trackId,
                         button.dataset.audio || ""
