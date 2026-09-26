@@ -381,9 +381,9 @@ def _migrate_tracks(
                 source_task,style_tags,negative_tags,prompt,duration_seconds,has_stem,
                 has_vocal,make_instrumental,is_remix,studio_project_id,
                 studio_project_version_id,edited_clip_id,cover_clip_id,avg_bpm,min_bpm,
-                max_bpm,is_liked,explicit,display_tags,kind,caption,lyrics,library_status,
-                finder_hidden,finder_hidden_reason,updated_at
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                max_bpm,is_liked,explicit,display_tags,kind,caption,lyrics,artist,album,
+                track_number,lyricist,library_status,finder_hidden,finder_hidden_reason,updated_at
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """,
             (
                 track_id,
@@ -422,6 +422,10 @@ def _migrate_tracks(
                 _text(row.get("kind")) or None,
                 _text(row.get("caption")) or None,
                 str(row.get("lyrics") or ""),
+                _text(row.get("artist")) or None,
+                _text(row.get("album")) or None,
+                _int_or_none(row.get("track_number")),
+                _text(row.get("lyricist")) or None,
                 _text(row.get("library_status")) or "active",
                 _bool_int(row.get("finder_hidden")),
                 _text(row.get("finder_hidden_reason")) or None,
