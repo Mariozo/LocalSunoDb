@@ -135,7 +135,7 @@ jobs:
               labels = [
                   value.strip()
                   for value in page.locator(
-                      "header .header-tabs > * > .ls-sidebar-label"
+                      "header .header-tabs .ls-sidebar-label"
                   ).all_inner_texts()
               ]
               assert labels == expected, labels
