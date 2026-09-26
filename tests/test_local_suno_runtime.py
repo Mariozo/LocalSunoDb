@@ -66,6 +66,34 @@ def _wire_repository(monkeypatch, db_path, tmp_path):
     monkeypatch.setattr(repository, "REPORTS_DIR", tmp_path / "Reports")
     monkeypatch.setattr(repository, "BACKUP_DIR", tmp_path / "Backup")
     monkeypatch.setattr(repository, "BASE_DIR", tmp_path)
+    monkeypatch.setattr(repository, "get_active_database_path", lambda: db_path)
+    monkeypatch.setattr(
+        repository,
+        "get_active_database_target",
+        lambda: {
+            "id": repository.PRIMARY_DATABASE_ID,
+            "label": "LocalSunoDb",
+            "path": str(db_path),
+            "kind": "suno",
+            "built_in": True,
+        },
+    )
+    monkeypatch.setattr(
+        repository,
+        "get_configured_active_database_id",
+        lambda: repository.PRIMARY_DATABASE_ID,
+    )
+    monkeypatch.setattr(
+        repository,
+        "get_database_target",
+        lambda _database_id: {
+            "id": repository.PRIMARY_DATABASE_ID,
+            "label": "LocalSunoDb",
+            "path": str(db_path),
+            "kind": "suno",
+            "built_in": True,
+        },
+    )
     monkeypatch.setattr(
         repository,
         "LOCAL_FAMILY_MAP_PATH",
@@ -296,3 +324,93 @@ def test_existing_db_upgrades_metadata_and_imports_local_family_json(tmp_path, m
     family = repository.get_track_local_family("t1")
     assert family["family_title"] == "Family Two"
     assert family["history"][-1]["family_title"] == "Family One"
+
+
+def test_active_secondary_canonical_db_receives_local_family_cutover(tmp_path, monkeypatch):
+    primary = tmp_path / "Data" / "local_suno.db"
+    secondary = tmp_path / "secondary.db"
+    primary.parent.mkdir(parents=True)
+    _canonical_db(primary)
+    _canonical_db(secondary)
+
+    conn = sqlite3.connect(secondary)
+    try:
+        conn.execute("PRAGMA user_version = 1")
+        conn.commit()
+    finally:
+        conn.close()
+
+    _wire_repository(monkeypatch, primary, tmp_path)
+    monkeypatch.setattr(repository, "get_active_database_path", lambda: secondary)
+    monkeypatch.setattr(
+        repository,
+        "get_active_database_target",
+        lambda: {
+            "id": "secondary",
+            "label": "Secondary",
+            "path": str(secondary),
+            "kind": "library",
+            "built_in": False,
+        },
+    )
+    monkeypatch.setattr(
+        repository,
+        "get_configured_active_database_id",
+        lambda: "secondary",
+    )
+    monkeypatch.setattr(
+        repository,
+        "get_database_target",
+        lambda database_id: (
+            {
+                "id": "secondary",
+                "label": "Secondary",
+                "path": str(secondary),
+                "kind": "library",
+                "built_in": False,
+            }
+            if str(database_id) == "secondary"
+            else {
+                "id": repository.PRIMARY_DATABASE_ID,
+                "label": "LocalSunoDb",
+                "path": str(primary),
+                "kind": "suno",
+                "built_in": True,
+            }
+        ),
+    )
+
+    family_path = tmp_path / "Data" / "suno_local_family_map.json"
+    family_path.write_text(
+        json.dumps({
+            "version": 1,
+            "tracks": {
+                "t1": {
+                    "family_title": "Family Active",
+                    "category": "Song",
+                    "updated_at": "2026-09-26T20:00:00",
+                    "history": [],
+                }
+            },
+        }, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    repository.ensure_local_suno_runtime_database()
+
+    conn = sqlite3.connect(secondary)
+    try:
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert conn.execute(
+            "SELECT family_title FROM track_local_family WHERE track_id='t1'"
+        ).fetchone()[0] == "Family Active"
+    finally:
+        conn.close()
+
+    options = repository.get_confirmed_local_family_filter_options()
+    assert options == [{
+        "title": "Family Active",
+        "track_ids": ["t1"],
+        "categories": ["Song"],
+        "count": 1,
+    }]
