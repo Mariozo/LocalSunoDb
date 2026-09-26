@@ -213,104 +213,76 @@ def get_table_columns():
     return {row["name"] for row in rows}
 
 def get_track_ui_columns():
-    if not table_exists("track_ui"):
-        return set()
+    """Legacy track_ui is retired; user properties live in track_user."""
+    return set()
 
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("PRAGMA table_info(track_ui);")
-    rows = cur.fetchall()
-    conn.close()
-    return {row["name"] for row in rows}
 
 def table_exists(table_name):
     conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT COUNT(*)
-        FROM (
-            SELECT name FROM sqlite_master WHERE type IN ('table', 'view')
-            UNION ALL
-            SELECT name FROM sqlite_temp_master WHERE type IN ('table', 'view')
-        )
-        WHERE name = ?;
-    """, (table_name,))
-    exists = cur.fetchone()[0] > 0
-    conn.close()
-    return exists
+    try:
+        return conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type IN ('table','view') AND name=? LIMIT 1",
+            (str(table_name or "").strip(),),
+        ).fetchone() is not None
+    finally:
+        conn.close()
+
 
 def get_named_table_columns(table_name):
-    """Return columns only for the small set of LS tables used by read-only filters."""
+    """Return columns for persistent canonical tables only."""
     table_name = str(table_name or "").strip()
-    if table_name not in {"tracks", "track_ui", "local_audio_files"}:
+    allowed = {
+        "tracks", "track_user", "track_variants", "media_files",
+        "suno_source_payload", "track_local_family",
+        "track_local_family_history", "local_playlists", "local_playlist_items",
+    }
+    if table_name not in allowed or not table_exists(table_name):
         return set()
-    if not table_exists(table_name):
-        return set()
-
     conn = get_connection()
-    cur = conn.cursor()
-    cur.execute(f"PRAGMA table_info({table_name});")
-    rows = cur.fetchall()
-    conn.close()
-    return {row["name"] for row in rows}
+    try:
+        rows = conn.execute(f'PRAGMA table_info("{table_name}")').fetchall()
+        return {row["name"] for row in rows}
+    finally:
+        conn.close()
+
 
 def get_has_local_audio_condition_sql():
-    """Build the same conservative local-audio test for LS views and Elza."""
-    track_alias = "t"
-    ui_alias = "tu"
-    track_columns = get_table_columns()
-    ui_columns = get_track_ui_columns()
-    local_columns = get_named_table_columns("local_audio_files")
-    parts = []
+    """Canonical Track -> Variant -> Media main-audio existence test."""
+    return (
+        "EXISTS ("
+        "SELECT 1 FROM main.track_variants tv "
+        "JOIN main.media_files mf ON mf.variant_id = tv.id "
+        "WHERE lower(tv.track_id) = lower(t.id) AND mf.role = 'main'"
+        ")"
+    )
 
-    if "has_local_audio" in ui_columns:
-        parts.append(f"IFNULL({ui_alias}.has_local_audio, 0) = 1")
-    if "best_local_audio_path" in ui_columns:
-        parts.append(f"TRIM(COALESCE({ui_alias}.best_local_audio_path, '')) != ''")
-    if "local_wav" in track_columns:
-        parts.append(f"TRIM(COALESCE({track_alias}.local_wav, '')) != ''")
-    if "local_mp3" in track_columns:
-        parts.append(f"TRIM(COALESCE({track_alias}.local_mp3, '')) != ''")
-    if {"track_id", "is_stem"}.issubset(local_columns):
-        parts.append(
-            "EXISTS ("
-            "SELECT 1 FROM local_audio_files ls_laf "
-            f"WHERE lower(ls_laf.track_id) = lower({track_alias}.id) "
-            "AND IFNULL(ls_laf.is_stem, 0) = 0"
-            ")"
-        )
-
-    return "(" + " OR ".join(parts) + ")" if parts else "0"
 
 def get_unlinked_stems_condition_sql():
     return """
         kind = 'Stem'
         AND ls_stem_base_title(title) NOT IN (
             SELECT DISTINCT ls_stem_base_title(t2.title)
-            FROM tracks t2
+            FROM main.tracks t2
             WHERE IFNULL(t2.library_status, 'active') = 'active'
               AND EXISTS (
                   SELECT 1
-                  FROM local_audio_files laf2
-                  WHERE laf2.is_stem = 1
-                    AND lower(laf2.track_id) = lower(t2.id)
+                  FROM main.track_variants tv2
+                  JOIN main.media_files mf2 ON mf2.variant_id = tv2.id
+                  WHERE tv2.track_id = t2.id
+                    AND mf2.role = 'stem'
               )
         )
     """
 
-def get_main_category_filter_sql(ui_columns=None):
-    """Return the independent Song/Instrumental category expression.
 
-    ``ui_type`` describes the Suno operation shown by LS (Cover, Mashup,
-    Extend, ...).  It must not replace the user-facing Song/Instrumental
-    category.  Older databases without ``track_ui.main_category`` retain a
-    conservative fallback to the legacy main kinds.
-    """
-    if ui_columns is None:
-        ui_columns = get_track_ui_columns()
-    if "main_category" in ui_columns:
-        return "TRIM(COALESCE(tu.main_category, ''))"
-    return "CASE WHEN t.kind IN ('Song', 'Instrumental') THEN t.kind ELSE '' END"
+def get_main_category_filter_sql(ui_columns=None):
+    """Canonical Song/Instrumental expression; requires track_user alias u."""
+    return (
+        "COALESCE(NULLIF(u.manual_category, ''), "
+        "CASE WHEN t.kind IN ('Song', 'Instrumental', 'SongOrInstrumental') "
+        "THEN t.kind ELSE '' END)"
+    )
+
 
 def get_confirmed_local_family_filter_options():
     """Return mapped Local families that can filter exact Track IDs.
@@ -1102,7 +1074,7 @@ def _normalize_single_user_tag(value):
     return f"#{text}" if text else ""
 
 def _parse_user_tags_value(value):
-    """Parse the comma/semicolon/whitespace separated track_ui.user_tags value."""
+    """Parse a comma/semicolon/whitespace separated track_user.tags value."""
     result = []
     seen = set()
     for part in re.split(r"[,;\s]+", str(value or "")):
@@ -4350,33 +4322,41 @@ def get_track_download_info(track_id):
     if not track_id:
         return {}
 
-    ui_columns = get_track_ui_columns()
-    category_parts = []
-    if "main_category" in ui_columns:
-        category_parts.append("NULLIF(TRIM(tu.main_category), '')")
-    if "ui_type" in ui_columns:
-        category_parts.append("NULLIF(TRIM(tu.ui_type), '')")
-    category_parts.append("NULLIF(TRIM(t.kind), '')")
-    category_sql = "COALESCE(" + ", ".join(category_parts + ["''"]) + ")"
-
+    category_sql = _canonical_main_category_sql("t", "u")
     conn = get_connection()
-    cur = conn.cursor()
     try:
-        cur.execute(f"""
+        row = conn.execute(f"""
             SELECT
                 t.id,
                 t.title,
                 t.audio_url,
-                t.local_wav,
-                t.local_mp3,
+                COALESCE((
+                    SELECT mf.path
+                    FROM main.track_variants tv
+                    JOIN main.media_files mf ON mf.variant_id = tv.id
+                    WHERE tv.track_id = t.id
+                      AND mf.role = 'main'
+                      AND lower(mf.format) = 'wav'
+                    ORDER BY COALESCE(tv.variant_no, 2147483647), tv.id, mf.id
+                    LIMIT 1
+                ), '') AS local_wav,
+                COALESCE((
+                    SELECT mf.path
+                    FROM main.track_variants tv
+                    JOIN main.media_files mf ON mf.variant_id = tv.id
+                    WHERE tv.track_id = t.id
+                      AND mf.role = 'main'
+                      AND lower(mf.format) = 'mp3'
+                    ORDER BY COALESCE(tv.variant_no, 2147483647), tv.id, mf.id
+                    LIMIT 1
+                ), '') AS local_mp3,
                 t.lyrics,
                 {category_sql} AS download_category
-            FROM tracks t
-            LEFT JOIN track_ui tu ON tu.track_id = t.id
+            FROM main.tracks t
+            LEFT JOIN main.track_user u ON u.track_id = t.id
             WHERE lower(t.id) = lower(?)
-            LIMIT 1;
-        """, (track_id,))
-        row = cur.fetchone()
+            LIMIT 1
+        """, (track_id,)).fetchone()
         return dict(row) if row else {}
     finally:
         conn.close()
