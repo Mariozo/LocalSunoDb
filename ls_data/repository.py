@@ -4701,12 +4701,9 @@ def clean_local_family_title(value):
     title = re.sub(r"\s+", " ", title)
     return title
 
-def _load_local_family_map():
-    """Read the persistent Track ID -> Local family map."""
-    default = {
-        "version": 1,
-        "tracks": {},
-    }
+def _read_local_family_json_migration_source():
+    """Read the retired JSON only as a one-time migration source."""
+    default = {"version": 1, "tracks": {}}
     try:
         if not LOCAL_FAMILY_MAP_PATH.exists():
             return default
@@ -4719,43 +4716,144 @@ def _load_local_family_map():
         if not isinstance(data, dict):
             return default
         tracks = data.get("tracks")
-        if not isinstance(tracks, dict):
-            tracks = {}
         return {
             "version": 1,
-            "tracks": tracks,
+            "tracks": tracks if isinstance(tracks, dict) else {},
         }
     except Exception:
         return default
 
-def _save_local_family_map(data):
-    """Write the family map atomically."""
-    tracks = data.get("tracks") if isinstance(data, dict) else {}
-    if not isinstance(tracks, dict):
-        tracks = {}
 
-    clean = {
-        "version": 1,
-        "updated_at": now_iso_local(),
-        "tracks": tracks,
-    }
-    LOCAL_FAMILY_MAP_PATH.parent.mkdir(parents=True, exist_ok=True)
-    temp_path = LOCAL_FAMILY_MAP_PATH.with_suffix(
-        LOCAL_FAMILY_MAP_PATH.suffix + ".tmp"
-    )
-    temp_path.write_text(
-        json.dumps(clean, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
-    temp_path.replace(LOCAL_FAMILY_MAP_PATH)
-    return clean
+def _import_local_family_json_into_db_once():
+    """Import legacy Local Family JSON without making it a runtime source."""
+    if not DB_PATH.is_file() or not LOCAL_FAMILY_MAP_PATH.is_file():
+        return 0
+
+    data = _read_local_family_json_migration_source()
+    tracks = data.get("tracks") or {}
+    if not tracks:
+        return 0
+
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        conn.execute("PRAGMA foreign_keys = ON")
+        upgrade_local_suno_schema(conn)
+        inserted = 0
+        for stored_id, payload in tracks.items():
+            track_id = str(stored_id or "").strip()
+            if not track_id or not isinstance(payload, dict):
+                continue
+            canonical = conn.execute(
+                "SELECT id FROM tracks WHERE lower(id)=lower(?) LIMIT 1",
+                (track_id,),
+            ).fetchone()
+            if not canonical:
+                continue
+            track_id = str(canonical[0])
+            family_title = clean_local_family_title(payload.get("family_title"))
+            if not family_title:
+                continue
+            category = str(payload.get("category") or "").strip()
+            updated_at = str(payload.get("updated_at") or "").strip() or None
+            cur = conn.execute(
+                """
+                INSERT OR IGNORE INTO track_local_family(
+                    track_id,family_title,category,updated_at
+                ) VALUES (?,?,?,?)
+                """,
+                (track_id, family_title, category, updated_at),
+            )
+            if cur.rowcount:
+                inserted += 1
+
+            history = payload.get("history")
+            if not isinstance(history, list):
+                history = []
+            for item in history:
+                if not isinstance(item, dict):
+                    continue
+                old_title = clean_local_family_title(item.get("family_title"))
+                changed_at = str(item.get("changed_at") or "").strip()
+                if not old_title or not changed_at:
+                    continue
+                old_category = str(item.get("category") or "").strip()
+                exists = conn.execute(
+                    """
+                    SELECT 1 FROM track_local_family_history
+                     WHERE lower(track_id)=lower(?)
+                       AND family_title=?
+                       AND category=?
+                       AND changed_at=?
+                     LIMIT 1
+                    """,
+                    (track_id, old_title, old_category, changed_at),
+                ).fetchone()
+                if not exists:
+                    conn.execute(
+                        """
+                        INSERT INTO track_local_family_history(
+                            track_id,family_title,category,changed_at
+                        ) VALUES (?,?,?,?)
+                        """,
+                        (track_id, old_title, old_category, changed_at),
+                    )
+        conn.commit()
+        return inserted
+    finally:
+        conn.close()
+
+
+def _load_local_family_map():
+    """Compatibility-shaped read backed exclusively by canonical DB tables."""
+    tracks = {}
+    try:
+        conn = get_connection()
+        try:
+            rows = conn.execute(
+                """
+                SELECT track_id,family_title,category,updated_at
+                  FROM track_local_family
+              ORDER BY lower(track_id)
+                """
+            ).fetchall()
+            for row in rows:
+                track_id = str(row["track_id"] or "").strip()
+                if not track_id:
+                    continue
+                history_rows = conn.execute(
+                    """
+                    SELECT family_title,category,changed_at
+                      FROM track_local_family_history
+                     WHERE lower(track_id)=lower(?)
+                  ORDER BY id
+                    """,
+                    (track_id,),
+                ).fetchall()
+                tracks[track_id] = {
+                    "family_title": clean_local_family_title(row["family_title"]),
+                    "category": str(row["category"] or ""),
+                    "updated_at": str(row["updated_at"] or ""),
+                    "history": [
+                        {
+                            "family_title": clean_local_family_title(item["family_title"]),
+                            "category": str(item["category"] or ""),
+                            "changed_at": str(item["changed_at"] or ""),
+                        }
+                        for item in history_rows
+                    ],
+                }
+        finally:
+            conn.close()
+    except Exception:
+        return {"version": 2, "tracks": {}}
+    return {"version": 2, "tracks": tracks}
+
 
 def get_track_local_family_titles():
-    """Return the confirmed Track ID -> Local Family titles in one map read."""
+    """Return confirmed Track ID -> Local Family titles from canonical DB."""
     data = _load_local_family_map()
-    tracks = data.get("tracks") or {}
     result = {}
-    for stored_id, payload in tracks.items():
+    for stored_id, payload in (data.get("tracks") or {}).items():
         track_id = str(stored_id or "").strip().lower()
         if not track_id or not isinstance(payload, dict):
             continue
@@ -4770,29 +4868,48 @@ def get_track_local_family(track_id):
     if not track_id:
         return {}
 
-    data = _load_local_family_map()
-    tracks = data.get("tracks") or {}
-    wanted = track_id.lower()
-
-    for stored_id, payload in tracks.items():
-        if str(stored_id or "").strip().lower() != wanted:
-            continue
-        if not isinstance(payload, dict):
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            """
+            SELECT track_id,family_title,category,updated_at
+              FROM track_local_family
+             WHERE lower(track_id)=lower(?)
+             LIMIT 1
+            """,
+            (track_id,),
+        ).fetchone()
+        if not row:
             return {}
-        family_title = clean_local_family_title(
-            payload.get("family_title")
-        )
-        if not family_title:
-            return {}
-        result = dict(payload)
-        result["track_id"] = str(stored_id or track_id)
-        result["family_title"] = family_title
-        return result
+        history = conn.execute(
+            """
+            SELECT family_title,category,changed_at
+              FROM track_local_family_history
+             WHERE lower(track_id)=lower(?)
+          ORDER BY id
+            """,
+            (track_id,),
+        ).fetchall()
+        return {
+            "track_id": str(row["track_id"] or track_id),
+            "family_title": clean_local_family_title(row["family_title"]),
+            "category": str(row["category"] or ""),
+            "updated_at": str(row["updated_at"] or ""),
+            "history": [
+                {
+                    "family_title": clean_local_family_title(item["family_title"]),
+                    "category": str(item["category"] or ""),
+                    "changed_at": str(item["changed_at"] or ""),
+                }
+                for item in history
+            ],
+        }
+    finally:
+        conn.close()
 
-    return {}
 
 def set_track_local_family(track_id, family_title, category=""):
-    """Persist one manually confirmed Track ID -> Local family association."""
+    """Persist one manually confirmed Track ID -> Local family association in DB."""
     track_id = str(track_id or "").strip()
     family_title = clean_local_family_title(family_title)
     category = str(category or "").strip()
@@ -4806,47 +4923,70 @@ def set_track_local_family(track_id, family_title, category=""):
     if not info:
         return False, "Track ID not found in LS DB", {}
 
+    track_id = str(info.get("id") or track_id)
     if category not in ("Song", "Instrumental"):
         category = normalize_download_category(info)
 
-    data = _load_local_family_map()
-    tracks = data.setdefault("tracks", {})
+    now = now_iso_local()
+    conn = get_connection()
+    try:
+        current = conn.execute(
+            """
+            SELECT family_title,category
+              FROM track_local_family
+             WHERE lower(track_id)=lower(?)
+             LIMIT 1
+            """,
+            (track_id,),
+        ).fetchone()
+        old_family = clean_local_family_title(
+            current["family_title"] if current else ""
+        )
+        if old_family and old_family.casefold() != family_title.casefold():
+            conn.execute(
+                """
+                INSERT INTO track_local_family_history(
+                    track_id,family_title,category,changed_at
+                ) VALUES (?,?,?,?)
+                """,
+                (
+                    track_id,
+                    old_family,
+                    str(current["category"] or ""),
+                    now,
+                ),
+            )
 
-    stored_key = track_id
-    for existing_key in list(tracks.keys()):
-        if str(existing_key or "").strip().lower() == track_id.lower():
-            stored_key = existing_key
-            break
+        conn.execute(
+            """
+            INSERT INTO track_local_family(track_id,family_title,category,updated_at)
+            VALUES (?,?,?,?)
+            ON CONFLICT(track_id) DO UPDATE SET
+                family_title=excluded.family_title,
+                category=excluded.category,
+                updated_at=excluded.updated_at
+            """,
+            (track_id, family_title, category, now),
+        )
+        conn.execute(
+            """
+            DELETE FROM track_local_family_history
+             WHERE track_id=?
+               AND id NOT IN (
+                   SELECT id FROM track_local_family_history
+                    WHERE track_id=?
+                ORDER BY id DESC
+                   LIMIT 20
+               )
+            """,
+            (track_id, track_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
-    old_payload = tracks.get(stored_key)
-    if not isinstance(old_payload, dict):
-        old_payload = {}
+    return True, "Local family confirmed", get_track_local_family(track_id)
 
-    history = old_payload.get("history")
-    if not isinstance(history, list):
-        history = []
-
-    old_family = clean_local_family_title(old_payload.get("family_title"))
-    if old_family and old_family.casefold() != family_title.casefold():
-        history.append({
-            "family_title": old_family,
-            "category": str(old_payload.get("category") or ""),
-            "changed_at": now_iso_local(),
-        })
-        history = history[-20:]
-
-    payload = {
-        "family_title": family_title,
-        "category": category,
-        "updated_at": now_iso_local(),
-        "history": history,
-    }
-    tracks[stored_key] = payload
-    _save_local_family_map(data)
-
-    result = dict(payload)
-    result["track_id"] = stored_key
-    return True, "Local family confirmed", result
 
 def _local_family_compare_key(value):
     """Accent-insensitive comparison key used only for suggestions."""
