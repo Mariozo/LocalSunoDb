@@ -65,6 +65,11 @@ def _wire_repository(monkeypatch, db_path, tmp_path):
     monkeypatch.setattr(repository, "REPORTS_DIR", tmp_path / "Reports")
     monkeypatch.setattr(repository, "BACKUP_DIR", tmp_path / "Backup")
     monkeypatch.setattr(repository, "BASE_DIR", tmp_path)
+    monkeypatch.setattr(
+        repository,
+        "LOCAL_FAMILY_MAP_PATH",
+        tmp_path / "Data" / "suno_local_family_map.json",
+    )
     monkeypatch.setattr(repository, "lv_sort_key", lambda value: str(value or "").casefold(), raising=False)
     monkeypatch.setattr(
         repository,
@@ -80,7 +85,7 @@ def _wire_repository(monkeypatch, db_path, tmp_path):
     )
 
 
-def test_canonical_db_exposes_legacy_read_contracts(tmp_path, monkeypatch):
+def test_canonical_connection_has_no_legacy_temp_views(tmp_path, monkeypatch):
     db_path = tmp_path / "local_suno.db"
     audio_path = tmp_path / "Track 1.wav"
     audio_path.write_bytes(b"x")
@@ -89,46 +94,50 @@ def test_canonical_db_exposes_legacy_read_contracts(tmp_path, monkeypatch):
 
     conn = repository.get_connection()
     try:
+        temp_names = {
+            row[0]
+            for row in conn.execute(
+                "SELECT name FROM sqlite_temp_master WHERE type IN ('table','view')"
+            ).fetchall()
+        }
+        assert "tracks" not in temp_names
+        assert "track_ui" not in temp_names
+        assert "local_audio_files" not in temp_names
+
         track = conn.execute(
             """
-            SELECT id,title,workspaceName,metadata_tags,metadata_duration,
-                   raw_json,local_wav
-              FROM tracks
+            SELECT id,title,workspace_name,style_tags,duration_seconds
+              FROM main.tracks
              WHERE id='t1'
             """
         ).fetchone()
-        ui = conn.execute(
+        user = conn.execute(
             """
-            SELECT track_id,user_rating,user_tags,user_marks,main_category,
-                   has_local_audio,best_local_audio_path
-              FROM track_ui
+            SELECT track_id,rating,tags,marks,manual_category
+              FROM main.track_user
              WHERE track_id='t1'
             """
         ).fetchone()
         media = conn.execute(
             """
-            SELECT track_id,path,extension,is_stem
-              FROM local_audio_files
-             WHERE track_id='t1'
+            SELECT tv.track_id,mf.path,mf.format,mf.role
+              FROM main.media_files mf
+              JOIN main.track_variants tv ON tv.id=mf.variant_id
+             WHERE tv.track_id='t1'
             """
         ).fetchone()
     finally:
         conn.close()
 
-    assert track["workspaceName"] == "Studio"
-    assert track["metadata_tags"] == "jazz"
-    assert track["metadata_duration"] == 125.0
-    assert '"id":"t1"' in track["raw_json"]
-    assert track["local_wav"] == str(audio_path)
-    assert ui["user_rating"] == 2
-    assert ui["user_tags"] == "#old"
-    assert ui["user_marks"] == 1
-    assert ui["main_category"] == "Song"
-    assert ui["has_local_audio"] == 1
-    assert ui["best_local_audio_path"] == str(audio_path)
+    assert track["workspace_name"] == "Studio"
+    assert track["style_tags"] == "jazz"
+    assert track["duration_seconds"] == 125.0
+    assert user["rating"] == 2
+    assert user["tags"] == "#old"
+    assert user["marks"] == 1
     assert media["track_id"] == "t1"
-    assert media["extension"] == "wav"
-    assert media["is_stem"] == 0
+    assert media["format"] == "wav"
+    assert media["role"] == "main"
 
 
 def test_user_writes_land_in_canonical_tables(tmp_path, monkeypatch):
@@ -207,3 +216,64 @@ def test_bootstrap_builds_canonical_db_when_only_legacy_exists(tmp_path, monkeyp
         assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
     finally:
         conn.close()
+
+
+def test_existing_db_upgrades_metadata_and_imports_local_family_json(tmp_path, monkeypatch):
+    db_path = tmp_path / "Data" / "local_suno.db"
+    db_path.parent.mkdir(parents=True)
+    _canonical_db(db_path)
+    _wire_repository(monkeypatch, db_path, tmp_path)
+
+    family_path = tmp_path / "Data" / "suno_local_family_map.json"
+    family_payload = {
+        "version": 1,
+        "tracks": {
+            "t1": {
+                "family_title": "Family One",
+                "category": "Song",
+                "updated_at": "2026-09-16T10:00:00",
+                "history": [
+                    {
+                        "family_title": "Old Family",
+                        "category": "Song",
+                        "changed_at": "2026-09-15T10:00:00",
+                    }
+                ],
+            }
+        },
+    }
+    family_path.write_text(
+        __import__("json").dumps(family_payload, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    source_before = family_path.read_text(encoding="utf-8")
+
+    repository.ensure_local_suno_runtime_database()
+
+    conn = sqlite3.connect(db_path)
+    try:
+        columns = {
+            row[1] for row in conn.execute("PRAGMA table_info(tracks)").fetchall()
+        }
+        assert {"artist", "album", "track_number", "lyricist"} <= columns
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert conn.execute(
+            "SELECT family_title,category FROM track_local_family WHERE track_id='t1'"
+        ).fetchone() == ("Family One", "Song")
+        assert conn.execute(
+            "SELECT family_title,category FROM track_local_family_history WHERE track_id='t1'"
+        ).fetchone() == ("Old Family", "Song")
+    finally:
+        conn.close()
+
+    assert family_path.read_text(encoding="utf-8") == source_before
+
+    family = repository.get_track_local_family("t1")
+    assert family["family_title"] == "Family One"
+    assert family["history"][0]["family_title"] == "Old Family"
+
+    assert repository.set_track_local_family("t1", "Family Two", "Song")[0]
+    assert family_path.read_text(encoding="utf-8") == source_before
+    family = repository.get_track_local_family("t1")
+    assert family["family_title"] == "Family Two"
+    assert family["history"][-1]["family_title"] == "Family One"
