@@ -91,6 +91,26 @@ def main():
             )
             page.keyboard.press("Escape")
 
+            # Single-row Library menu can add that exact track to a Playlist.
+            row_one = page.locator('tr.track-row[data-track-id="browser-1"]')
+            row_one.locator(".row-menu-btn").click()
+            add_one = row_one.locator(".menu-add-playlist")
+            add_one.wait_for(state="visible", timeout=3000)
+            with page.expect_navigation(wait_until="domcontentloaded", timeout=10000):
+                add_one.click()
+            assert "add_track=browser-1" in page.url, page.url
+
+            add_target = page.get_by_role("button", name="Add song to Tautas dziesmas", exact=True)
+            add_target.wait_for(state="visible", timeout=3000)
+            with page.expect_navigation(wait_until="domcontentloaded", timeout=10000):
+                add_target.click()
+            page.locator(".playlist-track-row").first.wait_for(state="visible", timeout=5000)
+            assert page.locator(".playlist-track-row").first.get_attribute("data-track-id") == "browser-1"
+
+            page.get_by_role("link", name="Suno Library", exact=True).click()
+            page.locator("tr.track-row").first.wait_for(state="visible", timeout=5000)
+            assert "local_audio_filter=with" in page.url, page.url
+
             # Select newest track from its Cover circle and add to Vārda diena.
             newest_row = page.locator('tr.track-row[data-track-id="browser-3"]')
             newest_row.locator(".ls-track-select-control").click()
