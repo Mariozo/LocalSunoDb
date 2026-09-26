@@ -3853,55 +3853,46 @@ def insert_suno_tracks_metadata_only(track_items):
         "rows": rows,
     }
 
-def build_suno_update_preview(limit=300):
-    """Read-only metadata audit used by Downloader Update.
 
-    Known Stem and Edit/Section rows are excluded. Rows with stored raw_json are
-    inspected locally, so missing fields can be repaired without an API call and
-    proven non-empty differences can be reported without overwriting them.
-    """
+def build_suno_update_preview(limit=300):
+    """Read-only metadata audit over persistent canonical tables."""
     columns = set(get_table_columns())
 
     def missing_labels(row):
         labels = []
-        if is_db_value_empty(row.get("title")):
-            labels.append("title")
-        if is_db_value_empty(row.get("lyrics")):
-            labels.append("lyrics")
-        if is_db_value_empty(row.get("metadata_prompt")):
-            labels.append("metadata_prompt")
-        if is_db_value_empty(row.get("prompt")):
-            labels.append("prompt")
-        if is_db_value_empty(row.get("metadata_tags")):
-            labels.append("metadata_tags")
-        if is_db_value_empty(row.get("style")):
-            labels.append("style")
-        if not metadata_value_present(row.get("image_url")) and not metadata_value_present(row.get("raw_image_url")):
+        for name in (
+            "title", "lyrics", "prompt", "style_tags", "model_name",
+            "major_model_version", "source_type", "source_task",
+        ):
+            if name in columns and is_db_value_empty(row.get(name)):
+                labels.append(name)
+        if (
+            "image_url" in columns
+            and "image_large_url" in columns
+            and not metadata_value_present(row.get("image_url"))
+            and not metadata_value_present(row.get("image_large_url"))
+        ):
             labels.append("image")
-        if is_db_value_empty(row.get("model_name")):
-            labels.append("model_name")
-        if is_db_value_empty(row.get("major_model_version")):
-            labels.append("model_version")
-        if is_db_value_empty(row.get("metadata_type")):
-            labels.append("metadata_type")
-        if is_db_value_empty(row.get("metadata_task")):
-            labels.append("metadata_task")
-        if is_db_value_empty(row.get("bpm")) and row.get("metadata_avg_bpm") is None:
-            labels.append("bpm")
+        if "avg_bpm" in columns and row.get("avg_bpm") is None:
+            labels.append("avg_bpm")
         if is_db_value_empty(row.get("raw_json")):
             labels.append("raw_json")
         return labels
 
     conn = get_connection()
-    cur = conn.cursor()
     try:
-        cur.execute("""
-            SELECT *
-            FROM tracks
-            WHERE IFNULL(library_status, 'active') = 'active'
-            ORDER BY created_at DESC, title COLLATE NOCASE;
-        """)
-        active_rows = [dict(row) for row in cur.fetchall()]
+        active_rows = [
+            dict(row)
+            for row in conn.execute(
+                """
+                SELECT t.*, COALESCE(sp.raw_json, '') AS raw_json
+                  FROM main.tracks t
+             LEFT JOIN main.suno_source_payload sp ON sp.track_id = t.id
+                 WHERE IFNULL(t.library_status, 'active') = 'active'
+              ORDER BY t.created_at DESC, t.title COLLATE NOCASE
+                """
+            ).fetchall()
+        ]
     finally:
         conn.close()
 
@@ -3941,12 +3932,10 @@ def build_suno_update_preview(limit=300):
                     stored_meta,
                     overwrite=False,
                 )
-                fillable = sorted(column for column in pending if column != "raw_json")
+                fillable = sorted(pending)
                 source = "Stored Suno data"
                 if conflicts:
                     conflict_rows += 1
-                # Conflict-only rows are informational. They must never return
-                # to the actionable queue after their empty fields were filled.
                 if not fillable:
                     continue
                 stored_fillable += 1
@@ -3966,7 +3955,7 @@ def build_suno_update_preview(limit=300):
             "id": current.get("id") or "",
             "short_id": str(current.get("id") or "")[:8],
             "title": current.get("title") or "[No title]",
-            "workspace": current.get("workspaceName") or current.get("workspace") or "",
+            "workspace": current.get("workspace_name") or "",
             "created_at": current.get("created_at") or "",
             "missing": missing,
             "fillable": fillable,
@@ -3974,11 +3963,13 @@ def build_suno_update_preview(limit=300):
             "source": source,
         })
 
-    # Stored-data repairs and proven conflicts are shown first because they need
-    # no network request. API candidates keep newest-first DB order.
-    candidates.sort(key=lambda item: (0 if item["source"] == "Stored Suno data" else 1))
+    candidates.sort(
+        key=lambda item: (
+            0 if item["source"] == "Stored Suno data" else 1,
+            str(item.get("created_at") or ""),
+        )
+    )
     shown_rows = candidates[:max(1, int(limit))]
-
     return {
         "ok": True,
         "total_active": total_active,
@@ -3998,100 +3989,70 @@ def build_suno_update_preview(limit=300):
 
 
 def build_suno_update_preview_fallback(limit=300, error=""):
-    """Safe fallback for Downloader Update preview.
-
-    This path deliberately avoids parsing stored raw_json and avoids optional
-    column assumptions. It keeps the Update button useful even when the full
-    metadata audit hits one malformed row or an older DB schema variant.
-    """
-    columns = set(get_table_columns())
-
-    def col_expr(name, fallback="''"):
-        return name if name in columns else f"{fallback} AS {name}"
-
-    where_parts = []
-    if "library_status" in columns:
-        where_parts.append("IFNULL(library_status, 'active') = 'active'")
-    if "kind" in columns:
-        where_parts.append("IFNULL(kind, '') != 'Stem'")
-
-    checks = []
-    if "title" in columns:
-        checks.append("TRIM(COALESCE(title, '')) = ''")
-    if "lyrics" in columns:
-        checks.append("TRIM(COALESCE(lyrics, '')) = ''")
-    prompt_candidates = [col for col in ("metadata_prompt", "prompt") if col in columns]
-    if prompt_candidates:
-        checks.append("TRIM(COALESCE(" + ", ".join(prompt_candidates + ["''"]) + ")) = ''")
-    style_candidates = [col for col in ("metadata_tags", "style", "display_tags") if col in columns]
-    if style_candidates:
-        checks.append("TRIM(COALESCE(" + ", ".join(style_candidates + ["''"]) + ")) = ''")
-    for column_name in (
-        "audio_url",
-        "created_at",
-        "image_url",
-        "model_name",
-        "major_model_version",
-        "metadata_type",
-        "metadata_task",
-        "raw_json",
-    ):
-        if column_name in columns:
-            checks.append(f"TRIM(COALESCE({column_name}, '')) = ''")
-
-    if not checks:
-        checks.append("1 = 0")
-    where_parts.append("(" + " OR ".join(checks) + ")")
-    where_sql = "WHERE " + " AND ".join(where_parts) if where_parts else ""
-    order_sql = "created_at DESC, title COLLATE NOCASE" if "created_at" in columns else "title COLLATE NOCASE"
-
+    """Safe canonical fallback when detailed stored-payload analysis fails."""
     conn = get_connection()
-    cur = conn.cursor()
     try:
-        cur.execute(f"""
-            SELECT
-                {col_expr('id')},
-                {col_expr('title')},
-                {col_expr('workspace')},
-                {col_expr('workspaceName')},
-                {col_expr('created_at')}
-            FROM tracks
-            {where_sql}
-            ORDER BY {order_sql}
-            LIMIT ?;
-        """, (max(1, int(limit)),))
-        rows = [dict(row) for row in cur.fetchall()]
-
-        count_where = []
-        if "library_status" in columns:
-            count_where.append("IFNULL(library_status, 'active') = 'active'")
-        if "kind" in columns:
-            count_where.append("IFNULL(kind, '') != 'Stem'")
-        count_sql = "WHERE " + " AND ".join(count_where) if count_where else ""
-        cur.execute(f"SELECT COUNT(*) FROM tracks {count_sql};")
-        eligible_total = int(cur.fetchone()[0] or 0)
+        rows = [
+            dict(row)
+            for row in conn.execute(
+                """
+                SELECT t.id, t.title, COALESCE(t.workspace_name, '') AS workspace,
+                       COALESCE(t.created_at, '') AS created_at
+                  FROM main.tracks t
+             LEFT JOIN main.suno_source_payload sp ON sp.track_id = t.id
+                 WHERE IFNULL(t.library_status, 'active') = 'active'
+                   AND IFNULL(t.kind, '') != 'Stem'
+                   AND (
+                        TRIM(COALESCE(t.title, '')) = ''
+                     OR TRIM(COALESCE(t.lyrics, '')) = ''
+                     OR TRIM(COALESCE(t.prompt, '')) = ''
+                     OR TRIM(COALESCE(t.style_tags, '')) = ''
+                     OR TRIM(COALESCE(t.audio_url, '')) = ''
+                     OR TRIM(COALESCE(t.created_at, '')) = ''
+                     OR TRIM(COALESCE(t.source_type, '')) = ''
+                     OR TRIM(COALESCE(t.source_task, '')) = ''
+                     OR TRIM(COALESCE(sp.raw_json, '')) = ''
+                   )
+              ORDER BY t.created_at DESC, t.title COLLATE NOCASE
+                 LIMIT ?
+                """,
+                (max(1, int(limit)),),
+            ).fetchall()
+        ]
+        eligible_total = int(
+            conn.execute(
+                """
+                SELECT COUNT(*)
+                  FROM main.tracks
+                 WHERE IFNULL(library_status, 'active') = 'active'
+                   AND IFNULL(kind, '') != 'Stem'
+                """
+            ).fetchone()[0] or 0
+        )
     finally:
         conn.close()
 
-    shown_rows = []
-    for row in rows:
-        track_id = str(row.get("id") or "")
-        shown_rows.append({
-            "id": track_id,
-            "short_id": track_id[:8],
+    shown_rows = [
+        {
+            "id": str(row.get("id") or ""),
+            "short_id": str(row.get("id") or "")[:8],
             "title": row.get("title") or "[No title]",
-            "workspace": row.get("workspaceName") or row.get("workspace") or "",
+            "workspace": row.get("workspace") or "",
             "created_at": row.get("created_at") or "",
             "missing": ["metadata"],
             "fillable": [],
             "conflicts": [],
             "source": "Suno API",
-        })
-
+        }
+        for row in rows
+    ]
     return {
         "ok": True,
         "fallback": True,
-        "fallback_error": shorten_text(str(error or "Full metadata audit failed"), 900),
+        "fallback_error": shorten_text(
+            str(error or "Full metadata audit failed"),
+            900,
+        ),
         "total_active": eligible_total,
         "eligible_total": eligible_total,
         "excluded_stems": 0,
@@ -4106,7 +4067,6 @@ def build_suno_update_preview_fallback(limit=300, error=""):
         "shown": len(shown_rows),
         "limit": int(limit),
     }
-
 
 def apply_suno_metadata_to_db(track_id, api_meta, overwrite=False):
     """Update one canonical track from already fetched Suno API metadata."""
