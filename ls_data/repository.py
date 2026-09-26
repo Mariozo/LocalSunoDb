@@ -1010,28 +1010,12 @@ def update_track_hidden(track_id, hidden=True, reason="manual_hide_from_finder")
         conn.close()
 
 def ensure_local_audio_files_table(cur):
-    """Compatibility no-op for the canonical Track -> Variant -> Media schema."""
+    """Retired compatibility hook: canonical media_files must already exist."""
     row = cur.execute(
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name='media_files' LIMIT 1;"
     ).fetchone()
-    if row:
-        return
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS local_audio_files (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            track_id TEXT,
-            path TEXT,
-            filename TEXT,
-            folder TEXT,
-            extension TEXT,
-            size_bytes INTEGER,
-            modified_time TEXT,
-            is_stem INTEGER DEFAULT 0,
-            stem_label TEXT,
-            created_at TEXT,
-            updated_at TEXT
-        );
-    """)
+    if not row:
+        raise RuntimeError("Canonical media_files table is missing")
 
 def normalize_bool_liked(value):
     return str(value or "").strip().lower() == "true"
@@ -3138,182 +3122,11 @@ def get_meta_candidate_rows(limit=80):
     finally:
         conn.close()
 
-def _collect_ls_structured_repair_plan():
-    columns = set(get_table_columns())
-    conn = get_connection()
-    try:
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT t.*, tu.bpm_text AS ls_ui_bpm_text,
-                   tu.model_badge AS ls_ui_model_badge
-            FROM tracks t
-            LEFT JOIN track_ui tu ON tu.track_id = t.id
-            WHERE IFNULL(t.library_status, 'active') = 'active'
-            ORDER BY t.created_at DESC, t.title COLLATE NOCASE;
-        """)
-        rows = [dict(row) for row in cur.fetchall()]
-    finally:
-        conn.close()
-
-    structured_updates = []
-    prompt_updates = []
-    bpm_migrations = []
-    ui_updates = []
-    field_counts = {field: 0 for field in _DATA_LS_PROVEN_STRUCTURED_FIELDS}
-    excluded_stems = 0
-    excluded_edits = 0
-    invalid_raw_json = 0
-
-    for current in rows:
-        if is_ls_stem_metadata_row(current):
-            excluded_stems += 1
-            continue
-        if is_ls_edit_section_row(current):
-            excluded_edits += 1
-            continue
-
-        raw_json_text = str(current.get("raw_json") or "").strip()
-        api_meta = {}
-        if raw_json_text:
-            try:
-                raw_track = json.loads(raw_json_text)
-                if not isinstance(raw_track, dict):
-                    raise ValueError("raw_json is not an object")
-                api_meta = extract_suno_metadata_for_ls(raw_track)
-            except Exception:
-                invalid_raw_json += 1
-
-        updates = {}
-        for field in _DATA_LS_PROVEN_STRUCTURED_FIELDS:
-            if field not in columns:
-                continue
-            value = api_meta.get(field)
-            if not metadata_value_present(value):
-                continue
-            if not metadata_values_equal(current.get(field), value):
-                updates[field] = value
-                field_counts[field] += 1
-        if updates:
-            structured_updates.append({
-                "id": str(current.get("id") or ""),
-                "title": str(current.get("title") or "[No title]"),
-                "updates": updates,
-            })
-
-        track_id = str(current.get("id") or "").strip()
-        if track_id.lower() in _DATA_LS_CONFIRMED_PROMPT_REPAIR_IDS:
-            api_prompt = str(api_meta.get("metadata_prompt") or "").strip()
-            current_prompt = str(current.get("prompt") or "").strip()
-            current_metadata_prompt = str(
-                current.get("metadata_prompt") or ""
-            ).strip()
-            current_lyrics = str(current.get("lyrics") or "").strip()
-            if (
-                api_prompt
-                and current_prompt == "Elizabete Gaile"
-                and current_metadata_prompt == "Elizabete Gaile"
-                and current_lyrics == api_prompt
-            ):
-                prompt_updates.append({
-                    "id": track_id,
-                    "title": str(current.get("title") or "[No title]"),
-                    "updates": {
-                        "prompt": api_prompt,
-                        "metadata_prompt": api_prompt,
-                    },
-                })
-
-        track_bpm = normalize_ls_bpm_text(current.get("bpm"))
-        avg_bpm = normalize_ls_bpm_text(current.get("metadata_avg_bpm"))
-        ui_bpm = normalize_ls_bpm_text(current.get("ls_ui_bpm_text"))
-        migrated_bpm = ""
-        if not track_bpm and not avg_bpm and ui_bpm:
-            migrated_bpm = ui_bpm
-            bpm_migrations.append({
-                "id": str(current.get("id") or ""),
-                "title": str(current.get("title") or "[No title]"),
-                "bpm": migrated_bpm,
-            })
-
-        desired_bpm = track_bpm or avg_bpm or migrated_bpm
-        desired_model = str(
-            current.get("major_model_version")
-            or current.get("model_version")
-            or ""
-        ).strip()
-        ui_patch = {}
-        if desired_bpm and desired_bpm != ui_bpm:
-            ui_patch["bpm_text"] = desired_bpm
-        current_ui_model = str(current.get("ls_ui_model_badge") or "").strip()
-        if desired_model and desired_model != current_ui_model:
-            ui_patch["model_badge"] = desired_model
-        if ui_patch:
-            ui_updates.append({
-                "id": str(current.get("id") or ""),
-                "updates": ui_patch,
-            })
-
-    field_counts = {key: value for key, value in field_counts.items() if value}
-    example_rows = [
-        {
-            "id": item["id"],
-            "short_id": item["id"][:8],
-            "title": item["title"],
-            "fields": sorted(item["updates"]),
-        }
-        for item in structured_updates[:20]
-    ]
-    return {
-        "ok": True,
-        "active_total": len(rows),
-        "eligible_total": len(rows) - excluded_stems - excluded_edits,
-        "excluded_stems": excluded_stems,
-        "excluded_edits": excluded_edits,
-        "invalid_raw_json": invalid_raw_json,
-        "structured_rows": len(structured_updates),
-        "structured_field_updates": sum(field_counts.values()),
-        "confirmed_prompt_rows": len(prompt_updates),
-        "confirmed_prompt_fields": sum(
-            len(item["updates"]) for item in prompt_updates
-        ),
-        "field_counts": field_counts,
-        "bpm_migrations": len(bpm_migrations),
-        "ui_cache_rows": len(ui_updates),
-        "example_rows": example_rows,
-        "_structured_updates": structured_updates,
-        "_prompt_updates": prompt_updates,
-        "_bpm_migrations": bpm_migrations,
-        "_ui_updates": ui_updates,
-    }
-
-
-def backup_db_before_structured_repair():
-    backup_dir = BASE_DIR / "Backup"
-    backup_dir.mkdir(exist_ok=True)
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    database_path = get_active_database_path()
-    target = backup_dir / f"{database_path.stem}_BEFORE_PROVEN_META_REPAIR_{stamp}{database_path.suffix}"
-    source = get_connection()
-    destination = sqlite3.connect(target)
-    try:
-        source.backup(destination)
-        check = destination.execute("PRAGMA quick_check;").fetchone()
-        if not check or str(check[0]).lower() != "ok":
-            raise RuntimeError("Structured-repair backup integrity check failed")
-    finally:
-        destination.close()
-        source.close()
-    return target
-
-
 def apply_ls_structured_repair():
-    """Legacy repair is obsolete after migration into the canonical schema."""
+    """Retired compatibility action after canonical metadata cutover."""
     return {
         "ok": True,
-        "message": (
-            "Canonical Local Suno DB already stores normalized structured fields; "
-            "legacy track_ui/tracks repair is not applicable."
-        ),
+        "message": "Legacy structured repair is retired for the canonical DB.",
         "backup": "",
         "report": "",
         "applied_structured_rows": 0,
@@ -3325,135 +3138,6 @@ def apply_ls_structured_repair():
         "field_counts": {},
         "remaining": {},
     }
-
-def _ls_intent_source_signature(conn):
-    digest = hashlib.sha256()
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT t.id, t.lyrics, t.metadata_prompt, t.prompt, t.metadata_task,
-               t.metadata_cover_clip_id, t.metadata_make_instrumental,
-               t.metadata_has_vocal, t.raw_make_instrumental, t.raw_has_vocal,
-               t.raw_json, t.library_status, t.kind,
-               tu.main_category, tu.main_category_review_group,
-               tu.main_category_rule, tu.user_tags, tu.visible_in_finder
-          FROM tracks t
-     LEFT JOIN track_ui tu ON tu.track_id = t.id
-      ORDER BY t.id;
-    """)
-    for db_row in cur.fetchall():
-        payload = json.dumps(
-            list(db_row), ensure_ascii=False, separators=(",", ":")
-        )
-        digest.update(payload.encode("utf-8"))
-        digest.update(b"\n")
-    return digest.hexdigest()
-
-
-def _collect_ls_intent_audit_plan():
-    conn = get_connection()
-    try:
-        check = conn.execute("PRAGMA quick_check;").fetchone()
-        if not check or str(check[0]).lower() != "ok":
-            raise RuntimeError("LS DB quick_check failed before intent audit")
-        signature = _ls_intent_source_signature(conn)
-        all_tracks = {
-            row["id"]: dict(row)
-            for row in conn.execute("""
-                SELECT t.*,
-                       tu.main_category AS ls_main_category,
-                       tu.main_category_review_group AS ls_review_group
-                  FROM tracks t
-             LEFT JOIN track_ui tu ON tu.track_id = t.id;
-            """).fetchall()
-        }
-        active_rows = [
-            dict(row)
-            for row in conn.execute("""
-                SELECT t.*,
-                       tu.main_category AS ls_main_category,
-                       tu.main_category_review_group AS ls_review_group,
-                       tu.main_category_rule AS ls_rule,
-                       tu.user_tags AS ls_user_tags
-                  FROM tracks t
-             LEFT JOIN track_ui tu ON tu.track_id = t.id
-                 WHERE IFNULL(t.library_status, 'active') = 'active'
-                   AND IFNULL(t.kind, '') != 'Stem'
-                   AND (tu.visible_in_finder IS NULL OR tu.visible_in_finder = 1)
-              ORDER BY t.id;
-            """).fetchall()
-        ]
-    finally:
-        conn.close()
-
-    analyzed_at = now_iso_local()
-    audit_rows = [
-        _ls_intent_analyze_row(row, all_tracks, analyzed_at)
-        for row in active_rows
-    ]
-    intent_counts = {}
-    relation_counts = {}
-    action_counts = {}
-    for item in audit_rows:
-        intent_counts[item["intent_label"]] = (
-            intent_counts.get(item["intent_label"], 0) + 1
-        )
-        relation_counts[item["relation_type"]] = (
-            relation_counts.get(item["relation_type"], 0) + 1
-        )
-        action_counts[item["recommended_action"]] = (
-            action_counts.get(item["recommended_action"], 0) + 1
-        )
-    conflicts = [
-        item
-        for item in audit_rows
-        if item["recommended_action"] == "review_category_conflict"
-    ]
-    conflicts.sort(
-        key=lambda item: (-int(item["intent_score"]), item["title"].casefold())
-    )
-    return {
-        "ok": True,
-        "engine_version": _DATA_LS_INTENT_AUDIT_ENGINE_VERSION,
-        "analyzed_at": analyzed_at,
-        "source_signature": signature,
-        "active_rows": len(audit_rows),
-        "intent_counts": dict(sorted(intent_counts.items())),
-        "relation_counts": dict(sorted(relation_counts.items())),
-        "action_counts": dict(sorted(action_counts.items())),
-        "vocal_parts_rows": sum(
-            item["audio_status"] == "vocal_parts" for item in audit_rows
-        ),
-        "manual_rows_preserved": sum(
-            item["recommended_action"] == "preserve_manual_category"
-            for item in audit_rows
-        ),
-        "proposed_main_category_updates": 0,
-        "category_conflicts": len(conflicts),
-        "conflict_preview": conflicts[:100],
-        "_audit_rows": audit_rows,
-    }
-
-
-def backup_db_before_intent_audit():
-    backup_dir = BASE_DIR / "Backup"
-    backup_dir.mkdir(exist_ok=True)
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    target = (
-        backup_dir
-        / f"{get_active_database_path().stem}_BEFORE_INTENT_AUDIT_{stamp}{get_active_database_path().suffix}"
-    )
-    source = get_connection()
-    destination = sqlite3.connect(target)
-    try:
-        source.backup(destination)
-        check = destination.execute("PRAGMA quick_check;").fetchone()
-        if not check or str(check[0]).lower() != "ok":
-            raise RuntimeError("Intent-audit backup integrity check failed")
-    finally:
-        destination.close()
-        source.close()
-    return target
-
 
 
 def apply_ls_intent_audit(expected_signature=""):
@@ -3468,152 +3152,12 @@ def apply_ls_intent_audit(expected_signature=""):
         "summary": {},
     }
 
-def _ls_category_assignment_source_signature(conn):
-    """Sign every value used by the category-assignment preview."""
-    digest = hashlib.sha256()
-    digest.update(_ls_intent_source_signature(conn).encode("ascii"))
-    if not conn.execute("""
-        SELECT 1 FROM sqlite_master
-         WHERE type = 'table' AND name = ? LIMIT 1;
-    """, (_DATA_LS_INTENT_AUDIT_TABLE,)).fetchone():
-        return ""
-    for row in conn.execute(f"""
-        SELECT track_id, current_category, intent_label, intent_score,
-               audio_status, recommended_action, rule_code
-          FROM {_DATA_LS_INTENT_AUDIT_TABLE}
-      ORDER BY track_id;
-    """).fetchall():
-        digest.update(json.dumps(
-            list(row), ensure_ascii=False, separators=(",", ":")
-        ).encode("utf-8"))
-        digest.update(b"\n")
-    return digest.hexdigest()
-
-
-def _collect_ls_category_assignment_plan(conn=None):
-    owns_connection = conn is None
-    if owns_connection:
-        conn = get_connection()
-    try:
-        check = conn.execute("PRAGMA quick_check;").fetchone()
-        if not check or str(check[0]).lower() != "ok":
-            raise RuntimeError("LS DB quick_check failed before category preview")
-        signature = _ls_category_assignment_source_signature(conn)
-        if not signature:
-            raise RuntimeError(
-                "Intent audit layer is missing. Write the intent audit first."
-            )
-
-        rows = conn.execute(f"""
-            SELECT t.id AS track_id,
-                   COALESCE(NULLIF(TRIM(t.title), ''), '[No title]') AS title,
-                   TRIM(COALESCE(tu.main_category, '')) AS current_category,
-                   COALESCE(tu.main_category_review_group, '') AS review_group,
-                   sia.intent_label, sia.intent_score, sia.audio_status,
-                   sia.rule_code, sia.recommended_action
-              FROM tracks t
-              JOIN {_DATA_LS_INTENT_AUDIT_TABLE} sia
-                ON lower(sia.track_id) = lower(t.id)
-         LEFT JOIN track_ui tu ON tu.track_id = t.id
-             WHERE IFNULL(t.library_status, 'active') = 'active'
-               AND IFNULL(t.kind, '') != 'Stem'
-               AND (tu.visible_in_finder IS NULL OR tu.visible_in_finder = 1)
-               AND COALESCE(tu.main_category_review_group, '') != 'manual_toggle'
-               AND sia.intent_label IN ('Song', 'Instrumental')
-               AND sia.intent_label != TRIM(COALESCE(tu.main_category, ''))
-          ORDER BY sia.intent_score DESC, lower(t.title), t.id;
-        """).fetchall()
-
-        updates = []
-        for row in rows:
-            score = max(0, min(100, int(row["intent_score"] or 0)))
-            proposed = (
-                str(row["intent_label"])
-                if score >= _DATA_LS_CATEGORY_ASSIGNMENT_SCORE
-                else "SongOrInstrumental"
-            )
-            updates.append({
-                "track_id": str(row["track_id"] or ""),
-                "title": str(row["title"] or "[No title]"),
-                "current_category": str(row["current_category"] or ""),
-                "intent_label": str(row["intent_label"] or ""),
-                "intent_score": score,
-                "proposed_category": proposed,
-                "rule_code": str(row["rule_code"] or ""),
-            })
-
-        definite = [
-            item for item in updates
-            if item["proposed_category"] in {"Song", "Instrumental"}
-        ]
-        uncertain = [
-            item for item in updates
-            if item["proposed_category"] == "SongOrInstrumental"
-        ]
-        to_song = sum(item["proposed_category"] == "Song" for item in definite)
-        to_instrumental = sum(
-            item["proposed_category"] == "Instrumental" for item in definite
-        )
-        manual_preserved = conn.execute("""
-            SELECT COUNT(*) FROM track_ui
-             WHERE main_category_review_group = 'manual_toggle';
-        """).fetchone()[0]
-        vocal_parts_preserved = conn.execute(f"""
-            SELECT COUNT(*) FROM {_DATA_LS_INTENT_AUDIT_TABLE}
-             WHERE audio_status = 'vocal_parts';
-        """).fetchone()[0]
-        return {
-            "ok": True,
-            "source_signature": signature,
-            "score_threshold": _DATA_LS_CATEGORY_ASSIGNMENT_SCORE,
-            "candidate_rows": len(updates),
-            "definite_updates": len(definite),
-            "to_song": to_song,
-            "to_instrumental": to_instrumental,
-            "uncertain_updates": len(uncertain),
-            "manual_rows_preserved": int(manual_preserved or 0),
-            "vocal_parts_rows_preserved": int(vocal_parts_preserved or 0),
-            "preview": updates[:100],
-            "_updates": updates,
-        }
-    finally:
-        if owns_connection:
-            conn.close()
-
-
-def backup_db_before_category_assignment():
-    backup_dir = BASE_DIR / "Backup"
-    backup_dir.mkdir(exist_ok=True)
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    target = (
-        backup_dir
-        / f"{get_active_database_path().stem}_BEFORE_CATEGORY_ASSIGNMENT_{stamp}{get_active_database_path().suffix}"
-    )
-    source = get_connection()
-    destination = sqlite3.connect(target)
-    try:
-        source.backup(destination)
-        check = destination.execute("PRAGMA quick_check;").fetchone()
-        if not check or str(check[0]).lower() != "ok":
-            raise RuntimeError("Category-assignment backup integrity check failed")
-    finally:
-        destination.close()
-        source.close()
-    return target
-
 
 def apply_ls_category_assignment(expected_signature=""):
-    """Canonical DB persists only manual category overrides.
-
-    Automatic category intent remains derived/recomputed data and is deliberately
-    not written back into track_user.
-    """
+    """Retired compatibility action after canonical category cutover."""
     return {
         "ok": True,
-        "message": (
-            "Canonical Local Suno DB keeps automatic Song/Instrumental intent "
-            "derived; only manual overrides are persisted."
-        ),
+        "message": "Legacy category assignment is retired; canonical Category is used directly.",
         "backup": "",
         "report": "",
         "applied_rows": 0,
@@ -3621,6 +3165,7 @@ def apply_ls_category_assignment(expected_signature=""):
         "to_instrumental": 0,
         "to_uncertain": 0,
     }
+
 
 def backup_db_before_metadata_import():
     backup_dir = BASE_DIR / "Backup"
