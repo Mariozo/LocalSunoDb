@@ -418,15 +418,13 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
     playerProgressShell?.classList.remove('zoomed');
   }};
   const syncZoomControl = mode => {{
-    if (!playerZoomBadge) return;
+    if (!playerZoomSymbol) return;
     const z = getZoomWindow();
     const zoomed = z.duration > 0 && z.span > 0 && z.span < z.duration - .05;
-    if (mode === 'reset') playerZoomBadge.textContent = '↺';
-    else if (mode === 'out') playerZoomBadge.textContent = '−';
-    else if (mode === 'in') playerZoomBadge.textContent = '+';
-    else playerZoomBadge.textContent = zoomed ? '−' : '+';
-    if (playerZoomReset) playerZoomReset.disabled = !zoomed;
-    if (playerZoomOut) playerZoomOut.disabled = !zoomed;
+    if (mode === 'reset') playerZoomSymbol.textContent = '↺';
+    else if (mode === 'out') playerZoomSymbol.textContent = '−';
+    else if (mode === 'in') playerZoomSymbol.textContent = '+';
+    else playerZoomSymbol.textContent = zoomed ? '−' : '+';
   }};
   const applyZoomFactor = (factor, mode='') => {{
     const z = getZoomWindow();
@@ -800,7 +798,7 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
     }});
   }};
   const enablePlayer = enabled => {{
-    [playerPlay, playerPrevious, playerNext, playerRestart, playerLoop, playerProgress, playerSetA, playerSetB, playerZoomToggle, playerZoomIn].forEach(node => {{ if (node) node.disabled = !enabled; }});
+    [playerPlay, playerPrevious, playerNext, playerRestart, playerLoop, playerProgress, playerSetA, playerSetB, playerZoomToggle].forEach(node => {{ if (node) node.disabled = !enabled; }});
     if (playerClearAB) playerClearAB.disabled = true;
     playerRoot?.classList.toggle('is-idle', !enabled);
   }};
