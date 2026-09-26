@@ -161,7 +161,10 @@ jobs:
               ) == "none"
 
               my_frame.locator("#list-view").click()
-              page.wait_for_url("**/my-library?*view=list*", timeout=10000)
+              page.wait_for_function(
+                  "() => location.pathname === '/my-library' && new URLSearchParams(location.search).get('view') === 'list'",
+                  timeout=10000,
+              )
               page.wait_for_timeout(800)
               list_frame = frame_with(page, "view=list")
               assert list_frame is not None, [frame.url for frame in page.frames]
