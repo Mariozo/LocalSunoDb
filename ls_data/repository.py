@@ -3091,53 +3091,52 @@ def import_local_audio_library(root_folder):
     }
 
 
+
 def get_track_row_for_meta(track_id):
+    """Return one canonical Track row plus its stored Suno source payload."""
     conn = get_connection()
-    cur = conn.cursor()
     try:
-        cur.execute("SELECT * FROM tracks WHERE lower(id)=lower(?);", (str(track_id or "").strip(),))
-        row = cur.fetchone()
+        row = conn.execute(
+            """
+            SELECT t.*, COALESCE(sp.raw_json, '') AS raw_json
+              FROM main.tracks t
+         LEFT JOIN main.suno_source_payload sp ON sp.track_id = t.id
+             WHERE lower(t.id)=lower(?)
+             LIMIT 1
+            """,
+            (str(track_id or "").strip(),),
+        ).fetchone()
         return dict(row) if row else {}
     finally:
         conn.close()
 
 
 def get_meta_candidate_rows(limit=80):
-    columns = get_table_columns()
-    checks = []
-    if "lyrics" in columns:
-        checks.append("TRIM(COALESCE(lyrics, '')) = ''")
-    if "metadata_prompt" in columns or "prompt" in columns:
-        prompt_parts = []
-        if "metadata_prompt" in columns:
-            prompt_parts.append("metadata_prompt")
-        if "prompt" in columns:
-            prompt_parts.append("prompt")
-        checks.append("TRIM(COALESCE(" + ", ".join(prompt_parts + ["''"]) + ")) = ''")
-    if "audio_url" in columns:
-        checks.append("TRIM(COALESCE(audio_url, '')) = ''")
-    if "created_at" in columns:
-        checks.append("TRIM(COALESCE(created_at, '')) = ''")
-    if not checks:
-        checks.append("1=0")
-
-    where_missing = " OR ".join(["(" + x + ")" for x in checks])
+    """Return canonical Tracks with core metadata gaps."""
     conn = get_connection()
-    cur = conn.cursor()
     try:
-        cur.execute(f"""
-            SELECT id, title, COALESCE(workspaceName, workspace, '') AS workspace
-            FROM tracks
-            WHERE IFNULL(library_status, 'active') = 'active'
-              AND IFNULL(kind, '') != 'Stem'
-              AND ({where_missing})
-            ORDER BY created_at DESC, title COLLATE NOCASE
-            LIMIT ?;
-        """, (int(limit),))
-        return [dict(row) for row in cur.fetchall()]
+        rows = conn.execute(
+            """
+            SELECT t.id, t.title, COALESCE(t.workspace_name, '') AS workspace
+              FROM main.tracks t
+         LEFT JOIN main.suno_source_payload sp ON sp.track_id = t.id
+             WHERE IFNULL(t.library_status, 'active') = 'active'
+               AND IFNULL(t.kind, '') != 'Stem'
+               AND (
+                    TRIM(COALESCE(t.lyrics, '')) = ''
+                 OR TRIM(COALESCE(t.prompt, '')) = ''
+                 OR TRIM(COALESCE(t.audio_url, '')) = ''
+                 OR TRIM(COALESCE(t.created_at, '')) = ''
+                 OR TRIM(COALESCE(sp.raw_json, '')) = ''
+               )
+          ORDER BY t.created_at DESC, t.title COLLATE NOCASE
+             LIMIT ?
+            """,
+            (int(limit),),
+        ).fetchall()
+        return [dict(row) for row in rows]
     finally:
         conn.close()
-
 
 def _collect_ls_structured_repair_plan():
     columns = set(get_table_columns())
@@ -3456,135 +3455,18 @@ def backup_db_before_intent_audit():
     return target
 
 
+
 def apply_ls_intent_audit(expected_signature=""):
-    if not LS_INTENT_AUDIT_LOCK.acquire(blocking=False):
-        raise RuntimeError("A Song / Instrumental intent audit is already running")
-    try:
-        job_state = read_suno_metadata_job_state()
-        if job_state.get("running"):
-            raise RuntimeError(
-                "Automatic metadata backfill is still running. "
-                "Wait for it to finish before writing the intent audit."
-            )
-
-        plan = _collect_ls_intent_audit_plan()
-        expected_signature = str(expected_signature or "").strip()
-        if expected_signature and expected_signature != plan["source_signature"]:
-            raise RuntimeError(
-                "LS DB changed after the shown preview. Run Preview again."
-            )
-
-        backup_path = backup_db_before_intent_audit()
-        conn = get_connection()
-        try:
-            cur = conn.cursor()
-            cur.execute("PRAGMA busy_timeout = 10000;")
-            cur.execute("BEGIN IMMEDIATE;")
-            check = cur.execute("PRAGMA quick_check;").fetchone()
-            if not check or str(check[0]).lower() != "ok":
-                raise RuntimeError("Live DB quick_check failed before audit write")
-            live_signature = _ls_intent_source_signature(conn)
-            if live_signature != plan["source_signature"]:
-                raise RuntimeError(
-                    "LS DB changed while preparing the audit. "
-                    "Nothing was written; run Preview again."
-                )
-
-            cur.execute(f"""
-                CREATE TABLE IF NOT EXISTS {_DATA_LS_INTENT_AUDIT_TABLE} (
-                    track_id TEXT PRIMARY KEY,
-                    engine_version TEXT NOT NULL,
-                    analyzed_at TEXT NOT NULL,
-                    current_category TEXT NOT NULL DEFAULT '',
-                    intent_label TEXT NOT NULL,
-                    intent_confidence TEXT NOT NULL,
-                    intent_score INTEGER NOT NULL,
-                    audio_status TEXT NOT NULL,
-                    veto_reason TEXT NOT NULL DEFAULT '',
-                    relation_type TEXT NOT NULL,
-                    source_ids_json TEXT NOT NULL DEFAULT '[]',
-                    source_found_count INTEGER NOT NULL DEFAULT 0,
-                    rule_code TEXT NOT NULL,
-                    recommended_action TEXT NOT NULL,
-                    evidence_json TEXT NOT NULL DEFAULT '[]'
-                );
-            """)
-            cur.execute(
-                f"CREATE INDEX IF NOT EXISTS idx_ls_intent_label "
-                f"ON {_DATA_LS_INTENT_AUDIT_TABLE}(intent_label, intent_confidence);"
-            )
-            cur.execute(
-                f"CREATE INDEX IF NOT EXISTS idx_ls_intent_audio_status "
-                f"ON {_DATA_LS_INTENT_AUDIT_TABLE}(audio_status);"
-            )
-            cur.execute(
-                f"CREATE INDEX IF NOT EXISTS idx_ls_intent_action "
-                f"ON {_DATA_LS_INTENT_AUDIT_TABLE}(recommended_action);"
-            )
-            cur.execute(f"DELETE FROM {_DATA_LS_INTENT_AUDIT_TABLE};")
-            cur.executemany(f"""
-                INSERT INTO {_DATA_LS_INTENT_AUDIT_TABLE} (
-                    track_id, engine_version, analyzed_at, current_category,
-                    intent_label, intent_confidence, intent_score, audio_status,
-                    veto_reason, relation_type, source_ids_json,
-                    source_found_count, rule_code, recommended_action,
-                    evidence_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-            """, [
-                (
-                    item["track_id"], item["engine_version"],
-                    item["analyzed_at"], item["current_category"],
-                    item["intent_label"], item["intent_confidence"],
-                    item["intent_score"], item["audio_status"],
-                    item["veto_reason"], item["relation_type"],
-                    json.dumps(item["source_ids"], ensure_ascii=False),
-                    item["source_found_count"], item["rule_code"],
-                    item["recommended_action"],
-                    json.dumps(item["evidence"], ensure_ascii=False),
-                )
-                for item in plan["_audit_rows"]
-            ])
-            check = cur.execute("PRAGMA quick_check;").fetchone()
-            if not check or str(check[0]).lower() != "ok":
-                raise RuntimeError("DB integrity check failed; audit was rolled back")
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            conn.close()
-
-        backup_dir = backup_path.parent
-        stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        report_path = backup_dir / f"LS_INTENT_AUDIT_{stamp}.json"
-        report_payload = {
-            key: value for key, value in plan.items() if not key.startswith("_")
-        }
-        report_payload.update({
-            "app_version": APP_VERSION,
-            "backup": str(backup_path),
-            "audit_rows_written": len(plan["_audit_rows"]),
-        })
-        report_path.write_text(
-            json.dumps(report_payload, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-        return {
-            "ok": True,
-            "message": "Song / Instrumental intent audit layer written.",
-            "backup": str(backup_path),
-            "report": str(report_path),
-            "audit_rows_written": len(plan["_audit_rows"]),
-            "proposed_main_category_updates": 0,
-            "summary": {
-                key: value
-                for key, value in plan.items()
-                if not key.startswith("_") and key != "conflict_preview"
-            },
-        }
-    finally:
-        LS_INTENT_AUDIT_LOCK.release()
-
+    """Retired compatibility action after canonical category cutover."""
+    return {
+        "ok": True,
+        "message": "Legacy intent audit is retired; canonical Category is used directly.",
+        "backup": "",
+        "report": "",
+        "audit_rows_written": 0,
+        "proposed_main_category_updates": 0,
+        "summary": {},
+    }
 
 def _ls_category_assignment_source_signature(conn):
     """Sign every value used by the category-assignment preview."""
@@ -5439,9 +5321,22 @@ def normalize_ls_bpm_text(value):
         shown = f"{number:.2f}".rstrip("0").rstrip(".")
     return f"{shown} BPM"
 
+
 def build_ls_structured_repair_preview():
-    plan = _collect_ls_structured_repair_plan()
-    return {key: value for key, value in plan.items() if not key.startswith("_")}
+    """Retired preview kept only for the existing Downloader endpoint."""
+    return {
+        "ok": True,
+        "canonical": True,
+        "message": "Legacy structured repair is retired for the canonical DB.",
+        "structured_rows": 0,
+        "structured_field_updates": 0,
+        "confirmed_prompt_rows": 0,
+        "confirmed_prompt_fields": 0,
+        "field_counts": {},
+        "bpm_migrations": 0,
+        "ui_cache_rows": 0,
+        "example_rows": [],
+    }
 
 def _ls_intent_text(value):
     return str(value or "").strip()
@@ -5785,13 +5680,42 @@ def _ls_intent_analyze_row(row, all_tracks, analyzed_at):
         "control_sliders": sliders,
     }
 
+
 def build_ls_intent_audit_preview():
-    plan = _collect_ls_intent_audit_plan()
-    return {key: value for key, value in plan.items() if not key.startswith("_")}
+    """Retired preview kept only for the existing Downloader endpoint."""
+    return {
+        "ok": True,
+        "canonical": True,
+        "message": "Legacy intent audit is retired; canonical Category is used directly.",
+        "active_rows": 0,
+        "intent_counts": {},
+        "relation_counts": {},
+        "action_counts": {},
+        "vocal_parts_rows": 0,
+        "manual_rows_preserved": 0,
+        "proposed_main_category_updates": 0,
+        "category_conflicts": 0,
+        "conflict_preview": [],
+        "source_signature": "",
+    }
+
 
 def build_ls_category_assignment_preview():
-    plan = _collect_ls_category_assignment_plan()
-    return {key: value for key, value in plan.items() if not key.startswith("_")}
+    """Retired preview kept only for the existing Downloader endpoint."""
+    return {
+        "ok": True,
+        "canonical": True,
+        "message": "Legacy category assignment is retired; canonical Category is used directly.",
+        "candidate_rows": 0,
+        "definite_updates": 0,
+        "to_song": 0,
+        "to_instrumental": 0,
+        "uncertain_updates": 0,
+        "manual_rows_preserved": 0,
+        "vocal_parts_rows_preserved": 0,
+        "preview": [],
+        "source_signature": "",
+    }
 
 def is_db_value_empty(value):
     if value is None:
@@ -5800,13 +5724,22 @@ def is_db_value_empty(value):
         return value.strip() == ""
     return False
 
+
 def is_ls_edit_section_row(row):
-    task = str((row or {}).get("metadata_task") or "").strip().lower()
-    meta_type = str((row or {}).get("metadata_type") or "").strip().lower()
+    task = str(
+        (row or {}).get("source_task")
+        or (row or {}).get("metadata_task")
+        or ""
+    ).strip().lower()
+    source_type = str(
+        (row or {}).get("source_type")
+        or (row or {}).get("metadata_type")
+        or ""
+    ).strip().lower()
     return (
         "infill" in task
-        or meta_type.startswith("edit_")
-        or meta_type in ("concat_infilling", "rendered_context_window")
+        or source_type.startswith("edit_")
+        or source_type in ("concat_infilling", "rendered_context_window")
     )
 
 def is_ls_stem_metadata_row(row):
@@ -5957,23 +5890,24 @@ def normalize_download_category(info):
 
 
 
+
 def get_track_identity_snapshot():
-    """Return the minimal Track-ID/title/workspace snapshot used by Suno previews."""
+    """Return minimal Track-ID/title/workspace data from canonical tracks."""
     conn = get_connection()
     try:
-        cur = conn.cursor()
-        cur.execute("SELECT lower(id) AS id_key FROM tracks WHERE id IS NOT NULL AND TRIM(id) != ''")
-        ls_ids = {row["id_key"] for row in cur.fetchall() if row["id_key"]}
-        cur.execute("""
-            SELECT lower(id) AS id_key, title, COALESCE(workspaceName, workspace, '') AS workspace
-            FROM tracks
-            WHERE id IS NOT NULL AND TRIM(id) != ''
-        """)
-        ls_map = {row["id_key"]: dict(row) for row in cur.fetchall() if row["id_key"]}
-        return ls_ids, ls_map
+        rows = conn.execute(
+            """
+            SELECT lower(id) AS id_key,
+                   title,
+                   COALESCE(workspace_name, '') AS workspace
+              FROM main.tracks
+             WHERE id IS NOT NULL AND TRIM(id) != ''
+            """
+        ).fetchall()
+        ls_map = {row["id_key"]: dict(row) for row in rows if row["id_key"]}
+        return set(ls_map), ls_map
     finally:
         conn.close()
-
 
 def apply_suno_title_updates(selected_track_ids, changed_items):
     """Apply already-resolved Suno title changes to canonical tracks."""
