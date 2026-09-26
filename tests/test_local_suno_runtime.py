@@ -251,6 +251,20 @@ def test_existing_db_upgrades_metadata_and_imports_local_family_json(tmp_path, m
 
     repository.ensure_local_suno_runtime_database()
 
+    backups = list((tmp_path / "Backup").glob("local_suno_BEFORE_SCHEMA_V1_TO_V2_*.db"))
+    assert len(backups) == 1
+    backup_conn = sqlite3.connect(backups[0])
+    try:
+        assert backup_conn.execute("PRAGMA user_version").fetchone()[0] == 1
+        backup_columns = {
+            row[1]
+            for row in backup_conn.execute("PRAGMA table_info(tracks)").fetchall()
+        }
+        assert "artist" not in backup_columns
+        assert backup_conn.execute("PRAGMA quick_check").fetchone()[0] == "ok"
+    finally:
+        backup_conn.close()
+
     conn = sqlite3.connect(db_path)
     try:
         columns = {
