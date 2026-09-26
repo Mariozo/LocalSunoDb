@@ -711,7 +711,7 @@ def render_ls_elza_dialog_markup():
             <div class="ls-elza-head" id="ls-elza-drag-handle" title="Drag LS Elza">
                 <span class="ls-elza-dock-grip" aria-hidden="true">⠿</span>
                 <div class="ls-elza-title-box">
-                    <div class="ls-elza-title" id="ls-elza-title">LS Elza</div>
+                    <div class="ls-elza-title" id="ls-elza-title">Elza v2.25</div>
                     <div class="ls-elza-context-line" id="ls-elza-context-line"></div>
                 </div>
                 <div class="ls-elza-head-actions">
@@ -2357,7 +2357,7 @@ def render_ls_elza_script_service_assets():
                 .replace(/[\u0300-\u036f]/g, "");
             const hasCommand = /\b(paradi|atlasi|atrodi|atver|uzskaiti|ieliec|dabut|show|find|list|open)\b/i.test(plain);
             const hasSupportedFilter = (
-                /\bliked\b|\blokal\w*\s+audio\b|\binstrumental\w*\b|\bstems?\b|\bkarodz\w*\b|\bflags?\b|\bzvaigzn\w*\b/i.test(plain)
+                /\bliked\b|\blokal\w*\s+audio\b|\binstrumental\w*\b|\bstems?\b|\bkarodz\w*\b|\bflags?\b|\bzvaigzn\w*\b|\bwav\b|\b(?:upload|uplod|uploads?)\b/i.test(plain)
                 || /(?<!\d)[0-5]\s*\+\s*\*/.test(plain)
                 || /(?<!\w)#[\w-]+/u.test(source)
                 || /(?:workspace|darbviet\w*|local\s+family|nosaukum\w*)\s*(?::|=)?\s*[\"“']/i.test(source)
