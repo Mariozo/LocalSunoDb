@@ -1,0 +1,184 @@
+name: My Library v2.28.2 preview proof
+
+on:
+  push:
+    branches:
+      - feat/my-library-v2281
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install pytest playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Verify preview identity and syntax
+        run: |
+          python -m py_compile             LocalSunoDb.py             ls_core/runtime.py             ls_data/music_library.py             ls_library/controller.py             ls_library/music_browser.py             ls_library/playlists.py             ls_library/render.py             ls_web/render.py             ls_web/handler.py
+          python - <<'PY'
+          from pathlib import Path
+          for path in ("LocalSunoDb.py", "ls_core/runtime.py"):
+              text = Path(path).read_text(encoding="utf-8")
+              assert 'APP_VERSION = "v2.28.2"' in text, path
+          PY
+
+      - name: Focused regressions
+        run: |
+          python -m pytest -q             tests/test_local_playlists.py             tests/test_backend_restart.py             tests/test_music_library_db.py
+
+      - name: Start preview server
+        run: |
+          python LocalSunoDb.py --ls-restarted > preview-server.log 2>&1 &
+          echo $! > preview-server.pid
+          python - <<'PY'
+          import time
+          from urllib.request import urlopen
+          for _ in range(120):
+              try:
+                  with urlopen("http://127.0.0.1:8765/app-version", timeout=1) as response:
+                      if response.status == 200:
+                          raise SystemExit(0)
+              except Exception:
+                  time.sleep(0.25)
+          raise SystemExit("Preview server did not start")
+          PY
+
+      - name: Verify common sidebar in real Chromium
+        run: |
+          python - <<'PY'
+          from playwright.sync_api import sync_playwright
+
+          expected = [
+              "Suno Library",
+              "My Library",
+              "Playlists",
+              "Stems",
+              "Imports",
+              "Explore",
+              "LS Elza",
+              "Rīki",
+          ]
+          pages = [
+              ("/", "Suno Library"),
+              ("/my-library", "My Library"),
+              ("/playlists", "Playlists"),
+              ("/downloader", "Imports"),
+          ]
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch(headless=True)
+              for path, active_label in pages:
+                  page = browser.new_page(viewport={"width": 1365, "height": 900})
+                  errors = []
+                  page.on("pageerror", lambda exc: errors.append(str(exc)))
+                  response = page.goto(
+                      "http://127.0.0.1:8765" + path,
+                      wait_until="domcontentloaded",
+                      timeout=30000,
+                  )
+                  assert response and response.ok, (path, response.status if response else None)
+                  page.wait_for_timeout(500)
+
+                  version = page.locator(".ls-sidebar-title-full").first.inner_text().strip()
+                  assert version == "LS v2.28.2", (path, version)
+
+                  labels = [
+                      value.strip()
+                      for value in page.locator(
+                          ".header-tabs > .header-tab > .ls-sidebar-label"
+                      ).all_inner_texts()
+                  ]
+                  assert labels == expected, (path, labels)
+
+                  active = [
+                      value.strip()
+                      for value in page.locator(
+                          ".header-tabs > .header-tab.active > .ls-sidebar-label"
+                      ).all_inner_texts()
+                  ]
+                  assert active == [active_label], (path, active, active_label)
+                  assert not errors, (path, errors)
+                  page.close()
+              browser.close()
+          PY
+
+      - name: Build exact preview overlay
+        run: |
+          python - <<'PY'
+          import subprocess
+          import zipfile
+          from pathlib import Path
+
+          root = Path(".")
+          base = "origin/main"
+          changed = subprocess.check_output(
+              ["git", "diff", "--name-only", base + "...HEAD"],
+              text=True,
+          ).splitlines()
+          files = []
+          for name in changed:
+              path = Path(name)
+              if not path.is_file():
+                  continue
+              if name.startswith(".github/") or name.startswith("tests/"):
+                  continue
+              if name.startswith(("Data/", "Logs/", "Reports/", "Backup/", "Temp/")):
+                  continue
+              if path.suffix.lower() in {".db", ".wav", ".mp3", ".flac", ".m4a", ".aac", ".ogg"}:
+                  continue
+              files.append(name)
+
+          required = {"LocalSunoDb.py", "ls_core/runtime.py", "ls_library/music_browser.py"}
+          assert required <= set(files), (required, files)
+
+          out = Path("LocalSunoDb_v2.28.2_MyLibrary_sidebar_preview.zip")
+          with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:
+              for name in sorted(files):
+                  archive.write(name, name)
+          print("ZIP files:")
+          print("\n".join(sorted(files)))
+          PY
+
+      - name: Verify exact preview overlay on clean main
+        run: |
+          rm -rf /tmp/ls-preview-proof
+          git worktree add --detach /tmp/ls-preview-proof origin/main
+          python - <<'PY'
+          import zipfile
+          from pathlib import Path
+          archive = Path("LocalSunoDb_v2.28.2_MyLibrary_sidebar_preview.zip").resolve()
+          target = Path("/tmp/ls-preview-proof")
+          with zipfile.ZipFile(archive, "r") as zf:
+              zf.extractall(target)
+          PY
+          cd /tmp/ls-preview-proof
+          python -m py_compile             LocalSunoDb.py             ls_core/runtime.py             ls_data/music_library.py             ls_library/controller.py             ls_library/music_browser.py             ls_library/playlists.py             ls_library/render.py             ls_web/render.py             ls_web/handler.py
+          python LocalSunoDb.py --ls-update-probe | tee /tmp/preview-probe.log
+          grep -q "LS_UPDATE_PROBE_OK" /tmp/preview-probe.log
+
+      - name: Upload preview ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: LocalSunoDb-v2.28.2-MyLibrary-sidebar-preview
+          path: LocalSunoDb_v2.28.2_MyLibrary_sidebar_preview.zip
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Stop server
+        if: always()
+        run: |
+          if [ -f preview-server.pid ]; then kill "$(cat preview-server.pid)" || true; fi
