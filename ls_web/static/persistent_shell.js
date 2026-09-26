@@ -84,6 +84,15 @@
             const target = normalizeTarget(rawUrl);
             if (!target || !isShellRoute(target)) return false;
             try {
+                if (
+                    window.parent &&
+                    window.parent !== window &&
+                    typeof window.parent.LSShellNavigate === "function"
+                ) {
+                    return window.parent.LSShellNavigate(target) !== false;
+                }
+            } catch (_) {}
+            try {
                 window.parent.postMessage(
                     { type: "LS_SHELL_NAVIGATE", url: target },
                     ORIGIN
