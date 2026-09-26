@@ -149,6 +149,11 @@ def test_migration_preserves_source_and_normalizes(tmp_path):
     assert report["counts"]["unsafe_audio_urls_cleared"] == 1
 
     conn = sqlite3.connect(destination)
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
+    columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(tracks)").fetchall()
+    }
+    assert {"artist", "album", "track_number", "lyricist"} <= columns
     assert conn.execute(
         "SELECT audio_url,has_vocal FROM tracks WHERE id='t1'"
     ).fetchone() == (None, 0)
@@ -199,3 +204,41 @@ def test_chronology_prefers_suno(monkeypatch):
     assert file_created == "2026-09-21T12:00:00+03:00"
     assert chronology == "2026-09-13T17:30:51Z"
     assert source == "suno_created_at"
+
+
+def test_upgrade_schema_adds_v2_columns_and_local_family_tables(tmp_path):
+    path = tmp_path / "v1.db"
+    conn = sqlite3.connect(path)
+    conn.execute(
+        """
+        CREATE TABLE tracks(
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL DEFAULT '',
+            library_status TEXT NOT NULL DEFAULT 'active'
+        )
+        """
+    )
+    conn.execute(
+        "INSERT INTO tracks(id,title,library_status) VALUES ('t1','Track 1','active')"
+    )
+    conn.execute("PRAGMA user_version = 1")
+
+    migration.upgrade_schema(conn)
+    conn.commit()
+
+    columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(tracks)").fetchall()
+    }
+    tables = {
+        row[0]
+        for row in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()
+    }
+    assert {"artist", "album", "track_number", "lyricist"} <= columns
+    assert {"track_local_family", "track_local_family_history"} <= tables
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
+    assert conn.execute(
+        "SELECT title FROM tracks WHERE id='t1'"
+    ).fetchone()[0] == "Track 1"
+    conn.close()
