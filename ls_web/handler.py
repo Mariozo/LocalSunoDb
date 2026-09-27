@@ -29,6 +29,8 @@ from pathlib import Path, PurePosixPath
 from ls_core.runtime import *
 from ls_web.assets import read_static_asset
 from ls_library.controller import LibraryControllerMixin
+from ls_library.music_browser import render_music_database_page
+from ls_data.music_library import get_music_database_cover
 from ls_downloader.controller import DownloaderControllerMixin
 from ls_audio.controller import AudioControllerMixin
 from ls_media.controller import MediaControllerMixin
@@ -107,6 +109,34 @@ class LocalSunoDbHandler(LibraryControllerMixin, DownloaderControllerMixin, Medi
 
     def handle_page_get_request(self, path, params):
         """Render top-level LocalSunoDb pages and lazy Library row chunks."""
+        if path in {"/my-library", "/music-db"}:
+            db_name = params.get("db", params.get("name", [""]))[0]
+            query = params.get("q", [""])[0]
+            view = params.get("view", ["grid"])[0]
+            album = params.get("album", [""])[0]
+            artist = params.get("artist", [""])[0]
+            year = params.get("year", [""])[0]
+            open_new = params.get("new", [""])[0] == "1"
+            save_last_view_url(self.path)
+            self.send_html(render_music_database_page(db_name, query, view, album, artist, year, open_new))
+            return
+
+        if path == "/music-db-cover":
+            db_name = params.get("name", [""])[0]
+            sha1_value = params.get("sha1", [""])[0]
+            payload = get_music_database_cover(db_name, sha1_value)
+            if not payload:
+                self.send_error(404, "Cover not found")
+                return
+            image = payload["image_data"]
+            self.send_response(200)
+            self.send_header("Content-Type", payload["mime_type"])
+            self.send_header("Content-Length", str(len(image)))
+            self.send_header("Cache-Control", "private, max-age=3600")
+            self.end_headers()
+            self.wfile.write(image)
+            return
+
         if path == "/playlists":
             playlist_id = params.get("id", [""])[0]
             add_track_id = params.get("add_track", [""])[0]
@@ -420,6 +450,14 @@ class LocalSunoDbHandler(LibraryControllerMixin, DownloaderControllerMixin, Medi
             self.send_settings_json()
             return
 
+        if path == "/music-db-list":
+            self.send_music_database_list()
+            return
+
+        if path == "/choose-music-db-root":
+            self.choose_music_database_root(params)
+            return
+
         if path == "/fresh-install-state":
             self.send_fresh_install_state()
             return
@@ -635,4 +673,3 @@ class LocalSunoDbHandler(LibraryControllerMixin, DownloaderControllerMixin, Medi
 
     def log_message(self, format, *args):
         return
-

@@ -1,0 +1,79 @@
+/* Persistent LS application shell.
+   Secondary screens live in same-origin frames while the Suno Library document,
+   sidebar and any active audio stay mounted. */
+#ls-shell-screen-host {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: var(--ls-suno-sidebar-width, 260px);
+    z-index: 1285;
+    overflow: hidden;
+    visibility: hidden;
+    pointer-events: none;
+    background: #061F14;
+}
+
+html.ls-shell-secondary-active #ls-shell-screen-host {
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.ls-shell-screen-frame {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    margin: 0;
+    padding: 0;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    background: #061F14;
+}
+
+.ls-shell-screen-frame.is-active {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+html.ls-shell-embedded,
+html.ls-shell-embedded body {
+    min-height: 100%;
+}
+
+html.ls-shell-embedded header,
+html.ls-shell-embedded .side,
+html.ls-shell-embedded .playlist-topbar {
+    display: none !important;
+}
+
+html.ls-shell-embedded body {
+    margin: 0 !important;
+}
+
+html.ls-shell-embedded body > main,
+html.ls-shell-embedded .main,
+html.ls-shell-embedded .playlist-shell {
+    width: 100% !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+}
+
+html.ls-shell-embedded body#ls-downloader > main {
+    margin-left: 0 !important;
+}
+
+html.ls-shell-embedded .my-music-player,
+html.ls-shell-embedded .playlist-player {
+    left: 0 !important;
+}
+
+@media (max-width: 900px) {
+    #ls-shell-screen-host {
+        left: var(--ls-suno-sidebar-width, 72px);
+    }
+}

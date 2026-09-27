@@ -1775,6 +1775,7 @@ def build_library_table_rows(
                     data-cover-full="{esc(player_cover_full_url)}"
                     data-local-path="{esc(compare_local_wav)}"
                     data-local-audio="{esc(build_local_playback_url(track_id, has_confirmed_local_audio))}"
+                    data-bpm="{esc(bpm_text)}"
                     data-has-stems="{esc('true' if has_linked_stems else 'false')}"
                     data-has-local-audio="{esc('true' if has_confirmed_local_audio else 'false')}"
                     title="{esc(play_button_title)}"
