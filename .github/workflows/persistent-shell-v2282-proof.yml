@@ -1,4 +1,4 @@
-name: Persistent shell v2.28.4 proof
+name: Persistent shell v2.28.5 proof
 
 on:
   push:
@@ -27,14 +27,14 @@ jobs:
           python -m pip install pytest playwright
           python -m playwright install --with-deps chromium
 
-      - name: Verify v2.28.4 syntax and identity
+      - name: Verify v2.28.5 syntax and identity
         run: |
           python -m py_compile             LocalSunoDb.py             ls_core/runtime.py             ls_data/music_library.py             ls_library/controller.py             ls_library/music_browser.py             ls_library/playlists.py             ls_library/render.py             ls_web/handler.py             ls_web/render.py
           python - <<'PY'
           from pathlib import Path
           for path in ("LocalSunoDb.py", "ls_core/runtime.py"):
               text = Path(path).read_text(encoding="utf-8")
-              assert 'APP_VERSION = "v2.28.4"' in text, path
+              assert 'APP_VERSION = "v2.28.5"' in text, path
           shell = Path("ls_web/static/persistent_shell.js").read_text(encoding="utf-8")
           assert "LS_SHELL_NAVIGATE" in shell
           assert "LS_SHELL_AUDIO_PLAY" in shell
@@ -43,6 +43,7 @@ jobs:
           launcher = Path("ls_tools/static/suno_launcher_tools_script.js").read_text(encoding="utf-8")
           assert "Ctrl+Shift+Home" in launcher
           assert 'aria-keyshortcuts", "Control+Shift+Home"' in launcher
+          assert 'Pārstartēt backend (Ctrl+Shift+Home)' in launcher
           PY
 
       - name: Focused regressions
@@ -95,11 +96,11 @@ jobs:
           for _ in range(160):
               try:
                   with urlopen("http://127.0.0.1:8765/app-version", timeout=1) as response:
-                      if response.status == 200 and b"v2.28.4" in response.read():
+                      if response.status == 200 and b"v2.28.5" in response.read():
                           raise SystemExit(0)
               except Exception:
                   time.sleep(0.25)
-          raise SystemExit("v2.28.4 server did not start")
+          raise SystemExit("v2.28.5 server did not start")
           PY
 
       - name: Prove persistent sidebar and audio in Chromium
@@ -131,7 +132,7 @@ jobs:
               if setup_modal.count():
                   setup_modal.evaluate("(el) => el.remove()")
 
-              assert page.locator(".ls-sidebar-title-full").inner_text().strip() == "LS v2.28.4"
+              assert page.locator(".ls-sidebar-title-full").inner_text().strip() == "LS v2.28.5"
               expected = [
                   "Suno Library",
                   "My Library",
@@ -262,7 +263,7 @@ jobs:
               browser.close()
           PY
 
-      - name: Build exact v2.28.4 preview overlay
+      - name: Build exact v2.28.5 preview overlay
         run: |
           python - <<'PY'
           import subprocess
@@ -300,7 +301,7 @@ jobs:
           }
           assert required <= set(files), (required - set(files), files)
 
-          out = Path("LocalSunoDb_v2.28.4_persistent_shell_preview.zip")
+          out = Path("LocalSunoDb_v2.28.5_persistent_shell_preview.zip")
           with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:
               for name in sorted(files):
                   archive.write(name, name)
@@ -314,7 +315,7 @@ jobs:
           python - <<'PY'
           import zipfile
           from pathlib import Path
-          archive = Path("LocalSunoDb_v2.28.4_persistent_shell_preview.zip").resolve()
+          archive = Path("LocalSunoDb_v2.28.5_persistent_shell_preview.zip").resolve()
           target = Path("/tmp/ls-v2282-overlay")
           with zipfile.ZipFile(archive, "r") as zf:
               names = zf.namelist()
@@ -334,8 +335,8 @@ jobs:
       - name: Upload exact preview ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: LocalSunoDb-v2.28.4-persistent-shell-preview
-          path: LocalSunoDb_v2.28.4_persistent_shell_preview.zip
+          name: LocalSunoDb-v2.28.5-persistent-shell-preview
+          path: LocalSunoDb_v2.28.5_persistent_shell_preview.zip
           if-no-files-found: error
           retention-days: 7
 
@@ -343,7 +344,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: v2284-persistent-shell-diagnostics
+          name: v2285-persistent-shell-diagnostics
           path: |
             persistent-shell-server.log
           if-no-files-found: warn
