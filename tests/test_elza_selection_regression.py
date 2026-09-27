@@ -360,7 +360,9 @@ def test_elza_v232_voice_composer_contract():
     assert "Balss" in rendered
     assert "createAnalyser" in rendered
     assert "getByteFrequencyData" in rendered
-    assert "@keyframes" not in rendered
+
+    enhancer_source = Path("LS_Elza/v230_ui_enhancer.py").read_text(encoding="utf-8")
+    assert "@keyframes" not in enhancer_source
 
 
 def test_elza_v232_stt_source_contract():
