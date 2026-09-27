@@ -149,7 +149,7 @@
             }
         });
     }
-    restartButton.title = "Pārstartēt backend (Ctrl+Alt+B)";
-    restartButton.setAttribute("aria-keyshortcuts", "Control+Alt+B");
+    restartButton.title = "Pārstartēt backend (Ctrl+Shift+Home)";
+    restartButton.setAttribute("aria-keyshortcuts", "Control+Shift+Home");
 
 })();
