@@ -112,6 +112,24 @@ BUNDLED_KNOWLEDGE_PATH = Path(__file__).resolve().with_name("ls_elza_knowledge.m
 ROUTER_DIAGNOSTICS_PATH = LOGS_DIR / "ls_elza_router_diagnostics.jsonl"
 
 DEFAULT_MODEL = "gpt-5.6-luna"
+DEFAULT_STT_MODEL = "gpt-4o-mini-transcribe"
+MAX_STT_AUDIO_BYTES = 12 * 1024 * 1024
+ALLOWED_STT_MIME_TYPES = {
+    "audio/webm",
+    "audio/ogg",
+    "audio/wav",
+    "audio/x-wav",
+    "audio/mpeg",
+    "audio/mp4",
+}
+STT_EXTENSION_BY_MIME = {
+    "audio/webm": "webm",
+    "audio/ogg": "ogg",
+    "audio/wav": "wav",
+    "audio/x-wav": "wav",
+    "audio/mpeg": "mp3",
+    "audio/mp4": "mp4",
+}
 MAX_USER_MESSAGE_CHARS = 12000
 MAX_CONTEXT_TEXT_CHARS = 2000
 MAX_KNOWLEDGE_CHARS = 30000
@@ -1118,6 +1136,90 @@ def get_openai_client():
 
 def get_model_name():
     return clean_text(os.environ.get("LS_ELZA_MODEL"), 120) or DEFAULT_MODEL
+
+
+def get_stt_model_name():
+    return (
+        clean_text(os.environ.get("LS_ELZA_STT_MODEL"), 120)
+        or DEFAULT_STT_MODEL
+    )
+
+
+def transcribe_ls_elza_audio(audio_bytes, mime_type):
+    if not isinstance(audio_bytes, (bytes, bytearray)):
+        raise LSElzaError(
+            "LS Elza STT requires audio bytes.",
+            status=400,
+            code="invalid_stt_audio",
+        )
+    audio_bytes = bytes(audio_bytes)
+    if not audio_bytes:
+        raise LSElzaError(
+            "The voice recording is empty.",
+            status=400,
+            code="empty_stt_audio",
+        )
+    if len(audio_bytes) > MAX_STT_AUDIO_BYTES:
+        raise LSElzaError(
+            "The voice recording is too large.",
+            status=413,
+            code="stt_audio_too_large",
+        )
+
+    normalized_mime = clean_text(mime_type, 120).split(";", 1)[0].lower()
+    if normalized_mime not in ALLOWED_STT_MIME_TYPES:
+        raise LSElzaError(
+            "This audio format is not supported for LS Elza speech recognition.",
+            status=415,
+            code="unsupported_stt_audio",
+        )
+
+    client = get_openai_client()
+    extension = STT_EXTENSION_BY_MIME.get(normalized_mime, "webm")
+    try:
+        response = client.audio.transcriptions.create(
+            model=get_stt_model_name(),
+            file=(
+                "ls-elza-recording." + extension,
+                audio_bytes,
+                normalized_mime,
+            ),
+            language="lv",
+        )
+    except Exception as error:
+        error_name = error.__class__.__name__
+        if error_name == "AuthenticationError":
+            message = "The OpenAI API key was rejected."
+            code = "openai_authentication_failed"
+            status = 401
+        elif error_name == "RateLimitError":
+            message = "The OpenAI API rate or usage limit was reached."
+            code = "openai_rate_limit"
+            status = 429
+        elif error_name in {"APITimeoutError", "APIConnectionError"}:
+            message = "The OpenAI transcription API could not be reached."
+            code = "openai_connection_failed"
+            status = 502
+        else:
+            message = "The OpenAI transcription request failed."
+            code = "openai_stt_failed"
+            status = 502
+        raise LSElzaError(message, status=status, code=code) from error
+
+    if isinstance(response, dict):
+        text = clean_text(response.get("text"), MAX_USER_MESSAGE_CHARS)
+    else:
+        text = clean_text(
+            getattr(response, "text", ""),
+            MAX_USER_MESSAGE_CHARS,
+        )
+    if not text:
+        raise LSElzaError(
+            "No speech was recognized in the recording.",
+            status=422,
+            code="stt_empty_transcript",
+        )
+    return text
 
 
 def build_api_history(messages):
