@@ -68,6 +68,28 @@
             !event.altKey;
     }
 
+    function isBackendRestartShortcut(event) {
+        return Boolean(
+            event &&
+            !event.repeat &&
+            event.ctrlKey &&
+            event.shiftKey &&
+            !event.altKey &&
+            !event.metaKey &&
+            (
+                event.code === "KeyB" ||
+                String(event.key || "").toLowerCase() === "b"
+            )
+        );
+    }
+
+    function triggerBackendRestartButton() {
+        const button = document.querySelector("[data-ls-backend-restart='1']");
+        if (!button || button.disabled) return false;
+        button.click();
+        return true;
+    }
+
     function pauseLocalAudio() {
         document.querySelectorAll("audio").forEach((audio) => {
             if (!audio.paused) {
@@ -134,6 +156,18 @@
             window.LSShellNavigate(
                 url.pathname + url.search + (url.hash || "")
             );
+        }, true);
+
+        document.addEventListener("keydown", (event) => {
+            if (!isBackendRestartShortcut(event)) return;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            try {
+                window.parent.postMessage(
+                    { type: "LS_SHELL_RESTART_BACKEND" },
+                    ORIGIN
+                );
+            } catch (_) {}
         }, true);
 
         document.addEventListener("play", (event) => {
@@ -308,6 +342,14 @@
         }
 
         window.LSShellNavigate = (rawUrl) => showScreen(rawUrl, "push");
+        window.LSRestartBackendFromShortcut = () => triggerBackendRestartButton();
+
+        document.addEventListener("keydown", (event) => {
+            if (!isBackendRestartShortcut(event)) return;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            triggerBackendRestartButton();
+        }, true);
 
         document.addEventListener("click", (event) => {
             if (!isPlainPrimaryClick(event)) return;
@@ -346,6 +388,10 @@
             if (event.data.type === "LS_SHELL_AUDIO_PLAY") {
                 pauseParentAudio();
                 pauseFramesExcept(event.source || null);
+                return;
+            }
+            if (event.data.type === "LS_SHELL_RESTART_BACKEND") {
+                triggerBackendRestartButton();
             }
         });
 
