@@ -73,8 +73,8 @@
             event &&
             !event.repeat &&
             event.ctrlKey &&
-            event.shiftKey &&
-            !event.altKey &&
+            event.altKey &&
+            !event.shiftKey &&
             !event.metaKey &&
             (
                 event.code === "KeyB" ||
