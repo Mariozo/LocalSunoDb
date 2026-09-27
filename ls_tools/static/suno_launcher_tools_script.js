@@ -92,7 +92,7 @@
         restartButton = document.createElement("button");
         restartButton.type = "button";
         restartButton.dataset.lsBackendRestart = "1";
-        restartButton.textContent = "Pārstartēt backend";
+        restartButton.textContent = "Pārstartēt backend (Ctrl+Shift+Home)";
         toolsPopover.appendChild(restartButton);
 
         restartButton.addEventListener("click", async () => {
