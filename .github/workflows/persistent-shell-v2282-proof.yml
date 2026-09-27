@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feat/persistent-shell-v2282-clean
+      - feat/backend-restart-hotkey-v2282
   workflow_dispatch:
 
 permissions:
@@ -38,6 +39,10 @@ jobs:
           assert "LS_SHELL_NAVIGATE" in shell
           assert "LS_SHELL_AUDIO_PLAY" in shell
           assert "LS_SHELL_PAUSE_AUDIO" in shell
+          assert "LS_SHELL_RESTART_BACKEND" in shell
+          launcher = Path("ls_tools/static/suno_launcher_tools_script.js").read_text(encoding="utf-8")
+          assert "Ctrl+Shift+B" in launcher
+          assert 'aria-keyshortcuts", "Control+Shift+B"' in launcher
           PY
 
       - name: Focused regressions
@@ -147,6 +152,24 @@ jobs:
               header_box = page.locator("body#ls-library > header").bounding_box()
               assert header_box and header_box["width"] > 200, header_box
 
+              restart_button = page.locator("[data-ls-backend-restart='1']")
+              restart_button.wait_for(state="attached", timeout=5000)
+              assert restart_button.get_attribute("aria-keyshortcuts") == "Control+Shift+B"
+              page.evaluate(
+                  """() => {
+                      window.__lsRestartHotkeyHits = 0;
+                      const button = document.querySelector("[data-ls-backend-restart='1']");
+                      button.addEventListener("click", (event) => {
+                          event.preventDefault();
+                          event.stopImmediatePropagation();
+                          window.__lsRestartHotkeyHits += 1;
+                      }, true);
+                  }"""
+              )
+              page.keyboard.press("Control+Shift+B")
+              page.wait_for_timeout(150)
+              assert page.evaluate("() => window.__lsRestartHotkeyHits") == 1
+
               page.locator('header .header-tabs a[href="/my-library"]').click()
               page.wait_for_url("**/my-library", timeout=10000)
               page.wait_for_timeout(800)
@@ -159,6 +182,11 @@ jobs:
               assert my_frame.locator(".side").evaluate(
                   "(el) => getComputedStyle(el).display"
               ) == "none"
+
+              my_frame.locator("input.search").click()
+              page.keyboard.press("Control+Shift+B")
+              page.wait_for_timeout(150)
+              assert page.evaluate("() => window.__lsRestartHotkeyHits") == 2
 
               print("MYLIB before", {
                   "parent_url": page.url,
