@@ -144,9 +144,9 @@ def test_local_wav_minus_upload_returns_precise_track_id_view(monkeypatch):
     assert "Bez Type: Upload" in response["answer"]
 
 
-def test_elza_v225_visible_identity_and_ask_router_contract():
-    assert LS_ELZA_PACKAGE_VERSION == "2.25"
-    assert "Elza v2.25" in ui.render_ls_elza_dialog_markup()
+def test_elza_visible_identity_and_ask_router_contract():
+    assert LS_ELZA_PACKAGE_VERSION == "2.32"
+    assert "Elza v2.32" in ui.render_ls_elza_dialog_markup()
     service_script = ui.render_ls_elza_script_service_assets()
     assert r"\bwav\b" in service_script
     assert "uplod" in service_script
@@ -352,7 +352,7 @@ def test_elza_v232_voice_composer_contract():
         opacity=50,
     )
 
-    assert 'data-elza-v232="composer"' in rendered
+    assert 'shell.setAttribute("data-elza-v232", "composer")' in rendered
     assert "UX pārbaude" in rendered
     assert "Testēt funkciju" in rendered
     assert "Track analīze" in rendered
