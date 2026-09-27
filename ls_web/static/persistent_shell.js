@@ -73,12 +73,12 @@
             event &&
             !event.repeat &&
             event.ctrlKey &&
-            event.altKey &&
-            !event.shiftKey &&
+            event.shiftKey &&
+            !event.altKey &&
             !event.metaKey &&
             (
-                event.code === "KeyB" ||
-                String(event.key || "").toLowerCase() === "b"
+                event.code === "Home" ||
+                String(event.key || "").toLowerCase() === "home"
             )
         );
     }
