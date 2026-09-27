@@ -227,5 +227,343 @@ _STYLE = r"""
     opacity: .42;
     transform-origin: center;
 }
-.ls-elza-v232-shell.recording .ls-elza-send { display: inline-flex !important; }
+.ls-elza-v232-shell.recording #ls-elza-send { margin-left: 2px; }
+.ls-elza-hint.ls-elza-v232-hint { margin-top: 5px; opacity: .72; }
+@media (max-width: 650px) {
+    .ls-elza-v232-shell { border-radius: 20px; }
+    .ls-elza-v232-voice-mode { padding: 0 11px; }
+    .ls-elza-v232-wave { min-width: 78px; }
+}
 </style>
+"""
+
+_SCRIPT = r"""
+<script data-elza-v232="script">
+(() => {
+    if (window.__elzaV232Installed) { return; }
+    window.__elzaV232Installed = true;
+
+    const title = document.getElementById("ls-elza-title");
+    const compose = document.querySelector(".ls-elza-compose");
+    const inputRow = compose && compose.querySelector(".ls-elza-input-row");
+    const input = document.getElementById("ls-elza-input");
+    const modeRow = compose && compose.querySelector(".ls-elza-mode-row");
+    const voiceButton = document.getElementById("ls-elza-voice");
+    const sendButton = document.getElementById("ls-elza-send");
+    const statusLine = document.getElementById("ls-elza-status");
+    if (!compose || !inputRow || !input || !modeRow || !voiceButton || !sendButton) { return; }
+
+    if (title) { title.textContent = "Elza v2.32"; }
+    input.placeholder = "Jautāt Elzai";
+
+    const shell = document.createElement("div");
+    shell.className = "ls-elza-v232-shell";
+    shell.setAttribute("data-elza-v232", "composer");
+    inputRow.parentNode.insertBefore(shell, inputRow);
+    shell.appendChild(inputRow);
+
+    const actions = document.createElement("div");
+    actions.className = "ls-elza-v232-actions";
+    shell.appendChild(actions);
+
+    const plusButton = document.createElement("button");
+    plusButton.type = "button";
+    plusButton.className = "ls-elza-v232-icon ls-elza-v232-plus";
+    plusButton.textContent = "+";
+    plusButton.title = "Papildu rīki";
+    plusButton.setAttribute("aria-label", "Papildu rīki");
+    actions.appendChild(plusButton);
+
+    const chip = document.createElement("span");
+    chip.className = "ls-elza-v232-chip";
+    actions.appendChild(chip);
+
+    const spacer = document.createElement("span");
+    spacer.className = "ls-elza-v232-spacer";
+    actions.appendChild(spacer);
+
+    const menu = document.createElement("div");
+    menu.className = "ls-elza-v232-menu";
+    menu.setAttribute("role", "menu");
+    shell.appendChild(menu);
+
+    const modeButtons = Array.from(modeRow.querySelectorAll("[data-ls-elza-mode]"));
+    modeButtons.forEach((button) => menu.appendChild(button));
+    modeRow.classList.add("ls-elza-v232-source-row");
+
+    const recording = document.createElement("div");
+    recording.className = "ls-elza-v232-recording";
+
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "ls-elza-v232-cancel";
+    cancel.textContent = "×";
+    cancel.title = "Atcelt ierakstu";
+    cancel.setAttribute("aria-label", "Atcelt ierakstu");
+    recording.appendChild(cancel);
+
+    const wave = document.createElement("div");
+    wave.className = "ls-elza-v232-wave";
+    wave.setAttribute("aria-label", "Mikrofona līmenis");
+    const waveBars = [];
+    for (let index = 0; index < 28; index += 1) {
+        const bar = document.createElement("span");
+        waveBars.push(bar);
+        wave.appendChild(bar);
+    }
+    recording.appendChild(wave);
+
+    const stop = document.createElement("button");
+    stop.type = "button";
+    stop.className = "ls-elza-v232-stop";
+    stop.textContent = "■";
+    stop.title = "Stop";
+    stop.setAttribute("aria-label", "Stop");
+    recording.appendChild(stop);
+    actions.appendChild(recording);
+
+    actions.appendChild(voiceButton);
+
+    const voiceMode = document.createElement("button");
+    voiceMode.type = "button";
+    voiceMode.className = "ls-elza-v232-voice-mode";
+    voiceMode.textContent = "Balss";
+    voiceMode.title = "Pilnais Balss režīms";
+    actions.appendChild(voiceMode);
+    actions.appendChild(sendButton);
+
+    const hint = compose.querySelector(".ls-elza-hint");
+    if (hint) {
+        hint.classList.add("ls-elza-v232-hint");
+        hint.textContent = "Enter = nosūtīt · Shift+Enter = jauna rinda";
+    }
+
+    function setStatus(text, error=false) {
+        if (!statusLine) { return; }
+        statusLine.textContent = text || "";
+        statusLine.classList.toggle("error", Boolean(error));
+    }
+
+    function updateChip() {
+        const active = modeButtons.find((button) => button.getAttribute("aria-pressed") === "true");
+        if (!active) {
+            chip.textContent = "";
+            chip.classList.remove("active");
+            return;
+        }
+        const labels = {UX_REVIEW: "UX", TEST_REVIEW: "Test", TRACK_DB: "Track", LS_CODE: "Code"};
+        const mode = String(active.dataset.lsElzaMode || "").toUpperCase();
+        chip.textContent = labels[mode] || mode || "Režīms";
+        chip.classList.add("active");
+    }
+
+    function isRecording() {
+        return voiceButton.classList.contains("recording")
+            || voiceButton.getAttribute("aria-pressed") === "true"
+            || String(voiceButton.textContent || "").trim().toLowerCase() === "stop";
+    }
+
+    let audioContext = null;
+    let analyser = null;
+    let analyserSource = null;
+    let analyserFrame = 0;
+    let analyserData = null;
+    let analyserStream = null;
+    let smoothed = new Array(waveBars.length).fill(0);
+
+    function resetBars() {
+        waveBars.forEach((bar) => {
+            bar.style.height = "3px";
+            bar.style.opacity = ".42";
+        });
+        smoothed = new Array(waveBars.length).fill(0);
+    }
+
+    function stopMicrophoneMeter() {
+        if (analyserFrame) {
+            cancelAnimationFrame(analyserFrame);
+            analyserFrame = 0;
+        }
+        try { if (analyserSource) { analyserSource.disconnect(); } } catch (error) {}
+        analyserSource = null;
+        analyser = null;
+        analyserData = null;
+        analyserStream = null;
+        if (audioContext) {
+            try { audioContext.close(); } catch (error) {}
+        }
+        audioContext = null;
+        resetBars();
+    }
+
+    function drawMicrophoneMeter() {
+        if (!analyser || !analyserData || !isRecording()) {
+            if (!isRecording()) { stopMicrophoneMeter(); }
+            return;
+        }
+        analyser.getByteFrequencyData(analyserData);
+        const usable = Math.max(1, Math.min(analyserData.length, 36));
+        const half = Math.ceil(waveBars.length / 2);
+        for (let i = 0; i < waveBars.length; i += 1) {
+            const mirrored = i < half ? i : waveBars.length - 1 - i;
+            const start = Math.floor((mirrored / half) * usable);
+            const end = Math.max(start + 1, Math.floor(((mirrored + 1) / half) * usable));
+            let total = 0;
+            let count = 0;
+            for (let bin = start; bin < end && bin < usable; bin += 1) {
+                total += analyserData[bin];
+                count += 1;
+            }
+            const raw = count ? total / count : 0;
+            const target = Math.max(0, Math.min(1, (raw - 4) / 92));
+            smoothed[i] = smoothed[i] * .56 + target * .44;
+            const level = smoothed[i];
+            waveBars[i].style.height = (3 + level * 26).toFixed(1) + "px";
+            waveBars[i].style.opacity = (.40 + level * .60).toFixed(2);
+        }
+        analyserFrame = requestAnimationFrame(drawMicrophoneMeter);
+    }
+
+    async function startMicrophoneMeter(stream) {
+        stopMicrophoneMeter();
+        if (!stream || !stream.getAudioTracks || !stream.getAudioTracks().length) { return; }
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) {
+            setStatus("Web Audio nav pieejams; STT turpinās bez līmeņa indikācijas.", true);
+            return;
+        }
+        try {
+            audioContext = new AudioContextClass();
+            if (audioContext.state === "suspended") {
+                try { await audioContext.resume(); } catch (error) {}
+            }
+            analyserSource = audioContext.createMediaStreamSource(stream);
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256;
+            analyser.smoothingTimeConstant = .68;
+            analyser.minDecibels = -82;
+            analyser.maxDecibels = -18;
+            analyserData = new Uint8Array(analyser.frequencyBinCount);
+            analyserStream = stream;
+            analyserSource.connect(analyser);
+            drawMicrophoneMeter();
+        } catch (error) {
+            stopMicrophoneMeter();
+            setStatus("Mikrofons darbojas, bet līmeņa indikatoru neizdevās ieslēgt.", true);
+        }
+    }
+
+    const mediaDevices = navigator.mediaDevices;
+    if (mediaDevices && typeof mediaDevices.getUserMedia === "function" && !mediaDevices.__elzaV232Wrapped) {
+        const originalGetUserMedia = mediaDevices.getUserMedia.bind(mediaDevices);
+        mediaDevices.getUserMedia = async function(constraints) {
+            const stream = await originalGetUserMedia(constraints);
+            if (constraints && constraints.audio) {
+                window.setTimeout(() => { startMicrophoneMeter(stream); }, 0);
+            }
+            return stream;
+        };
+        mediaDevices.__elzaV232Wrapped = true;
+    }
+
+    function syncRecordingState() {
+        const active = isRecording();
+        shell.classList.toggle("recording", active);
+        if (!active) {
+            cancel.disabled = false;
+            stop.disabled = false;
+            stopMicrophoneMeter();
+        } else if (analyserStream && !analyserFrame) {
+            drawMicrophoneMeter();
+        }
+    }
+
+    plusButton.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        menu.classList.toggle("open");
+    });
+    menu.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-ls-elza-mode]");
+        if (button) {
+            window.setTimeout(() => { updateChip(); menu.classList.remove("open"); }, 0);
+        }
+    });
+    document.addEventListener("click", (event) => {
+        if (!menu.contains(event.target) && event.target !== plusButton) { menu.classList.remove("open"); }
+    });
+
+    voiceMode.addEventListener("click", () => {
+        setStatus("Pilnais Balss režīms vēl nav pieslēgts; mikrofons ir diktēšanai.");
+    });
+
+    stop.addEventListener("click", () => {
+        if (isRecording()) { voiceButton.click(); }
+    });
+
+    const originalFetch = window.fetch.bind(window);
+    let cancelNextStt = false;
+    window.fetch = async function(inputValue, init) {
+        const url = typeof inputValue === "string" ? inputValue : String(inputValue && inputValue.url || "");
+        if (cancelNextStt && url.includes("/ls-elza-stt")) {
+            cancelNextStt = false;
+            return new Response(JSON.stringify({ok: true, text: "."}), {
+                status: 200, headers: {"Content-Type": "application/json"}
+            });
+        }
+        return originalFetch(inputValue, init);
+    };
+
+    cancel.addEventListener("click", () => {
+        if (!isRecording()) { return; }
+        cancel.disabled = true;
+        stop.disabled = true;
+        const before = String(input.value || "");
+        cancelNextStt = true;
+        voiceButton.click();
+        const started = Date.now();
+        const timer = window.setInterval(() => {
+            if (!isRecording() && !voiceButton.disabled) {
+                window.clearInterval(timer);
+                input.value = before;
+                input.dispatchEvent(new Event("input", {bubbles: true}));
+                setStatus("Ieraksts atcelts.");
+                input.focus();
+                return;
+            }
+            if (Date.now() - started > 12000) {
+                window.clearInterval(timer);
+                setStatus("Ieraksta atcelšana ieilga.", true);
+            }
+        }, 100);
+    });
+
+    const observer = new MutationObserver(() => {
+        syncRecordingState();
+        updateChip();
+    });
+    observer.observe(voiceButton, {
+        attributes: true,
+        attributeFilter: ["class", "aria-pressed", "disabled"],
+        childList: true,
+        characterData: true,
+        subtree: true,
+    });
+    modeButtons.forEach((button) => observer.observe(button, {
+        attributes: true,
+        attributeFilter: ["class", "aria-pressed", "disabled"],
+    }));
+
+    window.addEventListener("beforeunload", stopMicrophoneMeter);
+    updateChip();
+    syncRecordingState();
+})();
+</script>
+"""
+
+
+def enhance_rendered_assets_v230(template):
+    text = str(template or "")
+    if MARKER in text:
+        return text
+    return text + _STYLE + _SCRIPT
