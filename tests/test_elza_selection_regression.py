@@ -149,7 +149,7 @@ def test_local_wav_minus_upload_returns_precise_track_id_view(monkeypatch):
 
 
 def test_elza_visible_identity_and_ask_router_contract():
-    assert LS_ELZA_PACKAGE_VERSION == "2.40"
+    assert LS_ELZA_PACKAGE_VERSION == "2.41"
     assert "Elza v2.32" in ui.render_ls_elza_dialog_markup()
     service_script = ui.render_ls_elza_script_service_assets()
     assert r"\bwav\b" in service_script
@@ -344,7 +344,7 @@ def test_wav_anywhere_query_matches_name_id_lyrics_prompt_or_tags(monkeypatch):
 
 
 def test_elza_v240_voice_composer_contract():
-    assert LS_ELZA_PACKAGE_VERSION == "2.40"
+    assert LS_ELZA_PACKAGE_VERSION == "2.41"
     assert "Elza v2.32" in ui.render_ls_elza_dialog_markup()
 
     rendered = ui.render_ls_elza_assets(
@@ -756,3 +756,58 @@ def test_elza_v240_controller_dispatches_name_prompt_anywhere_and_locf(monkeypat
         else:
             assert calls[0][1] is True
             assert response["answer"] == "locf-ok"
+
+def test_elza_v241_local_three_stars_and_like_preserves_all_conditions():
+    question = (
+        "Parādi man visas vietējās dziesmas, kurām ir "
+        "vismaz trīs *** un Like"
+    )
+    service_result = elza_selection_bridge.prepare_local_locf_service_result({
+        "action": "send",
+        "message": question,
+        "selected_mode": "",
+        "images": [],
+    })
+
+    assert service_result is not None
+    request = service_result["selection_request"]
+    assert request["local_audio"] == "with"
+    assert request["flags"] == [3]
+    assert request["exact_flags"] is False
+    assert request["kind_filter"] == "liked"
+    assert request["local_family_assigned"] is None
+
+    intent = elza_selection_bridge.build_host_selection_intent(
+        request,
+        resolve_workspace=lambda value: value,
+        resolve_local_family=lambda value: value,
+        normalize_tags=lambda values: list(values or []),
+    )
+
+    assert intent["filters"]["local_audio_filter"] == "with"
+    assert intent["filters"]["kind_filter"] == "__liked__"
+    assert intent["filters"]["flag_filter"] == "4"
+    assert "With local audio" in intent["summary"]
+    assert "Liked" in intent["summary"]
+    assert "3+*" in intent["summary"]
+
+
+def test_elza_v241_ui_preserves_chat_question_and_view_actions():
+    source = Path("LS_Elza/ui.py").read_text(encoding="utf-8")
+    compile(source, "LS_Elza/ui.py", "exec")
+
+    assert "chatSnapshotStoragePrefix" in source
+    assert "viewActionStoragePrefix" in source
+    assert "restoreStoredLsViewActions" in source
+    assert "rememberLsViewAction" in source
+    assert "pendingQuestionAnchor = message" in source
+    assert "scrollQuestionIntoView(message)" in source
+    assert "Ctrl+klikšķis = saglabāt kā View" in source
+    assert "Saruna nav izdzēsta" in source
+
+    load_start = source.index("async function loadCurrentChat()")
+    load_end = source.index("function localLsElzaUiAnswer", load_start)
+    load_source = source[load_start:load_end]
+    assert "renderMessages([])" not in load_source
+    assert "loadChatSnapshot()" in load_source
+
