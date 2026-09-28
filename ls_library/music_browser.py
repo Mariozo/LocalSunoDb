@@ -7,6 +7,7 @@ import urllib.parse
 from ls_core.runtime import APP_VERSION
 from ls_data.music_library import list_music_databases, music_database_albums, music_database_tracks
 from ls_library.playlists import get_local_playlists
+from LS_Elza.ui import render_ls_elza_assets
 
 
 def _esc(value):
@@ -206,6 +207,23 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
     ] if part]
     album_meta = " · ".join(album_meta_bits)
 
+    elza_assets = ""
+    if album:
+        elza_assets = render_ls_elza_assets(
+            "my-library",
+            view_context={
+                "active_tab": "my-library",
+                "music_db": selected_name,
+                "album": album,
+                "artist": artist,
+                "year": year,
+                "track_count": len(tracks),
+            },
+            docked=True,
+            app_version=APP_VERSION,
+            opacity=50,
+        )
+
     empty = ""
     if not usable:
         empty = """
@@ -250,14 +268,22 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
               </div>
             </div>
             <aside class="album-right-rail" data-elza-f4-rail="1" aria-label="Elza un F4 panelis">
-              <div class="album-rail-head">
-                <div class="album-rail-title">Labā sleja</div>
-                <div class="album-rail-tabs" role="tablist" aria-label="Elza un F4">
-                  <button type="button" class="album-rail-tab active" role="tab" aria-selected="true">LS Elza</button>
-                  <button type="button" class="album-rail-tab" role="tab" aria-selected="false">F4</button>
+              <section class="my-f4-panel" id="my-f4-panel" aria-label="Meklēšana">
+                <div class="my-f4-head">
+                  <div><strong>Meklēšana</strong><span>Ctrl+F · F4</span></div>
+                  <button type="button" class="my-f4-close" id="my-f4-clear" title="Notīrīt meklēšanu">×</button>
                 </div>
-              </div>
-              <div class="album-rail-body" aria-hidden="true"></div>
+                <div class="my-f4-search-row">
+                  <span class="my-f4-icon">⌕</span>
+                  <input type="text" id="my-f4-input" autocomplete="off" placeholder="Meklēt albumā">
+                  <span class="my-f4-count" id="my-f4-count">0/0</span>
+                  <button type="button" class="my-f4-nav" id="my-f4-prev" title="Iepriekšējais">⌃</button>
+                  <button type="button" class="my-f4-nav" id="my-f4-next" title="Nākamais">⌄</button>
+                </div>
+                <div class="my-f4-options"><label><input type="checkbox" id="my-f4-name" checked> Nosaukums</label><label><input type="checkbox" id="my-f4-artist" checked> Izpildītājs</label></div>
+              </section>
+              <button type="button" id="ls-elza-open-btn" hidden aria-hidden="true"></button>
+              <div class="ls-elza-dock-slot" id="ls-elza-dock-slot" aria-label="LS Elza"></div>
             </aside>
           </div>
         </section>"""
@@ -329,12 +355,11 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
 .track-number-cell{{display:flex;align-items:center;gap:8px;min-width:72px}}.music-row-play{{width:30px;height:30px;border-radius:50%;border:1px solid #38383d;background:#242427;color:#f5f5f6;cursor:pointer;font-size:12px;display:inline-grid;place-items:center;flex:0 0 30px}}.music-row-play:hover{{background:#353539}}.music-track-row.is-playing td{{background:#18211c!important}}.music-track-row.is-playing .music-row-play{{background:#f4f6f5;color:#111514}}
 .my-music-player{{position:fixed;left:var(--side);right:0;bottom:0;z-index:90;min-height:176px;background:#171918;color:#f1f3f2;border-top:1px solid rgba(255,255,255,.14);box-shadow:0 -10px 28px rgba(0,0,0,.28);display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);grid-template-rows:auto auto;align-items:center;gap:10px 14px;padding:10px 16px 12px}}.my-music-player.is-idle{{color:#7e8983}}.my-player-track{{grid-column:1;grid-row:2;display:flex;align-items:center;gap:11px;min-width:0}}.my-player-cover-wrap{{width:54px;height:54px;min-width:54px;border-radius:7px;overflow:hidden;background:#252827;border:1px solid rgba(255,255,255,.10);display:grid;place-items:center}}.my-player-cover{{width:100%;height:100%;object-fit:cover;display:none}}.my-player-cover-placeholder{{font-size:22px;color:#7e8983}}.my-player-copy{{min-width:0}}.my-player-title{{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#f1f3f2}}.my-player-source{{margin-top:4px;color:#9aa59f;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}.my-player-transport,.my-player-ab{{display:flex;align-items:center;gap:7px;white-space:nowrap}}.my-player-transport{{grid-column:1/-1;grid-row:2;justify-self:center;position:relative}}.my-player-ab{{display:contents}}.my-music-player button{{background:#252827;color:#f1f3f2;border:1px solid transparent;cursor:pointer}}.my-music-player button:hover:not(:disabled){{background:#333736}}.my-music-player button:disabled{{opacity:.38;cursor:default}}.my-player-transport button{{width:36px;height:36px;border-radius:18px;font-weight:700}}.my-player-transport .my-player-play{{width:44px;height:44px;border-radius:50%;background:#f4f6f5;color:#111514;font-size:18px}}.my-player-zoom-wrap{{position:relative;display:flex;align-items:center}}.my-player-zoom-toggle{{position:relative;display:grid!important;place-items:center;padding:0!important}}.my-player-zoom-toggle svg{{width:19px;height:19px;display:block}}.my-player-zoom-badge{{position:absolute;right:2px;bottom:1px;min-width:11px;height:11px;line-height:10px;border-radius:6px;background:#147d46;color:#fff;font-size:9px;font-weight:800;text-align:center;padding:0 2px;pointer-events:none}}.my-player-zoom-menu{{position:absolute;left:50%;bottom:44px;transform:translateX(-50%);display:none;align-items:center;gap:5px;padding:6px;background:#101311;border:1px solid #343a36;border-radius:22px;box-shadow:0 8px 22px rgba(0,0,0,.36);z-index:20}}.my-player-zoom-wrap.open .my-player-zoom-menu{{display:flex}}.my-player-zoom-menu button{{width:32px;height:32px;border-radius:16px;padding:0;font-size:15px}}.my-player-zoom-menu button:hover:not(:disabled){{background:#147d46}}.my-player-loop.active,.my-player-ab button.active{{background:#147d46;color:white}}.my-player-middle{{min-width:0;grid-column:1/-1;grid-row:1}}.my-player-progress-wrap{{display:grid;grid-template-columns:minmax(200px,1fr) auto;align-items:center;gap:10px}}.my-player-progress-shell{{position:relative;height:96px;border:1px solid #404844;border-radius:8px;background:#101a1f;overflow:hidden;cursor:pointer;isolation:isolate}}.my-player-progress-shell.zoomed{{outline:2px solid rgba(44,152,255,.26);outline-offset:1px}}.my-player-waveform{{position:absolute;inset:0;width:100%;height:100%;display:block;border-radius:7px;z-index:1}}.my-player-waveform-status{{position:absolute;top:5px;right:8px;z-index:9;color:#b5c0bb;font-size:10px;pointer-events:none;text-shadow:0 1px 2px #101210;background:rgba(10,14,13,.50);border-radius:8px;padding:2px 6px}}.my-player-played-region{{position:absolute;left:0;top:0;bottom:0;width:0;background:rgba(22,108,223,.12);pointer-events:none;z-index:2;border-radius:7px 0 0 7px}}.my-player-progress{{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer;z-index:5;-webkit-appearance:none;appearance:none}}.my-player-playhead{{position:absolute;top:0;bottom:0;left:0;width:2px;background:#2c98ff;box-shadow:0 0 0 1px rgba(8,37,69,.4);pointer-events:none;z-index:6}}.my-player-ab-region{{position:absolute;left:0;right:auto;top:0;bottom:0;background:rgba(20,125,70,.18);border-left:1px solid rgba(56,190,111,.75);border-right:1px solid rgba(56,190,111,.75);pointer-events:none;opacity:0;z-index:3}}.my-player-marker{{position:absolute;top:0;width:18px;height:96px;transform:translateX(-50%);background:transparent;pointer-events:auto;cursor:ew-resize;touch-action:none;opacity:0;z-index:8}}.my-player-marker::before{{content:'';position:absolute;left:8px;top:0;width:2px;height:96px;background:#f5d36b;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.40)}}.my-player-marker::after{{position:absolute;top:2px;left:1px;min-width:16px;height:16px;line-height:16px;border-radius:9px;text-align:center;font-size:10px;font-weight:800;color:#161914;background:#f5d36b;box-shadow:0 1px 3px rgba(0,0,0,.45)}}.my-player-marker:hover::before,.my-player-marker.dragging::before{{width:3px;left:7.5px;background:#ffe27f}}.my-player-marker.dragging{{cursor:grabbing}}.my-player-marker-a::after{{content:'A'}}.my-player-marker-b::after{{content:'B'}}.my-player-time{{font-size:12px;color:#a3ada8;min-width:92px;text-align:right;font-variant-numeric:tabular-nums}}.my-player-ab button{{height:32px;border-radius:16px;padding:0 11px;font-size:12px;font-weight:700}}.my-player-ab-readout{{font-size:11px;color:#9aa59f;min-width:84px;text-align:right}}.main{{padding-bottom:218px}}
 .detail-head{{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:18px}}.detail-head h1{{margin:0;font-size:25px}}.detail-head span{{color:#92929a}}.back{{color:#b8b8c0;text-decoration:none;padding:8px 11px;border-radius:10px;background:#19191c}}
-.album-open .library-head{{display:none}}.album-detail{{margin:-6px -10px 0;background:linear-gradient(180deg,var(--album-wash) 0,#061F14 310px);border-radius:14px 14px 0 0;overflow:hidden;min-height:620px}}.album-hero{{position:relative;background:linear-gradient(180deg,var(--album-hero) 0,var(--album-hero-dark) 100%);padding:46px 34px 28px;min-height:310px;display:flex;align-items:flex-end}}.album-back{{position:absolute;left:18px;top:18px;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:#fff;text-decoration:none;background:rgba(0,0,0,.30);font-size:21px;line-height:1}}.album-back:hover{{background:rgba(0,0,0,.50)}}.album-hero-inner{{display:grid;grid-template-columns:232px minmax(0,1fr);gap:28px;align-items:end;width:100%}}.album-hero-cover{{width:232px;height:232px;border-radius:5px;overflow:hidden;background:#163024;box-shadow:0 12px 32px rgba(0,0,0,.38)}}.album-hero-cover img{{display:block;width:100%;height:100%;object-fit:cover}}.album-hero-cover-empty{{width:100%;height:100%;display:grid;place-items:center;font-size:74px;color:rgba(255,255,255,.32);background:linear-gradient(135deg,rgba(255,255,255,.11),rgba(0,0,0,.18))}}.album-hero-copy{{min-width:0;padding-bottom:5px;text-shadow:0 1px 1px rgba(0,0,0,.18)}}.album-kind{{font-size:14px;font-weight:700;margin-bottom:7px}}.album-hero h1{{margin:0 0 15px;font-size:clamp(38px,5.1vw,82px);line-height:.98;letter-spacing:-.045em;font-weight:800;overflow-wrap:anywhere}}.album-hero-meta{{font-size:14px;color:rgba(255,255,255,.82)}}.album-hero-meta strong{{color:#fff}}.album-layout{{display:grid;grid-template-columns:minmax(0,1fr) minmax(330px,22vw);min-height:360px}}.album-main-column{{min-width:0;padding:20px 28px 34px}}.album-right-rail{{min-width:0;border-left:1px solid rgba(255,255,255,.11);background:#04170f;box-shadow:-14px 0 34px rgba(0,0,0,.16)}}.album-rail-head{{position:sticky;top:0;padding:17px 18px 14px;border-bottom:1px solid rgba(255,255,255,.09);background:#061f14;z-index:2}}.album-rail-title{{font-size:12px;color:#8ea79a;margin-bottom:10px;text-transform:uppercase;letter-spacing:.08em}}.album-rail-tabs{{display:grid;grid-template-columns:1fr 1fr;gap:7px}}.album-rail-tab{{height:36px;border:1px solid #294638;border-radius:10px;background:#0b2a1d;color:#aabbb2;font-weight:700;cursor:pointer}}.album-rail-tab.active{{background:#173f2d;color:#fff;border-color:#3d6b55}}.album-rail-body{{min-height:320px;background:linear-gradient(180deg,rgba(14,57,39,.38),rgba(4,23,15,.08))}}.album-actions{{height:72px;display:flex;align-items:center;padding:0 5px 9px}}.album-play{{width:56px;height:56px;border:0;border-radius:50%;background:#1ed760;color:#07160d;font-size:22px;font-weight:800;cursor:pointer;display:grid;place-items:center;padding-left:4px;box-shadow:0 6px 18px rgba(0,0,0,.23)}}.album-play:hover{{transform:scale(1.04);background:#2be16d}}.album-track-list{{min-width:0}}.album-track-table{{min-width:0;background:transparent}}.album-track-table th{{position:static;background:transparent;border-bottom:1px solid rgba(255,255,255,.13);padding:9px 10px;color:#aebbb4;font-size:12px}}.album-track-table th:first-child{{width:52px;text-align:right}}.album-track-table .duration-head{{width:78px;text-align:right;padding-right:16px;font-size:17px}}.album-track-table td{{border-bottom:0;padding:9px 10px;background:transparent}}.album-track-table .album-track-row:hover td{{background:rgba(255,255,255,.07)}}.album-track-number{{justify-content:flex-end;min-width:52px;color:#aebbb4}}.album-track-table .music-row-play{{display:none;width:28px;height:28px;border:0;background:transparent}}.album-track-row:hover .music-row-play,.album-track-row.is-playing .music-row-play{{display:inline-grid}}.album-track-row:hover .track-index,.album-track-row.is-playing .track-index{{display:none}}.detail-title-cell strong{{font-size:15px;font-weight:650;color:#f5f8f6}}.detail-track-artist{{font-size:12px;color:#9faea6;margin-top:3px}}.detail-duration{{width:78px;text-align:right;padding-right:16px!important;color:#aebbb4;font-variant-numeric:tabular-nums}}.album-track-row.is-playing .detail-title-cell strong{{color:#35dd7a}}
+.album-open .library-head{{display:none}}.album-detail{{margin:-6px -10px 0;background:linear-gradient(180deg,var(--album-wash) 0,#061F14 310px);border-radius:14px 14px 0 0;overflow:hidden;min-height:620px}}.album-hero{{position:relative;background:linear-gradient(180deg,var(--album-hero) 0,var(--album-hero-dark) 100%);padding:46px 34px 28px;min-height:310px;display:flex;align-items:flex-end}}.album-back{{position:absolute;left:18px;top:18px;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:#fff;text-decoration:none;background:rgba(0,0,0,.30);font-size:21px;line-height:1}}.album-back:hover{{background:rgba(0,0,0,.50)}}.album-hero-inner{{display:grid;grid-template-columns:232px minmax(0,1fr);gap:28px;align-items:end;width:100%}}.album-hero-cover{{width:232px;height:232px;border-radius:5px;overflow:hidden;background:#163024;box-shadow:0 12px 32px rgba(0,0,0,.38)}}.album-hero-cover img{{display:block;width:100%;height:100%;object-fit:cover}}.album-hero-cover-empty{{width:100%;height:100%;display:grid;place-items:center;font-size:74px;color:rgba(255,255,255,.32);background:linear-gradient(135deg,rgba(255,255,255,.11),rgba(0,0,0,.18))}}.album-hero-copy{{min-width:0;padding-bottom:5px;text-shadow:0 1px 1px rgba(0,0,0,.18)}}.album-kind{{font-size:14px;font-weight:700;margin-bottom:7px}}.album-hero h1{{margin:0 0 15px;font-size:clamp(38px,5.1vw,82px);line-height:.98;letter-spacing:-.045em;font-weight:800;overflow-wrap:anywhere}}.album-hero-meta{{font-size:14px;color:rgba(255,255,255,.82)}}.album-hero-meta strong{{color:#fff}}.album-layout{{display:grid;grid-template-columns:minmax(220px,1fr) minmax(380px,420px);min-height:360px}}.album-main-column{{min-width:0;padding:20px 28px 34px}}.album-right-rail{{min-width:0;padding:14px;border-left:1px solid rgba(255,255,255,.11);background:#04170f;box-shadow:-14px 0 34px rgba(0,0,0,.16)}}.my-f4-panel{{padding:12px 13px 11px;border:1px solid #466453;border-radius:14px;background:rgba(56,75,64,.58);margin-bottom:14px}}.my-f4-head{{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px}}.my-f4-head>div{{display:flex;flex-direction:column;line-height:1.1}}.my-f4-head strong{{font-size:16px}}.my-f4-head span{{font-size:11px;color:#c4d1ca;margin-top:3px}}.my-f4-close,.my-f4-nav{{border:1px solid #60766a;background:#31483b;color:#dbe6e0;cursor:pointer}}.my-f4-close{{width:28px;height:28px;border-radius:50%;font-size:18px}}.my-f4-search-row{{display:grid;grid-template-columns:20px minmax(0,1fr) auto 28px 28px;gap:6px;align-items:center}}.my-f4-icon{{text-align:center;color:#e4eee8}}.my-f4-search-row input{{height:38px;min-width:0;border:1px solid #78a7c8;border-radius:10px;background:#102219;color:#fff;padding:0 10px;outline:none}}.my-f4-search-row input:focus{{box-shadow:0 0 0 2px rgba(79,154,220,.35)}}.my-f4-count{{font-size:12px;font-weight:800;color:#eff5f1;min-width:34px;text-align:center}}.my-f4-nav{{width:28px;height:28px;border-radius:50%}}.my-f4-options{{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:#e7eee9}}.my-f4-options label{{display:inline-flex;align-items:center;gap:5px}}.my-f4-options input{{accent-color:#3f82f7}}.album-track-row.my-f4-current td{{background:rgba(63,130,247,.18)!important;outline:1px solid rgba(91,150,248,.34);outline-offset:-1px}}.album-right-rail .ls-elza-dock-slot{{margin:0!important}}.album-actions{{height:72px;display:flex;align-items:center;padding:0 5px 9px}}.album-play{{width:56px;height:56px;border:0;border-radius:50%;background:#1ed760;color:#07160d;font-size:22px;font-weight:800;cursor:pointer;display:grid;place-items:center;padding-left:4px;box-shadow:0 6px 18px rgba(0,0,0,.23)}}.album-play:hover{{transform:scale(1.04);background:#2be16d}}.album-track-list{{min-width:0}}.album-track-table{{min-width:0;background:transparent}}.album-track-table th{{position:static;background:transparent;border-bottom:1px solid rgba(255,255,255,.13);padding:9px 10px;color:#aebbb4;font-size:12px}}.album-track-table th:first-child{{width:52px;text-align:right}}.album-track-table .duration-head{{width:78px;text-align:right;padding-right:16px;font-size:17px}}.album-track-table td{{border-bottom:0;padding:9px 10px;background:transparent}}.album-track-table .album-track-row:hover td{{background:rgba(255,255,255,.07)}}.album-track-number{{justify-content:flex-end;min-width:52px;color:#aebbb4}}.album-track-table .music-row-play{{display:none;width:28px;height:28px;border:0;background:transparent}}.album-track-row:hover .music-row-play,.album-track-row.is-playing .music-row-play{{display:inline-grid}}.album-track-row:hover .track-index,.album-track-row.is-playing .track-index{{display:none}}.detail-title-cell strong{{font-size:15px;font-weight:650;color:#f5f8f6}}.detail-track-artist{{font-size:12px;color:#9faea6;margin-top:3px}}.detail-duration{{width:78px;text-align:right;padding-right:16px!important;color:#aebbb4;font-variant-numeric:tabular-nums}}.album-track-row.is-playing .detail-title-cell strong{{color:#35dd7a}}
 .empty-state{{margin:50px auto;max-width:620px;text-align:center;color:#aaa}}.empty-state h2{{color:#eee}}.empty-icon{{font-size:70px;color:#3e3e46}}.primary{{background:#f1f1f3;color:#111;border:0;border-radius:22px;padding:11px 18px;font-weight:750;cursor:pointer}}
 .home-playlists{{margin-top:42px;padding-top:26px;border-top:1px solid #242428}}.home-section-head{{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px}}.home-section-head h2{{margin:0;font-size:22px}}.home-section-head a{{color:#a9a9b1;text-decoration:none;font-size:14px}}.home-section-head a:hover{{color:#fff}}.home-playlist-list{{display:flex;flex-direction:column;border:1px solid #242429;border-radius:14px;overflow:hidden;background:#121214}}.home-playlist-row{{display:grid;grid-template-columns:42px minmax(0,1fr) 28px;gap:12px;align-items:center;padding:13px 15px;color:#f1f1f3;text-decoration:none;border-bottom:1px solid #242429}}.home-playlist-row:last-child{{border-bottom:0}}.home-playlist-row:hover{{background:#19191c}}.home-playlist-icon{{width:38px;height:38px;border-radius:8px;background:#25252a;display:flex;align-items:center;justify-content:center;color:#bdbdc4;font-size:18px}}.home-playlist-copy{{display:flex;flex-direction:column;gap:3px;min-width:0}}.home-playlist-copy strong{{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}.home-playlist-copy span{{font-size:13px;color:#909098}}.home-playlist-arrow{{font-size:26px;color:#74747c;text-align:right}}.home-playlist-empty{{padding:26px;text-align:center;color:#85858d}}
 .modal{{display:none;position:fixed;inset:0;background:rgba(0,0,0,.68);z-index:100;align-items:center;justify-content:center;padding:20px}}.modal.open{{display:flex}}.modal-card{{width:min(620px,96vw);background:#1a1a1e;border:1px solid #34343a;border-radius:17px;padding:23px;box-shadow:0 24px 70px #0009}}.modal-head{{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}}.modal-head h2{{margin:0}}.modal-close{{background:#28282d;color:white;border:0;border-radius:50%;width:34px;height:34px;cursor:pointer}}
 .field{{margin:14px 0}}.field label{{display:block;font-size:13px;color:#b4b4bb;margin-bottom:6px}}.field input{{width:100%;height:43px;border:1px solid #393940;border-radius:10px;background:#101012;color:white;padding:0 11px}}.folder-row{{display:grid;grid-template-columns:1fr auto;gap:9px}}.folder-row button{{border:1px solid #3a3a41;background:#252529;color:#eee;border-radius:10px;padding:0 13px;cursor:pointer}}.modal-actions{{display:flex;justify-content:flex-end;gap:9px;margin-top:20px}}.secondary{{background:#28282d;color:white;border:0;border-radius:10px;padding:10px 15px;cursor:pointer}}.status{{font-size:13px;color:#9d9da5;min-height:20px;margin-top:8px}}.status.error{{color:#ff9898}}.status.ok{{color:#8fe0a4}}
-@media(max-width:1080px){{.album-layout{{grid-template-columns:minmax(0,1fr)}}.album-right-rail{{display:none}}}}
 @media(max-width:900px){{.album-hero{{min-height:250px;padding:54px 20px 24px}}.album-hero-inner{{grid-template-columns:150px minmax(0,1fr);gap:20px}}.album-hero-cover{{width:150px;height:150px}}.album-main-column{{padding:16px 14px 28px}}}}
 @media(max-width:1100px){{.my-music-player{{grid-template-columns:minmax(180px,1fr) auto;grid-template-rows:auto auto auto;gap:9px 10px}}.my-player-middle{{grid-column:1/-1;grid-row:1}}.my-player-track{{grid-column:1;grid-row:2}}.my-player-transport{{grid-column:2;grid-row:2}}.my-player-ab{{grid-column:1/-1;grid-row:3;justify-content:center;border-top:1px solid #2b2d2c;padding-top:8px}}.main{{padding-bottom:256px}}}}
 @media(max-width:900px){{:root{{--side:205px}}.main{{padding:20px 20px 262px}}.top{{grid-template-columns:1fr auto}}.db-select{{grid-column:1/2}}.new-db{{grid-column:2/3}}.view-toggle{{position:absolute;right:0;top:62px}}.album-grid{{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}}.my-music-player{{left:var(--side);grid-template-columns:1fr auto;grid-template-rows:auto auto auto;padding:9px 11px}}.my-player-middle{{grid-column:1/-1;grid-row:1}}.my-player-track{{grid-column:1;grid-row:2}}.my-player-transport{{grid-column:2;grid-row:2}}.my-player-ab{{grid-column:1/-1;grid-row:3}}}}
@@ -404,10 +429,93 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
   </div>
   <audio id="my-player-audio" preload="metadata"></audio>
 </section>
+{elza_assets if album else ""}
+<style>
+.album-right-rail .ls-elza-modal.ls-elza-docked{{margin:0!important}}
+.album-right-rail .ls-elza-modal.ls-elza-docked .ls-elza-dialog{{height:620px!important;max-height:none!important;border-radius:14px!important;background:rgba(33,58,44,.92)!important}}
+.album-right-rail .ls-elza-modal.ls-elza-docked .ls-elza-head{{background:rgba(24,48,35,.96)!important}}
+.album-right-rail .ls-elza-modal.ls-elza-docked .ls-elza-history{{background:rgba(34,63,47,.62)!important}}
+.album-right-rail .ls-elza-modal.ls-elza-docked .ls-elza-compose{{background:rgba(24,48,35,.90)!important}}
+</style>
 <script>
 (() => {{
   const db = document.getElementById('db-select');
   const query = {json.dumps(query)};
+
+  const dockRealElza = () => {{
+    const modal = document.getElementById('ls-elza-modal');
+    const open = document.getElementById('ls-elza-open-btn');
+    if (!modal || !open) return;
+    if (modal.style.display !== 'block') open.click();
+    window.requestAnimationFrame(() => {{
+      if (!modal.classList.contains('ls-elza-docked')) {{
+        document.getElementById('ls-elza-dock-toggle')?.click();
+      }}
+    }});
+  }};
+  if (document.getElementById('ls-elza-dock-slot')) {{
+    window.setTimeout(dockRealElza, 0);
+  }}
+
+  const f4Input = document.getElementById('my-f4-input');
+  const f4Count = document.getElementById('my-f4-count');
+  const f4Name = document.getElementById('my-f4-name');
+  const f4Artist = document.getElementById('my-f4-artist');
+  const f4Rows = Array.from(document.querySelectorAll('.album-track-row'));
+  let f4Matches = [];
+  let f4Index = -1;
+  const clearF4Highlight = () => f4Rows.forEach(row => row.classList.remove('my-f4-current'));
+  const computeF4Matches = () => {{
+    const needle = String(f4Input?.value || '').trim().toLocaleLowerCase();
+    clearF4Highlight();
+    f4Index = -1;
+    if (!needle) {{
+      f4Matches = [];
+      if (f4Count) f4Count.textContent = '0/0';
+      return;
+    }}
+    f4Matches = f4Rows.filter(row => {{
+      const name = String(row.dataset.playerTitle || '').toLocaleLowerCase();
+      const artistValue = String(row.dataset.playerArtist || '').toLocaleLowerCase();
+      return Boolean((f4Name?.checked && name.includes(needle)) || (f4Artist?.checked && artistValue.includes(needle)));
+    }});
+    if (f4Count) f4Count.textContent = '0/' + String(f4Matches.length);
+  }};
+  const goF4 = step => {{
+    if (!f4Matches.length) computeF4Matches();
+    if (!f4Matches.length) return;
+    clearF4Highlight();
+    f4Index = (f4Index + step + f4Matches.length) % f4Matches.length;
+    const row = f4Matches[f4Index];
+    row.classList.add('my-f4-current');
+    row.scrollIntoView({{block:'center',behavior:'smooth'}});
+    if (f4Count) f4Count.textContent = String(f4Index + 1) + '/' + String(f4Matches.length);
+  }};
+  f4Input?.addEventListener('input', computeF4Matches);
+  f4Name?.addEventListener('change', computeF4Matches);
+  f4Artist?.addEventListener('change', computeF4Matches);
+  document.getElementById('my-f4-prev')?.addEventListener('click', () => goF4(-1));
+  document.getElementById('my-f4-next')?.addEventListener('click', () => goF4(1));
+  document.getElementById('my-f4-clear')?.addEventListener('click', () => {{
+    if (f4Input) f4Input.value = '';
+    computeF4Matches();
+    f4Input?.focus();
+  }});
+  f4Input?.addEventListener('keydown', event => {{
+    if (event.key === 'Enter') {{ event.preventDefault(); goF4(event.shiftKey ? -1 : 1); }}
+    if (event.key === 'Escape') {{
+      event.preventDefault();
+      f4Input.value = '';
+      computeF4Matches();
+    }}
+  }});
+  document.addEventListener('keydown', event => {{
+    if ((event.ctrlKey && !event.shiftKey && !event.altKey && String(event.key || '').toLowerCase() === 'f') || event.key === 'F4') {{
+      event.preventDefault();
+      f4Input?.focus();
+      f4Input?.select();
+    }}
+  }});
   const shellNavigate = url => {{
     if (typeof window.LSShellNavigate === 'function' && window.LSShellNavigate(url)) return;
     location.href = url;
