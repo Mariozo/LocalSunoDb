@@ -356,6 +356,10 @@ def test_my_library_album_detail_spotify_layout_contract(monkeypatch):
     assert 'id="album-hero"' in rendered
     assert 'id="album-hero-cover"' in rendered
     assert 'data-elza-f4-rail="1"' in rendered
+    assert 'class="album-rail-tabs"' in rendered
+    assert ">LS Elza</button>" in rendered
+    assert ">F4</button>" in rendered
+    assert "value * .80" in rendered
     assert 'id="album-play"' in rendered
     assert "2 dziesmas · 3 min 10 s" in rendered
     assert 'class="track-table album-track-table"' in rendered
