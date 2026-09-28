@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from LS_Elza import LS_ELZA_PACKAGE_VERSION, selection_intent, ui
-from LS_Elza.ls_adapter import runtime_bridge as elza_runtime_bridge
+from LS_Elza import selection_guard
 from ls_web import elza_adapter
 from ls_web import elza_selection_bridge
 
@@ -418,7 +418,7 @@ def test_elza_v238_repairs_exact_user_local_anywhere_request():
         'Parādi visas vietējās dziesmas, kurām "upe" ir '
         'nosaukumā vai kur citur.'
     )
-    result = elza_runtime_bridge._reconcile_selection_tool_arguments(
+    result = selection_guard.reconcile_selection_tool_arguments(
         "ls_prepare_selection",
         _v238_wrong_model_selection(),
         _v238_model_input(question),
@@ -434,7 +434,7 @@ def test_elza_v238_repairs_exact_user_local_anywhere_request():
 
 def test_elza_v238_keeps_explicit_locf_request():
     original = _v238_wrong_model_selection()
-    result = elza_runtime_bridge._reconcile_selection_tool_arguments(
+    result = selection_guard.reconcile_selection_tool_arguments(
         "ls_prepare_selection",
         original,
         _v238_model_input("Parādi visas dziesmas ar LocF."),
@@ -445,7 +445,7 @@ def test_elza_v238_keeps_explicit_locf_request():
 
 def test_elza_v238_keeps_non_selection_tools_untouched():
     original = {"local_family_assigned": True}
-    result = elza_runtime_bridge._reconcile_selection_tool_arguments(
+    result = selection_guard.reconcile_selection_tool_arguments(
         "ls_search_titles",
         original,
         _v238_model_input(
