@@ -69,7 +69,7 @@ def _requested_text_fields(plain):
         fields.append("track_id")
     if re.search(r"\b(?:lyrics?|dziesm\w*\s+tekst\w*|tekst\w*)\b", plain):
         fields.append("lyrics")
-    if re.search(r"\bprompt\w*\b", plain):
+    if re.search(r"\bpromp?t\w*\b", plain):
         fields.append("prompt")
     if re.search(r"(?:^|\s)#?tag\w*\b", plain):
         fields.append("tags")
