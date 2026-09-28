@@ -43,8 +43,12 @@ def get_selection_tool_definition():
         "description": (
             "Interpret a user request to select, filter, show, find, or list LocalSunoDb tracks. "
             "Use semantic meaning rather than exact spelling, including ordinary typing and "
-            "speech-to-text errors. Preserve every stated condition. This tool does not change "
-            "the database; it only returns a structured read-only selection request."
+            "speech-to-text errors. Preserve every stated condition. Latvian 'vietējās/lokālās "
+            "dziesmas' means local_audio='with', not Local Family/LocF. Generic 'dziesmas' does "
+            "not by itself mean category='Song'. Use Local Family fields only when LocF or Local "
+            "Family is explicitly requested. Cross-field wording such as 'nosaukumā vai citur', "
+            "'jebkur', or 'tekstā vai #tagā' uses anywhere_query over Name/Track ID OR Lyrics OR "
+            "Prompt OR Tags, with title_query empty. This tool does not change the database."
         ),
         "parameters": {
             "type": "object",
@@ -87,7 +91,11 @@ def get_selection_tool_definition():
                 "local_audio": {
                     "type": "string",
                     "enum": ["", "with", "without"],
-                    "description": "Whether local audio must exist, must not exist, or is unspecified.",
+                    "description": (
+                        "Whether local audio must exist, must not exist, or is unspecified. "
+                        "Latvian 'vietējās/lokālās dziesmas' or 'vietējie/lokālie ieraksti' "
+                        "means local_audio='with', not Local Family."
+                    ),
                 },
                 "local_audio_extensions": {
                     "type": "array",
@@ -129,20 +137,24 @@ def get_selection_tool_definition():
                 "local_family_assigned": {
                     "type": ["boolean", "null"],
                     "description": (
-                        "True when any confirmed Local Family assignment is required; false when "
-                        "no confirmed assignment is required; null when unspecified."
+                        "True only when the user explicitly requests LocF/Local Family assignment; "
+                        "false only when the user explicitly requests no LocF/Local Family; null "
+                        "otherwise. Never infer this from 'vietējās/lokālās' songs, tracks or audio."
                     ),
                 },
                 "title_query": {
                     "type": "string",
-                    "description": "Explicit title/name search text, otherwise empty.",
+                    "description": (
+                        "Explicit title/name-only search text, otherwise empty. If the term may "
+                        "appear in the name OR elsewhere/lyrics/tags, use anywhere_query instead."
+                    ),
                 },
                 "anywhere_query": {
                     "type": "string",
                     "description": (
-                        "Free-text term that may match Name/Track ID, Lyrics, Prompt, "
-                        "or Tags. Use this for requests such as 'word Elizabete is in "
-                        "a tag or elsewhere'. Leave empty when not requested."
+                        "One free-text term matched as Name/Track ID OR Lyrics OR Prompt OR Tags. "
+                        "Use for 'jebkur', 'kaut kur', 'citur', 'nosaukumā vai citur', "
+                        "'dziesmas tekstā vai #tagā', 'tagā vai citur', and equivalent wording."
                     ),
                 },
                 "exact_stem_count": {
