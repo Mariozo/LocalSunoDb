@@ -7,6 +7,9 @@ import unicodedata
 from typing import Any
 
 
+_ALL_TEXT_FIELDS = ["name", "track_id", "lyrics", "prompt", "tags"]
+
+
 def _fold_selection_text(value: Any) -> str:
     text = re.sub(r"\s+", " ", str(value or "").strip().casefold())
     return "".join(
@@ -37,6 +40,49 @@ def _latest_user_question_text(model_input: list[Any]) -> str:
         if combined:
             return combined
     return ""
+
+
+def _extract_query(user_text: str, result: dict[str, Any]) -> str:
+    quoted = re.search(r'["“”]([^"“”]{1,160})["“”]', user_text)
+    if quoted:
+        return re.sub(r"\s+", " ", quoted.group(1).strip())
+    named = re.search(
+        r"\b(?:vārds?|vārdu|frāze|fraze|word)\s+"
+        r'["“”]?([^\s,;:.!?"“”]{1,120})',
+        user_text,
+        flags=re.IGNORECASE,
+    )
+    if named:
+        return named.group(1).strip()
+    return str(
+        result.get("text_query")
+        or result.get("anywhere_query")
+        or result.get("title_query")
+        or ""
+    ).strip()
+
+
+def _requested_text_fields(plain: str) -> list[str]:
+    anywhere = bool(
+        re.search(r"\b(?:jebkur|citur|elsewhere|anywhere|visur)\b", plain)
+        or re.search(r"\bkaut\s+kur\b", plain)
+        or re.search(r"\bkad[aā]\s+cit[aā]\s+lauk[aā]\b", plain)
+    )
+    if anywhere:
+        return list(_ALL_TEXT_FIELDS)
+
+    fields: list[str] = []
+    if re.search(r"\b(?:nosaukum\w*|name|title)\b", plain):
+        fields.append("name")
+    if re.search(r"\btrack\s*id\b", plain):
+        fields.append("track_id")
+    if re.search(r"\b(?:lyrics?|dziesm\w*\s+tekst\w*|tekst\w*)\b", plain):
+        fields.append("lyrics")
+    if re.search(r"\bprompt\w*\b", plain):
+        fields.append("prompt")
+    if re.search(r"(?:^|\s)#?tag\w*\b", plain):
+        fields.append("tags")
+    return fields
 
 
 def reconcile_selection_tool_arguments(
@@ -74,43 +120,15 @@ def reconcile_selection_tool_arguments(
     if local_wording:
         result["local_audio"] = "with"
 
-    anywhere_scope = bool(
-        re.search(r"\b(?:jebkur|citur|elsewhere|anywhere)\b", plain)
-        or re.search(r"\bkaut\s+kur\b", plain)
-        or (
-            re.search(r"\bnosaukum\w*\b", plain)
-            and re.search(r"\b(?:vai|or)\b", plain)
-            and re.search(r"\b(?:citur|tekst\w*|lyrics?|tag\w*)\b", plain)
+    text_fields = _requested_text_fields(plain)
+    text_query = _extract_query(user_text, result)
+    if text_fields and text_query:
+        result["text_query"] = text_query
+        result["text_fields"] = text_fields
+        result["title_query"] = ""
+        result["anywhere_query"] = (
+            text_query if set(text_fields) == set(_ALL_TEXT_FIELDS) else ""
         )
-        or (
-            re.search(r"\b(?:tekst\w*|lyrics?|tag\w*)\b", plain)
-            and re.search(r"\b(?:vai|or)\b", plain)
-        )
-    )
-
-    query = ""
-    if anywhere_scope:
-        quoted = re.search(r'["“”]([^"“”]{1,160})["“”]', user_text)
-        if quoted:
-            query = re.sub(r"\s+", " ", quoted.group(1).strip())
-        if not query:
-            named = re.search(
-                r"\b(?:vārds?|vārdu|frāze|fraze|word)\s+"
-                r'["“”]?([^\s,;:.!?"“”]{1,120})',
-                user_text,
-                flags=re.IGNORECASE,
-            )
-            if named:
-                query = named.group(1).strip()
-        if not query:
-            query = str(
-                result.get("anywhere_query")
-                or result.get("title_query")
-                or ""
-            ).strip()
-        if query:
-            result["anywhere_query"] = query
-            result["title_query"] = ""
 
     if str(result.get("category") or "") == "Song":
         explicit_song_category = bool(
