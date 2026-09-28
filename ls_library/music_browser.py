@@ -28,6 +28,22 @@ def _duration(value):
     return f"{seconds // 60}:{seconds % 60:02d}"
 
 
+def _duration_summary(value):
+    try:
+        seconds = int(round(float(value or 0)))
+    except Exception:
+        return ""
+    if seconds <= 0:
+        return ""
+    if seconds < 60:
+        return f"{seconds} s"
+    minutes, remain = divmod(seconds, 60)
+    if minutes < 60:
+        return f"{minutes} min" + (f" {remain} s" if remain else "")
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours} h" + (f" {minutes} min" if minutes else "")
+
+
 def _sidebar():
     return """
     <aside class="side">
@@ -112,7 +128,9 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
           </div>
         </a>""")
 
-    row_html = []
+    list_row_html = []
+    detail_row_html = []
+    album_artist_key = artist.casefold()
     for index, row in enumerate(tracks):
         track_no = row.get("track_no")
         disc_no = row.get("disc_no")
@@ -130,14 +148,16 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
             f"/music-db-cover?name={urllib.parse.quote(selected_name)}&sha1={urllib.parse.quote(cover_sha)}"
             if cover_sha and selected_name else ""
         )
-        row_html.append(f"""
-          <tr class="music-track-row"
+        row_attrs = f"""
               data-player-index="{index}"
               data-player-path="{_esc(play_path)}"
               data-player-title="{_esc(play_title)}"
               data-player-artist="{_esc(play_artist)}"
               data-player-album="{_esc(play_album)}"
-              data-player-cover="{_esc(play_cover)}">
+              data-player-cover="{_esc(play_cover)}"
+        """
+        list_row_html.append(f"""
+          <tr class="music-track-row" {row_attrs}>
             <td class="track-number-cell"><button type="button" class="music-row-play" aria-label="Atskaņot {_esc(play_title)}" title="Atskaņot">▶</button><span>{_esc(num)}</span></td>
             <td><strong>{_esc(play_title)}</strong><div class="path-line">{_esc(play_path)}</div></td>
             <td>{_esc(play_artist)}</td>
@@ -148,12 +168,43 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
             <td>{_esc(_duration(row.get('duration_seconds')))}</td>
           </tr>""")
 
+        detail_artist = ""
+        if play_artist and play_artist.casefold() != album_artist_key:
+            detail_artist = f'<div class="detail-track-artist">{_esc(play_artist)}</div>'
+        detail_row_html.append(f"""
+          <tr class="music-track-row album-track-row" {row_attrs}>
+            <td class="track-number-cell album-track-number"><button type="button" class="music-row-play" aria-label="Atskaņot {_esc(play_title)}" title="Atskaņot">▶</button><span class="track-index">{_esc(num or index + 1)}</span></td>
+            <td class="detail-title-cell"><strong>{_esc(play_title)}</strong>{detail_artist}</td>
+            <td class="detail-duration">{_esc(_duration(row.get('duration_seconds')))}</td>
+          </tr>""")
+
     if album:
-        heading = f"{artist}{' · ' + year if year else ''} — {album}"
+        heading = album
         back_url = _url(db=selected_name, q=query)
     else:
         heading = selected_name or "My Library"
         back_url = ""
+
+    album_total_seconds = sum(
+        float(row.get("duration_seconds") or 0)
+        for row in tracks
+        if row.get("duration_seconds")
+    )
+    album_total_duration = _duration_summary(album_total_seconds)
+    album_cover_sha = next(
+        (str(row.get("cover_sha1") or "") for row in tracks if row.get("cover_sha1")),
+        "",
+    )
+    album_cover_url = (
+        f"/music-db-cover?name={urllib.parse.quote(selected_name)}&sha1={urllib.parse.quote(album_cover_sha)}"
+        if album_cover_sha and selected_name else ""
+    )
+    album_meta_bits = [part for part in [
+        year,
+        f"{len(tracks)} dziesmas",
+        album_total_duration,
+    ] if part]
+    album_meta = " · ".join(album_meta_bits)
 
     empty = ""
     if not usable:
@@ -169,13 +220,37 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
 
     detail_block = ""
     if album:
+        hero_cover = (
+            f'<img id="album-hero-cover" src="{_esc(album_cover_url)}" alt="">'
+            if album_cover_url else '<div class="album-hero-cover-empty">♪</div>'
+        )
         detail_block = f"""
         <section class="album-detail">
-          <div class="detail-head"><a class="back" href="{_esc(back_url)}">← Albums</a><h1>{_esc(heading)}</h1><span>{len(tracks)} dziesmas</span></div>
-          <div class="track-table-wrap"><table class="track-table">
-            <thead><tr><th>#</th><th>Nosaukums</th><th>Autors</th><th>Albums</th><th>Gads</th><th>Žanrs</th><th>Tips</th><th>Ilgums</th></tr></thead>
-            <tbody>{''.join(row_html) if row_html else '<tr><td colspan="8" class="none">Nav ierakstu.</td></tr>'}</tbody>
-          </table></div>
+          <div class="album-hero" id="album-hero">
+            <a class="album-back" href="{_esc(back_url)}" title="Atpakaļ uz albumiem">←</a>
+            <div class="album-hero-inner">
+              <div class="album-hero-cover">{hero_cover}</div>
+              <div class="album-hero-copy">
+                <div class="album-kind">Albums</div>
+                <h1>{_esc(album)}</h1>
+                <div class="album-hero-meta"><strong>{_esc(artist or "Unknown Artist")}</strong>{(" · " + _esc(album_meta)) if album_meta else ""}</div>
+              </div>
+            </div>
+          </div>
+          <div class="album-layout">
+            <div class="album-main-column">
+              <div class="album-actions">
+                <button type="button" class="album-play" id="album-play" title="Atskaņot albumu" aria-label="Atskaņot albumu">▶</button>
+              </div>
+              <div class="album-track-list">
+                <table class="track-table album-track-table">
+                  <thead><tr><th>#</th><th>Nosaukums</th><th class="duration-head" title="Ilgums">◷</th></tr></thead>
+                  <tbody>{''.join(detail_row_html) if detail_row_html else '<tr><td colspan="3" class="none">Nav ierakstu.</td></tr>'}</tbody>
+                </table>
+              </div>
+            </div>
+            <aside class="album-right-rail" data-elza-f4-rail="1" aria-label="Elza un F4 panelis"></aside>
+          </div>
         </section>"""
 
     list_block = ""
@@ -184,7 +259,7 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
         <div class="view-panel list-panel{' visible' if view == 'list' else ''}">
           <div class="track-table-wrap"><table class="track-table">
             <thead><tr><th>#</th><th>Nosaukums</th><th>Autors</th><th>Albums</th><th>Gads</th><th>Žanrs</th><th>Tips</th><th>Ilgums</th></tr></thead>
-            <tbody>{''.join(row_html) if row_html else '<tr><td colspan="8" class="none">Nav ierakstu.</td></tr>'}</tbody>
+            <tbody>{''.join(list_row_html) if list_row_html else '<tr><td colspan="8" class="none">Nav ierakstu.</td></tr>'}</tbody>
           </table></div>
         </div>"""
 
@@ -226,8 +301,8 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
 <link rel="stylesheet" href="/ls-static/ls_web/static/persistent_shell.css?v={_esc(APP_VERSION)}">
 <script src="/ls-static/ls_web/static/persistent_shell.js?v={_esc(APP_VERSION)}" defer></script>
 <style>
-:root{{color-scheme:dark;--bg:#0d0d0f;--panel:#171719;--line:#29292d;--muted:#9a9aa2;--text:#f2f2f4;--accent:#efefef;--side:258px}}
-*{{box-sizing:border-box}}html,body{{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:Segoe UI,Arial,sans-serif}}body{{display:flex}}
+:root{{color-scheme:dark;--bg:#0d0d0f;--panel:#171719;--line:#29292d;--muted:#9a9aa2;--text:#f2f2f4;--accent:#efefef;--side:258px;--album-hero:#35644d;--album-hero-dark:#173c2a;--album-wash:#0c2a1d}}
+*{{box-sizing:border-box}}html,body{{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:Segoe UI,Arial,sans-serif}}body{{display:flex}}body.album-open{{--bg:#061F14;--panel:#0b2a1d;--line:#244334;background:#061F14}}body.album-open .main{{background:#061F14}}
 .side{{position:fixed;inset:0 auto 0 0;width:var(--side);padding:18px 12px;border-right:1px solid #151518;background:#0b0b0d;z-index:20}}
 .side-brand{{font-size:18px;font-weight:800;padding:4px 14px 18px}}.side-brand span{{font-size:12px;color:#85858d;font-weight:600}}
 .side nav{{display:flex;flex-direction:column;gap:7px}}.nav-item{{height:44px;padding:0 14px;border-radius:23px;display:flex;align-items:center;gap:13px;color:#d5d5da;text-decoration:none;font-size:15px;font-weight:650}}
@@ -245,15 +320,18 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
 .track-number-cell{{display:flex;align-items:center;gap:8px;min-width:72px}}.music-row-play{{width:30px;height:30px;border-radius:50%;border:1px solid #38383d;background:#242427;color:#f5f5f6;cursor:pointer;font-size:12px;display:inline-grid;place-items:center;flex:0 0 30px}}.music-row-play:hover{{background:#353539}}.music-track-row.is-playing td{{background:#18211c!important}}.music-track-row.is-playing .music-row-play{{background:#f4f6f5;color:#111514}}
 .my-music-player{{position:fixed;left:var(--side);right:0;bottom:0;z-index:90;min-height:176px;background:#171918;color:#f1f3f2;border-top:1px solid rgba(255,255,255,.14);box-shadow:0 -10px 28px rgba(0,0,0,.28);display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);grid-template-rows:auto auto;align-items:center;gap:10px 14px;padding:10px 16px 12px}}.my-music-player.is-idle{{color:#7e8983}}.my-player-track{{grid-column:1;grid-row:2;display:flex;align-items:center;gap:11px;min-width:0}}.my-player-cover-wrap{{width:54px;height:54px;min-width:54px;border-radius:7px;overflow:hidden;background:#252827;border:1px solid rgba(255,255,255,.10);display:grid;place-items:center}}.my-player-cover{{width:100%;height:100%;object-fit:cover;display:none}}.my-player-cover-placeholder{{font-size:22px;color:#7e8983}}.my-player-copy{{min-width:0}}.my-player-title{{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#f1f3f2}}.my-player-source{{margin-top:4px;color:#9aa59f;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}.my-player-transport,.my-player-ab{{display:flex;align-items:center;gap:7px;white-space:nowrap}}.my-player-transport{{grid-column:1/-1;grid-row:2;justify-self:center;position:relative}}.my-player-ab{{display:contents}}.my-music-player button{{background:#252827;color:#f1f3f2;border:1px solid transparent;cursor:pointer}}.my-music-player button:hover:not(:disabled){{background:#333736}}.my-music-player button:disabled{{opacity:.38;cursor:default}}.my-player-transport button{{width:36px;height:36px;border-radius:18px;font-weight:700}}.my-player-transport .my-player-play{{width:44px;height:44px;border-radius:50%;background:#f4f6f5;color:#111514;font-size:18px}}.my-player-zoom-wrap{{position:relative;display:flex;align-items:center}}.my-player-zoom-toggle{{position:relative;display:grid!important;place-items:center;padding:0!important}}.my-player-zoom-toggle svg{{width:19px;height:19px;display:block}}.my-player-zoom-badge{{position:absolute;right:2px;bottom:1px;min-width:11px;height:11px;line-height:10px;border-radius:6px;background:#147d46;color:#fff;font-size:9px;font-weight:800;text-align:center;padding:0 2px;pointer-events:none}}.my-player-zoom-menu{{position:absolute;left:50%;bottom:44px;transform:translateX(-50%);display:none;align-items:center;gap:5px;padding:6px;background:#101311;border:1px solid #343a36;border-radius:22px;box-shadow:0 8px 22px rgba(0,0,0,.36);z-index:20}}.my-player-zoom-wrap.open .my-player-zoom-menu{{display:flex}}.my-player-zoom-menu button{{width:32px;height:32px;border-radius:16px;padding:0;font-size:15px}}.my-player-zoom-menu button:hover:not(:disabled){{background:#147d46}}.my-player-loop.active,.my-player-ab button.active{{background:#147d46;color:white}}.my-player-middle{{min-width:0;grid-column:1/-1;grid-row:1}}.my-player-progress-wrap{{display:grid;grid-template-columns:minmax(200px,1fr) auto;align-items:center;gap:10px}}.my-player-progress-shell{{position:relative;height:96px;border:1px solid #404844;border-radius:8px;background:#101a1f;overflow:hidden;cursor:pointer;isolation:isolate}}.my-player-progress-shell.zoomed{{outline:2px solid rgba(44,152,255,.26);outline-offset:1px}}.my-player-waveform{{position:absolute;inset:0;width:100%;height:100%;display:block;border-radius:7px;z-index:1}}.my-player-waveform-status{{position:absolute;top:5px;right:8px;z-index:9;color:#b5c0bb;font-size:10px;pointer-events:none;text-shadow:0 1px 2px #101210;background:rgba(10,14,13,.50);border-radius:8px;padding:2px 6px}}.my-player-played-region{{position:absolute;left:0;top:0;bottom:0;width:0;background:rgba(22,108,223,.12);pointer-events:none;z-index:2;border-radius:7px 0 0 7px}}.my-player-progress{{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer;z-index:5;-webkit-appearance:none;appearance:none}}.my-player-playhead{{position:absolute;top:0;bottom:0;left:0;width:2px;background:#2c98ff;box-shadow:0 0 0 1px rgba(8,37,69,.4);pointer-events:none;z-index:6}}.my-player-ab-region{{position:absolute;left:0;right:auto;top:0;bottom:0;background:rgba(20,125,70,.18);border-left:1px solid rgba(56,190,111,.75);border-right:1px solid rgba(56,190,111,.75);pointer-events:none;opacity:0;z-index:3}}.my-player-marker{{position:absolute;top:0;width:18px;height:96px;transform:translateX(-50%);background:transparent;pointer-events:auto;cursor:ew-resize;touch-action:none;opacity:0;z-index:8}}.my-player-marker::before{{content:'';position:absolute;left:8px;top:0;width:2px;height:96px;background:#f5d36b;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.40)}}.my-player-marker::after{{position:absolute;top:2px;left:1px;min-width:16px;height:16px;line-height:16px;border-radius:9px;text-align:center;font-size:10px;font-weight:800;color:#161914;background:#f5d36b;box-shadow:0 1px 3px rgba(0,0,0,.45)}}.my-player-marker:hover::before,.my-player-marker.dragging::before{{width:3px;left:7.5px;background:#ffe27f}}.my-player-marker.dragging{{cursor:grabbing}}.my-player-marker-a::after{{content:'A'}}.my-player-marker-b::after{{content:'B'}}.my-player-time{{font-size:12px;color:#a3ada8;min-width:92px;text-align:right;font-variant-numeric:tabular-nums}}.my-player-ab button{{height:32px;border-radius:16px;padding:0 11px;font-size:12px;font-weight:700}}.my-player-ab-readout{{font-size:11px;color:#9aa59f;min-width:84px;text-align:right}}.main{{padding-bottom:218px}}
 .detail-head{{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:18px}}.detail-head h1{{margin:0;font-size:25px}}.detail-head span{{color:#92929a}}.back{{color:#b8b8c0;text-decoration:none;padding:8px 11px;border-radius:10px;background:#19191c}}
+.album-open .library-head{{display:none}}.album-detail{{margin:-6px -10px 0;background:linear-gradient(180deg,var(--album-wash) 0,#061F14 310px);border-radius:14px 14px 0 0;overflow:hidden;min-height:620px}}.album-hero{{position:relative;background:linear-gradient(180deg,var(--album-hero) 0,var(--album-hero-dark) 100%);padding:46px 34px 28px;min-height:310px;display:flex;align-items:flex-end}}.album-back{{position:absolute;left:18px;top:18px;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:#fff;text-decoration:none;background:rgba(0,0,0,.30);font-size:21px;line-height:1}}.album-back:hover{{background:rgba(0,0,0,.50)}}.album-hero-inner{{display:grid;grid-template-columns:232px minmax(0,1fr);gap:28px;align-items:end;width:100%}}.album-hero-cover{{width:232px;height:232px;border-radius:5px;overflow:hidden;background:#163024;box-shadow:0 12px 32px rgba(0,0,0,.38)}}.album-hero-cover img{{display:block;width:100%;height:100%;object-fit:cover}}.album-hero-cover-empty{{width:100%;height:100%;display:grid;place-items:center;font-size:74px;color:rgba(255,255,255,.32);background:linear-gradient(135deg,rgba(255,255,255,.11),rgba(0,0,0,.18))}}.album-hero-copy{{min-width:0;padding-bottom:5px;text-shadow:0 1px 1px rgba(0,0,0,.18)}}.album-kind{{font-size:14px;font-weight:700;margin-bottom:7px}}.album-hero h1{{margin:0 0 15px;font-size:clamp(38px,5.1vw,82px);line-height:.98;letter-spacing:-.045em;font-weight:800;overflow-wrap:anywhere}}.album-hero-meta{{font-size:14px;color:rgba(255,255,255,.82)}}.album-hero-meta strong{{color:#fff}}.album-layout{{display:grid;grid-template-columns:minmax(0,1fr) 330px;min-height:360px}}.album-main-column{{min-width:0;padding:20px 28px 34px}}.album-right-rail{{min-width:0;border-left:1px solid rgba(255,255,255,.07);background:rgba(2,18,11,.20)}}.album-actions{{height:72px;display:flex;align-items:center;padding:0 5px 9px}}.album-play{{width:56px;height:56px;border:0;border-radius:50%;background:#1ed760;color:#07160d;font-size:22px;font-weight:800;cursor:pointer;display:grid;place-items:center;padding-left:4px;box-shadow:0 6px 18px rgba(0,0,0,.23)}}.album-play:hover{{transform:scale(1.04);background:#2be16d}}.album-track-list{{min-width:0}}.album-track-table{{min-width:0;background:transparent}}.album-track-table th{{position:static;background:transparent;border-bottom:1px solid rgba(255,255,255,.13);padding:9px 10px;color:#aebbb4;font-size:12px}}.album-track-table th:first-child{{width:52px;text-align:right}}.album-track-table .duration-head{{width:78px;text-align:right;padding-right:16px;font-size:17px}}.album-track-table td{{border-bottom:0;padding:9px 10px;background:transparent}}.album-track-table .album-track-row:hover td{{background:rgba(255,255,255,.07)}}.album-track-number{{justify-content:flex-end;min-width:52px;color:#aebbb4}}.album-track-table .music-row-play{{display:none;width:28px;height:28px;border:0;background:transparent}}.album-track-row:hover .music-row-play,.album-track-row.is-playing .music-row-play{{display:inline-grid}}.album-track-row:hover .track-index,.album-track-row.is-playing .track-index{{display:none}}.detail-title-cell strong{{font-size:15px;font-weight:650;color:#f5f8f6}}.detail-track-artist{{font-size:12px;color:#9faea6;margin-top:3px}}.detail-duration{{width:78px;text-align:right;padding-right:16px!important;color:#aebbb4;font-variant-numeric:tabular-nums}}.album-track-row.is-playing .detail-title-cell strong{{color:#35dd7a}}
 .empty-state{{margin:50px auto;max-width:620px;text-align:center;color:#aaa}}.empty-state h2{{color:#eee}}.empty-icon{{font-size:70px;color:#3e3e46}}.primary{{background:#f1f1f3;color:#111;border:0;border-radius:22px;padding:11px 18px;font-weight:750;cursor:pointer}}
 .home-playlists{{margin-top:42px;padding-top:26px;border-top:1px solid #242428}}.home-section-head{{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px}}.home-section-head h2{{margin:0;font-size:22px}}.home-section-head a{{color:#a9a9b1;text-decoration:none;font-size:14px}}.home-section-head a:hover{{color:#fff}}.home-playlist-list{{display:flex;flex-direction:column;border:1px solid #242429;border-radius:14px;overflow:hidden;background:#121214}}.home-playlist-row{{display:grid;grid-template-columns:42px minmax(0,1fr) 28px;gap:12px;align-items:center;padding:13px 15px;color:#f1f1f3;text-decoration:none;border-bottom:1px solid #242429}}.home-playlist-row:last-child{{border-bottom:0}}.home-playlist-row:hover{{background:#19191c}}.home-playlist-icon{{width:38px;height:38px;border-radius:8px;background:#25252a;display:flex;align-items:center;justify-content:center;color:#bdbdc4;font-size:18px}}.home-playlist-copy{{display:flex;flex-direction:column;gap:3px;min-width:0}}.home-playlist-copy strong{{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}.home-playlist-copy span{{font-size:13px;color:#909098}}.home-playlist-arrow{{font-size:26px;color:#74747c;text-align:right}}.home-playlist-empty{{padding:26px;text-align:center;color:#85858d}}
 .modal{{display:none;position:fixed;inset:0;background:rgba(0,0,0,.68);z-index:100;align-items:center;justify-content:center;padding:20px}}.modal.open{{display:flex}}.modal-card{{width:min(620px,96vw);background:#1a1a1e;border:1px solid #34343a;border-radius:17px;padding:23px;box-shadow:0 24px 70px #0009}}.modal-head{{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}}.modal-head h2{{margin:0}}.modal-close{{background:#28282d;color:white;border:0;border-radius:50%;width:34px;height:34px;cursor:pointer}}
 .field{{margin:14px 0}}.field label{{display:block;font-size:13px;color:#b4b4bb;margin-bottom:6px}}.field input{{width:100%;height:43px;border:1px solid #393940;border-radius:10px;background:#101012;color:white;padding:0 11px}}.folder-row{{display:grid;grid-template-columns:1fr auto;gap:9px}}.folder-row button{{border:1px solid #3a3a41;background:#252529;color:#eee;border-radius:10px;padding:0 13px;cursor:pointer}}.modal-actions{{display:flex;justify-content:flex-end;gap:9px;margin-top:20px}}.secondary{{background:#28282d;color:white;border:0;border-radius:10px;padding:10px 15px;cursor:pointer}}.status{{font-size:13px;color:#9d9da5;min-height:20px;margin-top:8px}}.status.error{{color:#ff9898}}.status.ok{{color:#8fe0a4}}
+@media(max-width:1280px){{.album-layout{{grid-template-columns:minmax(0,1fr)}}.album-right-rail{{display:none}}}}
+@media(max-width:900px){{.album-hero{{min-height:250px;padding:54px 20px 24px}}.album-hero-inner{{grid-template-columns:150px minmax(0,1fr);gap:20px}}.album-hero-cover{{width:150px;height:150px}}.album-main-column{{padding:16px 14px 28px}}}}
 @media(max-width:1100px){{.my-music-player{{grid-template-columns:minmax(180px,1fr) auto;grid-template-rows:auto auto auto;gap:9px 10px}}.my-player-middle{{grid-column:1/-1;grid-row:1}}.my-player-track{{grid-column:1;grid-row:2}}.my-player-transport{{grid-column:2;grid-row:2}}.my-player-ab{{grid-column:1/-1;grid-row:3;justify-content:center;border-top:1px solid #2b2d2c;padding-top:8px}}.main{{padding-bottom:256px}}}}
 @media(max-width:900px){{:root{{--side:205px}}.main{{padding:20px 20px 262px}}.top{{grid-template-columns:1fr auto}}.db-select{{grid-column:1/2}}.new-db{{grid-column:2/3}}.view-toggle{{position:absolute;right:0;top:62px}}.album-grid{{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}}.my-music-player{{left:var(--side);grid-template-columns:1fr auto;grid-template-rows:auto auto auto;padding:9px 11px}}.my-player-middle{{grid-column:1/-1;grid-row:1}}.my-player-track{{grid-column:1;grid-row:2}}.my-player-transport{{grid-column:2;grid-row:2}}.my-player-ab{{grid-column:1/-1;grid-row:3}}}}
 </style>
 </head>
-<body id="ls-my-library">
+<body id="ls-my-library"{' class="album-open"' if album else ''}>
 {_sidebar()}
 <main class="main">
   <form class="top" method="get" action="/my-library" id="search-form">
@@ -325,6 +403,62 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
     if (typeof window.LSShellNavigate === 'function' && window.LSShellNavigate(url)) return;
     location.href = url;
   }};
+
+  document.getElementById('album-play')?.addEventListener('click', () => {{
+    document.querySelector('.album-track-row .music-row-play')?.click();
+  }});
+
+  const heroCover = document.getElementById('album-hero-cover');
+  const applyAlbumCoverTheme = () => {{
+    if (!heroCover || !heroCover.naturalWidth || !heroCover.naturalHeight) return;
+    try {{
+      const canvas = document.createElement('canvas');
+      canvas.width = 40;
+      canvas.height = 40;
+      const ctx = canvas.getContext('2d', {{ willReadFrequently: true }});
+      ctx.drawImage(heroCover, 0, 0, 40, 40);
+      const pixels = ctx.getImageData(0, 0, 40, 40).data;
+      const buckets = new Map();
+      for (let i = 0; i < pixels.length; i += 4) {{
+        const a = pixels[i + 3];
+        if (a < 180) continue;
+        const r0 = pixels[i], g0 = pixels[i + 1], b0 = pixels[i + 2];
+        const max = Math.max(r0, g0, b0), min = Math.min(r0, g0, b0);
+        const lum = .2126 * r0 + .7152 * g0 + .0722 * b0;
+        if (lum < 26 || (min > 220 && max > 235)) continue;
+        const r = Math.min(255, (r0 >> 4) * 16 + 8);
+        const g = Math.min(255, (g0 >> 4) * 16 + 8);
+        const b = Math.min(255, (b0 >> 4) * 16 + 8);
+        const key = r + ',' + g + ',' + b;
+        const saturation = (max - min) / Math.max(1, max);
+        const score = 1 + saturation * 1.7 + Math.min(lum, 170) / 340;
+        buckets.set(key, (buckets.get(key) || 0) + score);
+      }}
+      let picked = [53, 100, 77];
+      let best = -1;
+      buckets.forEach((score, key) => {{
+        if (score > best) {{
+          best = score;
+          picked = key.split(',').map(Number);
+        }}
+      }});
+      const mix = (from, to, amount) => from.map((value, i) => Math.round(value * (1 - amount) + to[i] * amount));
+      const luminance = .2126 * picked[0] + .7152 * picked[1] + .0722 * picked[2];
+      const lightAmount = luminance < 80 ? .34 : luminance < 125 ? .24 : .16;
+      const hero = mix(picked, [255,255,255], lightAmount);
+      const green = [6,31,20];
+      const dark = mix(hero, green, .52);
+      const wash = mix(hero, green, .78);
+      const rgb = value => 'rgb(' + value.join(',') + ')';
+      document.body.style.setProperty('--album-hero', rgb(hero));
+      document.body.style.setProperty('--album-hero-dark', rgb(dark));
+      document.body.style.setProperty('--album-wash', rgb(wash));
+    }} catch (_error) {{}}
+  }};
+  if (heroCover) {{
+    if (heroCover.complete) applyAlbumCoverTheme();
+    else heroCover.addEventListener('load', applyAlbumCoverTheme, {{ once: true }});
+  }}
   db?.addEventListener('change', () => {{
     const value = String(db.value || '').trim();
     const p = new URLSearchParams(); if (value) p.set('db', value); if (query) p.set('q', query);
