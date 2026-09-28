@@ -160,15 +160,23 @@ class ElzaControllerMixin:
 
         local_locf_result = prepare_local_locf_service_result(payload)
         if local_locf_result is not None:
+            selection_request = local_locf_result.get("selection_request") or {}
+            is_locf_selection = (
+                selection_request.get("local_family_assigned") is not None
+            )
             result = finalize_semantic_selection(
                 payload,
                 local_locf_result,
-                resolve_workspace=lambda value: value,
-                resolve_local_family=lambda value: value,
-                normalize_tags=lambda values: list(values or []),
-                get_selection_result=lambda *_args, **_kwargs: {},
-                get_exact_stem_result=lambda *_args, **_kwargs: {},
-                build_answer=build_locf_selection_answer,
+                resolve_workspace=ls_elza_resolve_workspace,
+                resolve_local_family=ls_elza_resolve_local_family,
+                normalize_tags=normalize_tag_filter,
+                get_selection_result=get_ls_elza_selection_result,
+                get_exact_stem_result=get_ls_elza_exact_stem_result,
+                build_answer=(
+                    build_locf_selection_answer
+                    if is_locf_selection
+                    else build_ls_elza_selection_answer
+                ),
                 append_chat_exchange=ls_elza_append_chat_exchange,
                 get_locf_selection_result=get_locf_selection_result,
             )
