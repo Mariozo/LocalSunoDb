@@ -340,8 +340,8 @@ def test_wav_anywhere_query_matches_name_id_lyrics_prompt_or_tags(monkeypatch):
 
 
 
-def test_elza_v238_voice_composer_contract():
-    assert LS_ELZA_PACKAGE_VERSION == "2.38"
+def test_elza_v240_voice_composer_contract():
+    assert LS_ELZA_PACKAGE_VERSION == "2.40"
     assert "Elza v2.32" in ui.render_ls_elza_dialog_markup()
 
     rendered = ui.render_ls_elza_assets(
@@ -453,3 +453,177 @@ def test_elza_v238_keeps_non_selection_tools_untouched():
         ),
     )
     assert result == original
+
+
+def test_elza_v240_prompt_only_is_deterministic_and_not_locf():
+    result = elza_selection_bridge._recognize_local_text_selection(
+        'Parādi dziesmas ar vārdu "fretless" Promptā.'
+    )
+    assert result is not None
+    assert result["local_family_assigned"] is None
+    assert result["category"] == ""
+    assert result["text_query"] == "fretless"
+    assert result["text_fields"] == ["prompt"]
+
+
+def test_elza_v240_hammond_all_explicit_fields_is_not_locf():
+    result = elza_selection_bridge._recognize_local_text_selection(
+        'Parādi visas dziesmas ar vārdu "Hammond" Promta laukā vai '
+        'Name/Track ID, Lyrics un Tags laukos'
+    )
+    assert result is not None
+    assert result["local_family_assigned"] is None
+    assert result["category"] == ""
+    assert result["text_query"] == "Hammond"
+    assert set(result["text_fields"]) == {
+        "name", "track_id", "lyrics", "prompt", "tags",
+    }
+    assert result["anywhere_query"] == "Hammond"
+
+
+def test_elza_v240_local_anywhere_means_local_audio_not_locf():
+    result = elza_selection_bridge._recognize_local_text_selection(
+        'Parādi visas vietējās dziesmas, kurām "upe" ir nosaukumā vai kur citur.'
+    )
+    assert result is not None
+    assert result["local_audio"] == "with"
+    assert result["local_family_assigned"] is None
+    assert result["category"] == ""
+    assert result["text_query"] == "upe"
+    assert set(result["text_fields"]) == {
+        "name", "track_id", "lyrics", "prompt", "tags",
+    }
+
+
+def test_elza_v240_plain_local_tracks_do_not_become_locf():
+    result = elza_selection_bridge._recognize_local_text_selection(
+        "Parādi visas vietējās dziesmas."
+    )
+    assert result is not None
+    assert result["local_audio"] == "with"
+    assert result["local_family_assigned"] is None
+    assert result["text_query"] == ""
+    assert result["text_fields"] == []
+
+
+def test_elza_v240_explicit_locf_still_uses_locf_path():
+    result = elza_selection_bridge.prepare_local_locf_service_result({
+        "action": "send",
+        "message": "Parādi visas dziesmas ar LocF.",
+        "selected_mode": "",
+        "images": [],
+    })
+    assert result is not None
+    assert result["selection_request"]["local_family_assigned"] is True
+
+
+def test_elza_v240_prompt_only_execution_filters_prompt(monkeypatch):
+    rows = [
+        {
+            "id": "title-hit",
+            "title": "fretless title",
+            "workspace": "W",
+            "lyrics": "",
+            "prompt": "",
+            "user_tags": "",
+        },
+        {
+            "id": "prompt-hit",
+            "title": "Other",
+            "workspace": "W",
+            "lyrics": "",
+            "prompt": "warm fretless bass",
+            "user_tags": "",
+        },
+        {
+            "id": "lyrics-hit",
+            "title": "Other 2",
+            "workspace": "W",
+            "lyrics": "fretless line",
+            "prompt": "",
+            "user_tags": "",
+        },
+    ]
+    monkeypatch.setattr(elza_adapter, "search_tracks", lambda **_kwargs: rows, raising=False)
+
+    result = elza_adapter.get_ls_elza_selection_result({
+        "filters": {},
+        "text_query": "fretless",
+        "text_fields": ["prompt"],
+        "summary": "Prompt: fretless",
+        "save_name": "Prompt: fretless",
+    }, limit=20)
+
+    assert result["matched_count"] == 1
+    assert "prompt-hit" in result["view_url"]
+    assert "title-hit" not in result["view_url"]
+    assert "lyrics-hit" not in result["view_url"]
+
+
+def test_elza_v240_all_text_fields_do_not_return_unmatched_library(monkeypatch):
+    rows = [
+        {
+            "id": "name-hit",
+            "title": "Hammond B3",
+            "workspace": "W",
+            "lyrics": "",
+            "prompt": "",
+            "user_tags": "",
+        },
+        {
+            "id": "prompt-hit",
+            "title": "Other",
+            "workspace": "W",
+            "lyrics": "",
+            "prompt": "Hammond organ",
+            "user_tags": "",
+        },
+        {
+            "id": "tag-hit",
+            "title": "Third",
+            "workspace": "W",
+            "lyrics": "",
+            "prompt": "",
+            "user_tags": "#Hammond",
+        },
+        {
+            "id": "no-hit",
+            "title": "Piano",
+            "workspace": "W",
+            "lyrics": "",
+            "prompt": "grand piano",
+            "user_tags": "#jazz",
+        },
+    ]
+    monkeypatch.setattr(elza_adapter, "search_tracks", lambda **_kwargs: rows, raising=False)
+
+    result = elza_adapter.get_ls_elza_selection_result({
+        "filters": {},
+        "text_query": "Hammond",
+        "text_fields": ["name", "track_id", "lyrics", "prompt", "tags"],
+        "summary": "Anywhere: Hammond",
+        "save_name": "Anywhere: Hammond",
+    }, limit=20)
+
+    assert result["matched_count"] == 3
+    assert "name-hit" in result["view_url"]
+    assert "prompt-hit" in result["view_url"]
+    assert "tag-hit" in result["view_url"]
+    assert "no-hit" not in result["view_url"]
+
+
+def test_elza_v240_guard_repairs_false_locf_and_exact_fields():
+    result = selection_guard.reconcile_selection_tool_arguments(
+        "ls_prepare_selection",
+        _v238_wrong_model_selection(),
+        _v238_model_input(
+            'Parādi visas dziesmas ar vārdu "Hammond" Promta laukā vai '
+            'Name/Track ID, Lyrics un Tags laukos'
+        ),
+    )
+    assert result["local_family_assigned"] is None
+    assert result["category"] == ""
+    assert result["text_query"] == "Hammond"
+    assert set(result["text_fields"]) == {
+        "name", "track_id", "lyrics", "prompt", "tags",
+    }
