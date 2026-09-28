@@ -16,6 +16,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Install test runner
+        run: python -m pip install pytest
       - name: Verify Elza v2.38 overlay
         run: |
           python -m py_compile LS_Elza/selection_intent.py
