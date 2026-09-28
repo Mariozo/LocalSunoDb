@@ -31,7 +31,9 @@ _REQUIRED_FIELDS = {
 }
 _OPTIONAL_FIELDS = {
     "exclude_ui_types",
+    "include_ui_types",
     "local_audio_extensions",
+    "minimum_flag_count",
     "anywhere_query",
     "text_query",
     "text_fields",
@@ -123,6 +125,26 @@ def get_selection_tool_definition():
                         "Exact LocalSunoDb Type badges to exclude from the selection. "
                         "For example, 'bez Upload', '- Upload', or 'izņem Upload' "
                         "means ['Upload']. Preserve the visible LS Type name."
+                    ),
+                },
+                "include_ui_types": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "maxItems": 20,
+                    "description": (
+                        "Exact visible LocalSunoDb Type badges that must be present. "
+                        "For example, 'kas ir Upload' or 'Type Upload' means ['Upload']. "
+                        "This is inclusion, not exclusion."
+                    ),
+                },
+                "minimum_flag_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 5,
+                    "description": (
+                        "Minimum number of the five independent LS Flags that must be enabled. "
+                        "Use this for wording such as 'vismaz 3 zvaigznes/✶'. Do not encode "
+                        "that wording as flags=[3], because flags identifies specific Flags."
                     ),
                 },
                 "tags": {
@@ -266,6 +288,20 @@ def normalize_selection_request(arguments):
     exclude_ui_types = _normalize_optional_text_list(
         arguments.get("exclude_ui_types"), max_items=20, max_chars=120
     )
+    include_ui_types = _normalize_optional_text_list(
+        arguments.get("include_ui_types"), max_items=20, max_chars=120
+    )
+    excluded_type_keys = {item.casefold() for item in exclude_ui_types}
+    included_type_keys = {item.casefold() for item in include_ui_types}
+    if excluded_type_keys.intersection(included_type_keys):
+        raise ValueError("The same UI Type cannot be both included and excluded.")
+
+    try:
+        minimum_flag_count = int(arguments.get("minimum_flag_count") or 0)
+    except (TypeError, ValueError) as error:
+        raise ValueError("Minimum flag count must be an integer.") from error
+    if minimum_flag_count < 0 or minimum_flag_count > 5:
+        raise ValueError("Minimum flag count is out of range.")
 
     text_fields = []
     for item in _normalize_optional_text_list(
@@ -324,6 +360,8 @@ def normalize_selection_request(arguments):
         "local_audio": local_audio,
         "local_audio_extensions": local_audio_extensions,
         "exclude_ui_types": exclude_ui_types,
+        "include_ui_types": include_ui_types,
+        "minimum_flag_count": minimum_flag_count,
         "tags": tags,
         "workspace": _clean_text(arguments.get("workspace"), 300),
         "local_family": local_family,
