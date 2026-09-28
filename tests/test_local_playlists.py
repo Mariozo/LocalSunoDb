@@ -350,7 +350,7 @@ def test_my_library_album_detail_spotify_layout_contract(monkeypatch):
         album="Album",
         artist="Artist",
         year="2024",
-    )
+    ).decode("utf-8")
 
     assert 'class="album-open"' in rendered
     assert 'id="album-hero"' in rendered
