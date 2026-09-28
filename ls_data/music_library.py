@@ -8,12 +8,15 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import shutil
 import sqlite3
+import subprocess
 import unicodedata
+import wave
 from datetime import datetime
 from pathlib import Path
 
-from ls_core.runtime import DATA_DIR
+from ls_core.runtime import DATA_DIR, FFMPEG_CANDIDATES
 
 MUSIC_DB_DIR = DATA_DIR / "MusicDB"
 SUPPORTED_AUDIO_EXTENSIONS = {".mp3", ".flac", ".wav", ".m4a", ".aac", ".ogg"}
@@ -292,6 +295,120 @@ def _external_cover(folder, cache):
     return None
 
 
+def _ffmpeg_probe_candidates():
+    probes = []
+    direct = shutil.which("ffprobe")
+    if direct:
+        probes.append(direct)
+    for candidate in FFMPEG_CANDIDATES:
+        raw = str(candidate)
+        if raw.lower() == "ffmpeg":
+            continue
+        path = Path(raw)
+        sibling = path.with_name("ffprobe.exe" if path.suffix.lower() == ".exe" else "ffprobe")
+        if sibling.is_file():
+            probes.append(str(sibling))
+    seen = set()
+    return [item for item in probes if not (str(item).casefold() in seen or seen.add(str(item).casefold()))]
+
+
+def _ffmpeg_candidates():
+    result = []
+    for candidate in FFMPEG_CANDIDATES:
+        raw = str(candidate)
+        if raw.lower() == "ffmpeg":
+            found = shutil.which("ffmpeg")
+            if found:
+                result.append(found)
+            continue
+        if Path(raw).is_file():
+            result.append(raw)
+    seen = set()
+    return [item for item in result if not (str(item).casefold() in seen or seen.add(str(item).casefold()))]
+
+
+def _subprocess_no_window_kwargs():
+    if os.name == "nt" and hasattr(subprocess, "CREATE_NO_WINDOW"):
+        return {"creationflags": subprocess.CREATE_NO_WINDOW}
+    return {}
+
+
+def _audio_duration_seconds(path):
+    path = Path(path)
+    if not path.is_file():
+        return None
+    if path.suffix.lower() == ".wav":
+        try:
+            with wave.open(str(path), "rb") as handle:
+                rate = int(handle.getframerate() or 0)
+                frames = int(handle.getnframes() or 0)
+                if rate > 0 and frames > 0:
+                    return frames / float(rate)
+        except (wave.Error, EOFError, OSError):
+            pass
+
+    for probe in _ffmpeg_probe_candidates():
+        try:
+            result = subprocess.run(
+                [
+                    probe, "-v", "error", "-show_entries", "format=duration",
+                    "-of", "default=noprint_wrappers=1:nokey=1", str(path),
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=8,
+                check=False,
+                text=True,
+                **_subprocess_no_window_kwargs(),
+            )
+            value = float(str(result.stdout or "").strip())
+            if value > 0:
+                return value
+        except (OSError, ValueError, subprocess.SubprocessError):
+            continue
+
+    duration_pattern = re.compile(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)", re.IGNORECASE)
+    for ffmpeg in _ffmpeg_candidates():
+        try:
+            result = subprocess.run(
+                [ffmpeg, "-hide_banner", "-i", str(path)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=8,
+                check=False,
+                text=True,
+                **_subprocess_no_window_kwargs(),
+            )
+            match = duration_pattern.search(str(result.stderr or ""))
+            if match:
+                hours, minutes, seconds = match.groups()
+                value = int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+                if value > 0:
+                    return value
+        except (OSError, subprocess.SubprocessError):
+            continue
+    return None
+
+
+def _backfill_album_durations(conn, rows):
+    changed = False
+    for row in rows:
+        if row.get("duration_seconds"):
+            continue
+        value = _audio_duration_seconds(row.get("path") or "")
+        if not value:
+            continue
+        row["duration_seconds"] = float(value)
+        conn.execute(
+            "UPDATE tracks SET duration_seconds=? WHERE id=?",
+            (float(value), int(row.get("id") or 0)),
+        )
+        changed = True
+    if changed:
+        conn.commit()
+    return rows
+
+
 def _read_music_metadata(path, default_genre="", cover_cache=None):
     frames, cover = ({}, None)
     fallback = {}
@@ -530,6 +647,8 @@ def music_database_tracks(name, query="", album="", artist="", year="", limit=50
          LIMIT ?
         """, (*params, limit)
     )]
+    if album:
+        rows = _backfill_album_durations(conn, rows)
     info = _read_info(conn)
     conn.close()
     return {"ok": True, "name": info.get("name") or name, "rows": rows, "query": query}
