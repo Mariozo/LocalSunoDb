@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="LocalSunoDb — a local Chrome-native workspace for organizing, searching and managing a Suno music library." />
   <title>LocalSunoDb — Your Suno library. Local. Fast. Yours.</title>
+  <link rel="alternate" hreflang="en" href="./" />
+  <link rel="alternate" hreflang="lv" href="./lv/" />
+  <link rel="alternate" hreflang="x-default" href="./" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -83,6 +86,33 @@
     }
 
     .nav-links a:hover { color: white; }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 22px;
+    }
+
+    .lang-switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 9px;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .04em;
+    }
+
+    .lang-switch a {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .lang-switch a[aria-current="page"] { color: white; }
+    .lang-switch span { opacity: .45; }
 
     .hero {
       min-height: 760px;
@@ -461,6 +491,8 @@
       .wrap { width: min(100% - 28px, var(--max)); }
       .section { padding: 78px 0; }
       .nav-links a:not(:last-child) { display: none; }
+      .nav-right { gap: 12px; }
+      .lang-switch { flex: 0 0 auto; }
       .hero { padding: 52px 0 70px; }
       h1 { font-size: clamp(52px, 16vw, 72px); }
       .feature-grid { grid-template-columns: 1fr; }
@@ -485,11 +517,16 @@
   <nav>
     <div class="wrap nav-inner">
       <a class="wordmark" href="#top">LocalSunoDb</a>
-      <div class="nav-links">
-        <a href="#overview">Overview</a>
-        <a href="#features">Features</a>
-        <a href="#demo">Demo</a>
-        <a href="https://github.com/Mariozo/LocalSunoDb">GitHub ↗</a>
+      <div class="nav-right">
+        <div class="nav-links">
+          <a href="#overview">Overview</a>
+          <a href="#features">Features</a>
+          <a href="#demo">Demo</a>
+          <a href="https://github.com/Mariozo/LocalSunoDb">GitHub ↗</a>
+        </div>
+        <div class="lang-switch" aria-label="Language">
+          <a href="./" aria-current="page">EN</a><span>/</span><a href="./lv/">LV</a>
+        </div>
       </div>
     </div>
   </nav>
