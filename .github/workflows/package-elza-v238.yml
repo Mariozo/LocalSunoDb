@@ -1,4 +1,4 @@
-name: Package Elza v2.43
+name: Package Elza v2.44
 
 on:
   push:
@@ -18,7 +18,7 @@ jobs:
           python-version: '3.12'
       - name: Install test runner
         run: python -m pip install pytest
-      - name: Verify Elza v2.43 selection stack
+      - name: Verify Elza v2.44 selection stack
         run: |
           python -m py_compile LS_Elza/selection_intent.py
           python -m py_compile LS_Elza/selection_guard.py
@@ -26,9 +26,11 @@ jobs:
           python -m py_compile LS_Elza/ls_adapter/runtime_bridge.py
           python -m py_compile LS_Elza/v230_ui_enhancer.py
           python -m py_compile LS_Elza/ui.py
+          python -m py_compile LS_Elza/service.py
           python -m py_compile ls_web/elza_selection_bridge.py
           python -m py_compile ls_web/elza_adapter.py
           python -m py_compile ls_web/elza_controller.py
+          python -m py_compile ls_web/elza_selftest.py
           python -m pytest -q tests/test_elza_selection_regression.py
           python - <<'PY'
           from pathlib import Path
@@ -40,16 +42,18 @@ jobs:
               "LS_Elza/__init__.py",
               "LS_Elza/v230_ui_enhancer.py",
               "LS_Elza/ui.py",
+              "LS_Elza/service.py",
               "ls_web/elza_selection_bridge.py",
               "ls_web/elza_adapter.py",
               "ls_web/elza_controller.py",
+              "ls_web/elza_selftest.py",
           )
           for name in files:
               data = Path(name).read_bytes()
               assert b"\r\n" not in data, name
               data.decode("utf-8")
-          assert 'LS_ELZA_PACKAGE_VERSION = "2.43"' in Path("LS_Elza/__init__.py").read_text(encoding="utf-8")
-          assert "Elza v2.43" in Path("LS_Elza/v230_ui_enhancer.py").read_text(encoding="utf-8")
+          assert 'LS_ELZA_PACKAGE_VERSION = "2.44"' in Path("LS_Elza/__init__.py").read_text(encoding="utf-8")
+          assert "Elza v2.44" in Path("LS_Elza/v230_ui_enhancer.py").read_text(encoding="utf-8")
           PY
       - name: Build overlay ZIP
         run: |
@@ -67,14 +71,14 @@ jobs:
               "ls_web/elza_adapter.py",
               "ls_web/elza_controller.py",
           )
-          with ZipFile("Elza-v2.43.zip", "w", ZIP_DEFLATED) as archive:
+          with ZipFile("Elza-v2.44.zip", "w", ZIP_DEFLATED) as archive:
               for name in files:
                   archive.write(name, name)
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: Elza-v2.43
-          path: Elza-v2.43.zip
+          name: Elza-v2.44
+          path: Elza-v2.44.zip
           if-no-files-found: error
 
-# Final v2.43 packaging verification trigger.
+# Final v2.44 packaging verification trigger.
