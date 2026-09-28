@@ -3224,10 +3224,10 @@ def render_ls_elza_script_window_interaction_assets():
                     input.focus();
                     return;
                 }
-                if (buttonMode === "UX_REVIEW" || buttonMode === "TEST_REVIEW") {
+                if (buttonMode === "UX_REVIEW") {
                     try {
                         setStatus(
-                            "Select this LS tab or window once. The active mode will capture a fresh frame for each question."
+                            "Select this LS tab or window once. UX mode will capture a fresh frame for each visual question."
                         );
                         await requestUxCapture();
                     } catch (error) {
@@ -3253,7 +3253,7 @@ def render_ls_elza_script_window_interaction_assets():
                     buttonMode === "UX_REVIEW"
                         ? "UX review is ready · the current LS view will be attached automatically."
                         : buttonMode === "TEST_REVIEW"
-                            ? "Test mode is ready · describe the action and expected result. The current LS view will be attached automatically."
+                            ? "Test mode is ready · “Pārbaudi atlases filtrus” palaiž read-only paštestu. Ekrāns vajadzīgs tikai vizuālam testam."
                             : buttonMode === "TRACK_DB"
                                 ? "Track mode is ready · ask about the selected track."
                                 : buttonMode === "LS_CODE"
