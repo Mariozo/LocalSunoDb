@@ -757,7 +757,7 @@ def test_elza_v240_controller_dispatches_name_prompt_anywhere_and_locf(monkeypat
             assert calls[0][1] is True
             assert response["answer"] == "locf-ok"
 
-def test_elza_v241_local_three_stars_and_like_preserves_all_conditions():
+def test_elza_v242_local_three_stars_and_like_preserves_all_conditions():
     question = (
         "Parādi man visas vietējās dziesmas, kurām ir "
         "vismaz trīs *** un Like"
@@ -772,7 +772,8 @@ def test_elza_v241_local_three_stars_and_like_preserves_all_conditions():
     assert service_result is not None
     request = service_result["selection_request"]
     assert request["local_audio"] == "with"
-    assert request["flags"] == [3]
+    assert request["flags"] == []
+    assert request["minimum_flag_count"] == 3
     assert request["exact_flags"] is False
     assert request["kind_filter"] == "liked"
     assert request["local_family_assigned"] is None
@@ -786,10 +787,116 @@ def test_elza_v241_local_three_stars_and_like_preserves_all_conditions():
 
     assert intent["filters"]["local_audio_filter"] == "with"
     assert intent["filters"]["kind_filter"] == "__liked__"
-    assert intent["filters"]["flag_filter"] == "4"
+    assert "flag_filter" not in intent["filters"]
+    assert intent["minimum_flag_count"] == 3
     assert "With local audio" in intent["summary"]
     assert "Liked" in intent["summary"]
-    assert "3+*" in intent["summary"]
+    assert "Vismaz 3 ✶" in intent["summary"]
+
+
+def test_elza_v242_minimum_three_flags_counts_enabled_bits(monkeypatch):
+    rows = [
+        {"id": "one", "title": "One", "workspace": "W", "user_marks": 4, "ui_type": "Song"},
+        {"id": "two", "title": "Two", "workspace": "W", "user_marks": 5, "ui_type": "Song"},
+        {"id": "three", "title": "Three", "workspace": "W", "user_marks": 7, "ui_type": "Song"},
+        {"id": "four", "title": "Four", "workspace": "W", "user_marks": 15, "ui_type": "Song"},
+        {"id": "five", "title": "Five", "workspace": "W", "user_marks": 31, "ui_type": "Song"},
+    ]
+    monkeypatch.setattr(elza_adapter, "search_tracks", lambda **_kwargs: rows, raising=False)
+
+    result = elza_adapter.get_ls_elza_selection_result({
+        "filters": {
+            "local_audio_filter": "with",
+            "kind_filter": "__liked__",
+        },
+        "minimum_flag_count": 3,
+        "summary": "With local audio + Liked + Vismaz 3 ✶",
+        "save_name": "3 flags",
+    }, limit=20)
+
+    assert result["matched_count"] == 3
+    assert "three" in result["view_url"]
+    assert "four" in result["view_url"]
+    assert "five" in result["view_url"]
+    assert "one" not in result["view_url"]
+    assert "two" not in result["view_url"]
+
+
+def test_elza_v242_local_wav_positive_upload_type():
+    service_result = elza_selection_bridge.prepare_local_locf_service_result({
+        "action": "send",
+        "message": "Parādi visus .wav kas ir Upload.",
+        "selected_mode": "",
+        "images": [],
+    })
+
+    assert service_result is not None
+    request = service_result["selection_request"]
+    assert request["local_audio_extensions"] == ["wav"]
+    assert request["include_ui_types"] == ["Upload"]
+    assert request["exclude_ui_types"] == []
+
+    intent = elza_selection_bridge.build_host_selection_intent(
+        request,
+        resolve_workspace=lambda value: value,
+        resolve_local_family=lambda value: value,
+        normalize_tags=lambda values: list(values or []),
+    )
+
+    assert intent["filters"]["local_audio_filter"] == "with"
+    assert intent["local_audio_extensions"] == ["wav"]
+    assert intent["include_ui_types"] == ["Upload"]
+    assert "Local WAV" in intent["summary"]
+    assert "Type: Upload" in intent["summary"]
+
+
+def test_elza_v242_wav_upload_execution_requires_both(monkeypatch):
+    rows = [
+        {
+            "id": "keep",
+            "title": "Keep",
+            "workspace": "W",
+            "ui_type": "Upload",
+            "kind": "Upload",
+            "local_wav": r"E:\\Audio\\keep.wav",
+            "local_mp3": "",
+            "ui_best_local_audio_path": r"E:\\Audio\\keep.wav",
+        },
+        {
+            "id": "wrong-type",
+            "title": "Wrong type",
+            "workspace": "W",
+            "ui_type": "Song",
+            "kind": "Song",
+            "local_wav": r"E:\\Audio\\wrong.wav",
+            "local_mp3": "",
+            "ui_best_local_audio_path": r"E:\\Audio\\wrong.wav",
+        },
+        {
+            "id": "wrong-format",
+            "title": "Wrong format",
+            "workspace": "W",
+            "ui_type": "Upload",
+            "kind": "Upload",
+            "local_wav": "",
+            "local_mp3": r"E:\\Audio\\wrong.mp3",
+            "ui_best_local_audio_path": r"E:\\Audio\\wrong.mp3",
+        },
+    ]
+    monkeypatch.setattr(elza_adapter, "search_tracks", lambda **_kwargs: rows, raising=False)
+
+    result = elza_adapter.get_ls_elza_selection_result({
+        "filters": {"local_audio_filter": "with"},
+        "local_audio_extensions": ["wav"],
+        "include_ui_types": ["Upload"],
+        "summary": "Local WAV + Type: Upload",
+        "save_name": "Local WAV Upload",
+    }, limit=20)
+
+    assert result["matched_count"] == 1
+    assert "keep" in result["view_url"]
+    assert "wrong-type" not in result["view_url"]
+    assert "wrong-format" not in result["view_url"]
 
 
 def test_elza_v241_ui_preserves_chat_question_and_view_actions():
@@ -810,3 +917,33 @@ def test_elza_v241_ui_preserves_chat_question_and_view_actions():
     load_source = source[load_start:load_end]
     assert "renderMessages([])" not in load_source
     assert "loadChatSnapshot()" in load_source
+
+def test_elza_v242_selection_contract_accepts_ui_type_and_minimum_flag_count():
+    tool = selection_intent.get_selection_tool_definition()
+    properties = tool["parameters"]["properties"]
+    assert "include_ui_types" in properties
+    assert "minimum_flag_count" in properties
+
+    normalized = selection_intent.normalize_selection_request({
+        "safe_to_execute": True,
+        "reason": "",
+        "category": "",
+        "flags": [],
+        "exact_flags": False,
+        "any_flag": False,
+        "kind_filter": "liked",
+        "local_audio": "with",
+        "tags": [],
+        "workspace": "",
+        "local_family": "",
+        "local_family_assigned": None,
+        "title_query": "",
+        "exact_stem_count": 0,
+        "local_audio_extensions": ["wav"],
+        "exclude_ui_types": [],
+        "include_ui_types": ["Upload"],
+        "minimum_flag_count": 3,
+    })
+
+    assert normalized["include_ui_types"] == ["Upload"]
+    assert normalized["minimum_flag_count"] == 3
