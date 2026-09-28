@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from LS_Elza import LS_ELZA_PACKAGE_VERSION, selection_intent, ui
+from LS_Elza.ls_adapter import runtime_bridge as elza_runtime_bridge
 from ls_web import elza_adapter
 from ls_web import elza_selection_bridge
 
@@ -339,8 +340,8 @@ def test_wav_anywhere_query_matches_name_id_lyrics_prompt_or_tags(monkeypatch):
 
 
 
-def test_elza_v232_voice_composer_contract():
-    assert LS_ELZA_PACKAGE_VERSION == "2.32"
+def test_elza_v238_voice_composer_contract():
+    assert LS_ELZA_PACKAGE_VERSION == "2.38"
     assert "Elza v2.32" in ui.render_ls_elza_dialog_markup()
 
     rendered = ui.render_ls_elza_assets(
@@ -378,3 +379,77 @@ def test_elza_v232_stt_source_contract():
     assert 'if path == "/ls-elza-stt":' in controller_source
     assert "def ls_elza_stt" in controller_source
     assert "transcribe_ls_elza_audio" in controller_source
+
+
+def _v238_model_input(question):
+    return [{
+        "role": "user",
+        "content": (
+            "Current read-only LocalSunoDb context:\n{}"
+            "\n\nUser question:\n" + question
+        ),
+    }]
+
+
+def _v238_wrong_model_selection():
+    return {
+        "safe_to_execute": True,
+        "reason": "",
+        "category": "Song",
+        "flags": [],
+        "exact_flags": False,
+        "any_flag": False,
+        "kind_filter": "",
+        "local_audio": "",
+        "local_audio_extensions": [],
+        "exclude_ui_types": [],
+        "tags": [],
+        "workspace": "",
+        "local_family": "",
+        "local_family_assigned": True,
+        "title_query": "",
+        "anywhere_query": "",
+        "exact_stem_count": 0,
+    }
+
+
+def test_elza_v238_repairs_exact_user_local_anywhere_request():
+    question = (
+        'Parādi visas vietējās dziesmas, kurām "upe" ir '
+        'nosaukumā vai kur citur.'
+    )
+    result = elza_runtime_bridge._reconcile_selection_tool_arguments(
+        "ls_prepare_selection",
+        _v238_wrong_model_selection(),
+        _v238_model_input(question),
+    )
+
+    assert result["local_family"] == ""
+    assert result["local_family_assigned"] is None
+    assert result["local_audio"] == "with"
+    assert result["category"] == ""
+    assert result["title_query"] == ""
+    assert result["anywhere_query"] == "upe"
+
+
+def test_elza_v238_keeps_explicit_locf_request():
+    original = _v238_wrong_model_selection()
+    result = elza_runtime_bridge._reconcile_selection_tool_arguments(
+        "ls_prepare_selection",
+        original,
+        _v238_model_input("Parādi visas dziesmas ar LocF."),
+    )
+
+    assert result["local_family_assigned"] is True
+
+
+def test_elza_v238_keeps_non_selection_tools_untouched():
+    original = {"local_family_assigned": True}
+    result = elza_runtime_bridge._reconcile_selection_tool_arguments(
+        "ls_search_titles",
+        original,
+        _v238_model_input(
+            'Parādi visas vietējās dziesmas, kurām "upe" ir nosaukumā vai kur citur.'
+        ),
+    )
+    assert result == original
