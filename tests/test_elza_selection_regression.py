@@ -810,4 +810,3 @@ def test_elza_v241_ui_preserves_chat_question_and_view_actions():
     load_source = source[load_start:load_end]
     assert "renderMessages([])" not in load_source
     assert "loadChatSnapshot()" in load_source
-
