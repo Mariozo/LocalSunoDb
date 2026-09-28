@@ -382,11 +382,25 @@ def get_ls_elza_selection_result(intent, limit=20):
         if str(item or "").strip()
     }
     anywhere_query = str(intent.get("anywhere_query") or "").strip()
-    anywhere_tokens = [
+    text_query = str(intent.get("text_query") or "").strip() or anywhere_query
+    raw_text_fields = intent.get("text_fields") or []
+    text_fields = [
+        str(item or "").strip().lower()
+        for item in raw_text_fields
+        if str(item or "").strip()
+    ]
+    if anywhere_query and not text_fields:
+        text_fields = ["name", "track_id", "lyrics", "prompt", "tags"]
+    allowed_text_fields = {"name", "track_id", "lyrics", "prompt", "tags"}
+    text_fields = [
+        field for field in text_fields
+        if field in allowed_text_fields
+    ]
+    text_tokens = [
         token
         for token in re.findall(
             r"[^\W_]+",
-            ls_elza_fold_text(anywhere_query),
+            ls_elza_fold_text(text_query),
             flags=re.UNICODE,
         )
         if token
@@ -395,7 +409,7 @@ def get_ls_elza_selection_result(intent, limit=20):
         exact_flag_mask is not None
         or bool(local_audio_extensions)
         or bool(excluded_ui_types)
-        or bool(anywhere_tokens)
+        or bool(text_tokens and text_fields)
     )
 
     def row_text(row, key):
@@ -447,22 +461,24 @@ def get_ls_elza_selection_result(intent, limit=20):
                 if not local_audio_extensions.intersection(row_extensions):
                     continue
 
-            if anywhere_tokens:
-                searchable_values = (
-                    row_text(row, "id"),
-                    row_text(row, "title"),
-                    row_text(row, "lyrics"),
-                    row_text(row, "prompt"),
-                    row_text(row, "user_tags"),
-                )
+            if text_tokens and text_fields:
+                field_values = {
+                    "name": row_text(row, "title"),
+                    "track_id": row_text(row, "id"),
+                    "lyrics": row_text(row, "lyrics"),
+                    "prompt": row_text(row, "prompt"),
+                    "tags": row_text(row, "user_tags"),
+                }
                 searchable_values = [
-                    ls_elza_fold_text(value)
-                    for value in searchable_values
-                    if value
+                    ls_elza_fold_text(field_values.get(field, ""))
+                    for field in text_fields
+                    if field_values.get(field, "")
                 ]
+                if not searchable_values:
+                    continue
                 if not all(
                     any(token in value for value in searchable_values)
-                    for token in anywhere_tokens
+                    for token in text_tokens
                 ):
                     continue
 
