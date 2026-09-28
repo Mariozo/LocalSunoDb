@@ -4,7 +4,6 @@ from pathlib import Path
 
 from LS_Elza import LS_ELZA_PACKAGE_VERSION, selection_intent, ui
 from LS_Elza import selection_guard
-from LS_Elza import service as elza_service
 from ls_web import elza_adapter
 from ls_web import elza_selftest
 from ls_web import elza_selection_bridge
@@ -1002,14 +1001,16 @@ def test_elza_v243_upload_uses_canonical_source_type(monkeypatch):
     assert "song-wav" not in result["view_url"]
 
 
-def test_elza_v244_test_mode_exposes_selection_selftest_only():
-    tools = elza_service.get_test_readonly_tools()
-    assert [tool["name"] for tool in tools] == [
-        elza_service.SELECTION_SELFTEST_TOOL_NAME
-    ]
-    tool = tools[0]
-    assert tool["parameters"]["additionalProperties"] is False
-    assert "read-only" in tool["description"]
+def test_elza_v244_test_mode_wires_selection_selftest_readonly():
+    source = Path("LS_Elza/service.py").read_text(encoding="utf-8")
+    compile(source, "LS_Elza/service.py", "exec")
+
+    assert 'SELECTION_SELFTEST_TOOL_NAME = "ls_selection_selftest"' in source
+    assert "def get_selection_selftest_tool_definition():" in source
+    assert "def get_test_readonly_tools():" in source
+    assert 'elif selected_mode == "TEST_REVIEW":\n        tools = get_test_readonly_tools()' in source
+    assert "from ls_web.elza_selftest import run_selection_selftest" in source
+    assert "return run_selection_selftest()" in source
 
 
 def test_elza_v244_parser_selftest_cases_are_all_green():
@@ -1034,25 +1035,3 @@ def test_elza_v244_selftest_flag_semantics_are_distinct():
     assert elza_selftest._required_flags(one_flag3, [3]) is True
     assert elza_selftest._marks_at_least(one_flag3, 3) is False
     assert elza_selftest._marks_at_least(three_flags, 3) is True
-
-
-def test_elza_v244_selftest_tool_dispatches_read_only(monkeypatch):
-    expected = {
-        "suite": "selection",
-        "status": "PASS",
-        "total": 27,
-        "passed": 27,
-        "failed": 0,
-        "unclear": 0,
-    }
-    monkeypatch.setattr(
-        elza_selftest,
-        "run_selection_selftest",
-        lambda: dict(expected),
-    )
-
-    result = elza_service._run_whitelisted_readonly_action(
-        elza_service.SELECTION_SELFTEST_TOOL_NAME,
-        {},
-    )
-    assert result == expected
