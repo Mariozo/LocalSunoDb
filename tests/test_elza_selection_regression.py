@@ -146,7 +146,7 @@ def test_local_wav_minus_upload_returns_precise_track_id_view(monkeypatch):
 
 
 def test_elza_visible_identity_and_ask_router_contract():
-    assert LS_ELZA_PACKAGE_VERSION == "2.32"
+    assert LS_ELZA_PACKAGE_VERSION == "2.38"
     assert "Elza v2.32" in ui.render_ls_elza_dialog_markup()
     service_script = ui.render_ls_elza_script_service_assets()
     assert r"\bwav\b" in service_script
