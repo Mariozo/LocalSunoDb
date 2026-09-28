@@ -1035,3 +1035,12 @@ def test_elza_v244_selftest_flag_semantics_are_distinct():
     assert elza_selftest._required_flags(one_flag3, [3]) is True
     assert elza_selftest._marks_at_least(one_flag3, 3) is False
     assert elza_selftest._marks_at_least(three_flags, 3) is True
+
+def test_elza_v244_test_mode_does_not_require_screen_share_for_selftest():
+    source = Path("LS_Elza/ui.py").read_text(encoding="utf-8")
+    compile(source, "LS_Elza/ui.py", "exec")
+
+    assert 'if (buttonMode === "UX_REVIEW") {' in source
+    assert 'if (buttonMode === "UX_REVIEW" || buttonMode === "TEST_REVIEW") {' not in source
+    assert "Pārbaudi atlases filtrus" in source
+    assert "Ekrāns vajadzīgs tikai vizuālam testam." in source
