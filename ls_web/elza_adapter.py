@@ -371,6 +371,11 @@ def get_ls_elza_selection_result(intent, limit=20):
 
     filters = dict(intent.get("filters") or {})
     exact_flag_mask = intent.get("exact_flag_mask")
+    try:
+        minimum_flag_count = int(intent.get("minimum_flag_count") or 0)
+    except (TypeError, ValueError):
+        minimum_flag_count = 0
+    minimum_flag_count = max(0, min(5, minimum_flag_count))
     local_audio_extensions = {
         str(item or "").strip().lower().lstrip(".")
         for item in (intent.get("local_audio_extensions") or [])
@@ -379,6 +384,11 @@ def get_ls_elza_selection_result(intent, limit=20):
     excluded_ui_types = {
         str(item or "").strip().casefold()
         for item in (intent.get("exclude_ui_types") or [])
+        if str(item or "").strip()
+    }
+    included_ui_types = {
+        str(item or "").strip().casefold()
+        for item in (intent.get("include_ui_types") or [])
         if str(item or "").strip()
     }
     anywhere_query = str(intent.get("anywhere_query") or "").strip()
@@ -407,8 +417,10 @@ def get_ls_elza_selection_result(intent, limit=20):
     ]
     needs_exact_track_view = (
         exact_flag_mask is not None
+        or minimum_flag_count > 0
         or bool(local_audio_extensions)
         or bool(excluded_ui_types)
+        or bool(included_ui_types)
         or bool(text_tokens and text_fields)
     )
 
@@ -435,16 +447,21 @@ def get_ls_elza_selection_result(intent, limit=20):
         )
         exact_rows = []
         for row in candidate_rows:
-            if required_marks is not None:
-                try:
-                    row_marks = int(row["user_marks"] or 0)
-                except (TypeError, ValueError, KeyError, IndexError):
-                    row_marks = 0
-                if row_marks != required_marks:
-                    continue
+            try:
+                row_marks = int(row["user_marks"] or 0)
+            except (TypeError, ValueError, KeyError, IndexError):
+                row_marks = 0
+            row_marks = max(0, min(31, row_marks))
+            if required_marks is not None and row_marks != required_marks:
+                continue
+            if minimum_flag_count and row_marks.bit_count() < minimum_flag_count:
+                continue
 
             ui_type = row_text(row, "ui_type") or row_text(row, "kind")
-            if ui_type.casefold() in excluded_ui_types:
+            ui_type_key = ui_type.casefold()
+            if included_ui_types and ui_type_key not in included_ui_types:
+                continue
+            if ui_type_key in excluded_ui_types:
                 continue
 
             if local_audio_extensions:
