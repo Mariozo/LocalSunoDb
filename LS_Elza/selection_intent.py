@@ -12,6 +12,7 @@ _ALLOWED_CATEGORY = {"", "Song", "Instrumental"}
 _ALLOWED_KIND_FILTER = {"", "liked", "has_stems"}
 _ALLOWED_LOCAL_AUDIO = {"", "with", "without"}
 _ALLOWED_LOCAL_AUDIO_EXTENSIONS = {"wav", "mp3", "flac", "m4a", "aac", "ogg"}
+_ALLOWED_TEXT_FIELDS = {"name", "track_id", "lyrics", "prompt", "tags"}
 _REQUIRED_FIELDS = {
     "safe_to_execute",
     "reason",
@@ -32,6 +33,8 @@ _OPTIONAL_FIELDS = {
     "exclude_ui_types",
     "local_audio_extensions",
     "anywhere_query",
+    "text_query",
+    "text_fields",
 }
 _ALLOWED_FIELDS = _REQUIRED_FIELDS | _OPTIONAL_FIELDS
 
@@ -47,8 +50,10 @@ def get_selection_tool_definition():
             "dziesmas' means local_audio='with', not Local Family/LocF. Generic 'dziesmas' does "
             "not by itself mean category='Song'. Use Local Family fields only when LocF or Local "
             "Family is explicitly requested. Cross-field wording such as 'nosaukumā vai citur', "
-            "'jebkur', or 'tekstā vai #tagā' uses anywhere_query over Name/Track ID OR Lyrics OR "
-            "Prompt OR Tags, with title_query empty. This tool does not change the database."
+            "'jebkur', or 'tekstā vai #tagā' uses text_query plus text_fields. Exact field requests "
+            "are supported: name, track_id, lyrics, prompt, tags. When the user means every text "
+            "field, use all five. Keep title_query only for legacy name-only requests. This tool "
+            "does not change the database."
         ),
         "parameters": {
             "type": "object",
@@ -152,9 +157,28 @@ def get_selection_tool_definition():
                 "anywhere_query": {
                     "type": "string",
                     "description": (
-                        "One free-text term matched as Name/Track ID OR Lyrics OR Prompt OR Tags. "
-                        "Use for 'jebkur', 'kaut kur', 'citur', 'nosaukumā vai citur', "
-                        "'dziesmas tekstā vai #tagā', 'tagā vai citur', and equivalent wording."
+                        "Backward-compatible alias for a text query across every text field. "
+                        "Prefer text_query + text_fields for new requests."
+                    ),
+                },
+                "text_query": {
+                    "type": "string",
+                    "description": (
+                        "Free-text term to match in the explicitly requested text fields. "
+                        "Examples include a word requested only in Prompt, only in Lyrics, "
+                        "or in any combination of Name, Track ID, Lyrics, Prompt and Tags."
+                    ),
+                },
+                "text_fields": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": ["name", "track_id", "lyrics", "prompt", "tags"],
+                    },
+                    "maxItems": 5,
+                    "description": (
+                        "Exact text fields requested by the user. Use all five only for "
+                        "anywhere/citur/jebkur or an explicit list covering every field."
                     ),
                 },
                 "exact_stem_count": {
@@ -243,6 +267,16 @@ def normalize_selection_request(arguments):
         arguments.get("exclude_ui_types"), max_items=20, max_chars=120
     )
 
+    text_fields = []
+    for item in _normalize_optional_text_list(
+        arguments.get("text_fields"), max_items=5, max_chars=20
+    ):
+        field = item.strip().lower()
+        if field not in _ALLOWED_TEXT_FIELDS:
+            raise ValueError("Unsupported text search field.")
+        if field not in text_fields:
+            text_fields.append(field)
+
     raw_tags = arguments.get("tags")
     if not isinstance(raw_tags, list):
         raise ValueError("Tags must be a list.")
@@ -296,6 +330,8 @@ def normalize_selection_request(arguments):
         "local_family_assigned": local_family_assigned,
         "title_query": _clean_text(arguments.get("title_query"), 300),
         "anywhere_query": _clean_text(arguments.get("anywhere_query"), 300),
+        "text_query": _clean_text(arguments.get("text_query"), 300),
+        "text_fields": text_fields,
         "exact_stem_count": exact_stem_count,
     }
 
