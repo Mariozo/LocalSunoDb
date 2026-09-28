@@ -1,4 +1,4 @@
-"""Elza v2.43 composer and microphone-level UI.
+"""Elza v2.44 composer and microphone-level UI.
 
 The existing Local Suno STT recorder remains the source of audio/transcription.
 This enhancer only restructures the composer and visualizes the real microphone
@@ -253,7 +253,7 @@ _SCRIPT = r"""
     const statusLine = document.getElementById("ls-elza-status");
     if (!compose || !inputRow || !input || !modeRow || !voiceButton || !sendButton) { return; }
 
-    if (title) { title.textContent = "Elza v2.43"; }
+    if (title) { title.textContent = "Elza v2.44"; }
     input.placeholder = "Jautāt Elzai";
 
     const shell = document.createElement("div");
