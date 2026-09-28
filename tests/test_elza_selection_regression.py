@@ -756,4 +756,3 @@ def test_elza_v240_controller_dispatches_name_prompt_anywhere_and_locf(monkeypat
         else:
             assert calls[0][1] is True
             assert response["answer"] == "locf-ok"
-
