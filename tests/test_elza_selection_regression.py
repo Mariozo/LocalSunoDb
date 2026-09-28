@@ -1,9 +1,12 @@
+import json
+from io import BytesIO
 from pathlib import Path
 
 from LS_Elza import LS_ELZA_PACKAGE_VERSION, selection_intent, ui
 from LS_Elza import selection_guard
 from ls_web import elza_adapter
 from ls_web import elza_selection_bridge
+from ls_web import elza_controller
 
 
 def test_local_wav_minus_upload_parser_builds_exact_constraints(monkeypatch):
@@ -627,3 +630,130 @@ def test_elza_v240_guard_repairs_false_locf_and_exact_fields():
     assert set(result["text_fields"]) == {
         "name", "track_id", "lyrics", "prompt", "tags",
     }
+
+def test_elza_v240_controller_dispatches_name_prompt_anywhere_and_locf(monkeypatch):
+    calls = []
+
+    def fake_selection_result(intent, limit=20):
+        calls.append(("selection", intent))
+        return {"matched_count": 0}
+
+    def fake_locf_result(assigned, intent, limit=20):
+        calls.append(("locf", bool(assigned), intent))
+        return {"matched_count": 0}
+
+    monkeypatch.setattr(
+        elza_controller,
+        "get_ls_elza_selection_result",
+        fake_selection_result,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        elza_controller,
+        "get_ls_elza_exact_stem_result",
+        lambda *_args, **_kwargs: {"matched_count": 0},
+        raising=False,
+    )
+    monkeypatch.setattr(
+        elza_controller,
+        "get_locf_selection_result",
+        fake_locf_result,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        elza_controller,
+        "build_ls_elza_selection_answer",
+        lambda _result: "selection-ok",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        elza_controller,
+        "build_locf_selection_answer",
+        lambda _result: "locf-ok",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        elza_controller,
+        "ls_elza_append_chat_exchange",
+        lambda *_args, **_kwargs: {},
+        raising=False,
+    )
+    monkeypatch.setattr(
+        elza_controller,
+        "ls_elza_resolve_workspace",
+        lambda value: value,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        elza_controller,
+        "ls_elza_resolve_local_family",
+        lambda value: value,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        elza_controller,
+        "normalize_tag_filter",
+        lambda values: list(values or []),
+        raising=False,
+    )
+
+    class DummyController(elza_controller.ElzaControllerMixin):
+        def __init__(self, message):
+            body = json.dumps({
+                "action": "send",
+                "message": message,
+                "selected_mode": "",
+                "images": [],
+            }).encode("utf-8")
+            self.headers = {"Content-Length": str(len(body))}
+            self.rfile = BytesIO(body)
+            self.sent = []
+
+        def send_json_response(self, data, status=200):
+            self.sent.append((status, data))
+
+    cases = (
+        (
+            'Parādi dziesmas ar vārdu "Hammond" Name laukā.',
+            "selection",
+            ["name"],
+        ),
+        (
+            'Parādi dziesmas ar vārdu "fretless" Promptā.',
+            "selection",
+            ["prompt"],
+        ),
+        (
+            'Parādi visas vietējās dziesmas, kurām "upe" ir '
+            'nosaukumā vai kur citur.',
+            "selection",
+            ["name", "track_id", "lyrics", "prompt", "tags"],
+        ),
+        (
+            "Parādi visas dziesmas ar LocF.",
+            "locf",
+            None,
+        ),
+    )
+
+    for message, expected_route, expected_fields in cases:
+        calls.clear()
+        controller = DummyController(message)
+        controller.ls_assistant_chat()
+
+        assert controller.sent
+        status, response = controller.sent[-1]
+        assert status == 200
+        assert response["ok"] is True
+        assert calls
+        assert calls[0][0] == expected_route
+
+        if expected_route == "selection":
+            intent = calls[0][1]
+            assert intent["local_family_assigned"] is None
+            assert intent["text_fields"] == expected_fields
+            assert response["answer"] == "selection-ok"
+        else:
+            assert calls[0][1] is True
+            assert response["answer"] == "locf-ok"
+
