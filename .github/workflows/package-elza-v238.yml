@@ -73,3 +73,5 @@ jobs:
           name: Elza-v2.40
           path: Elza-v2.40.zip
           if-no-files-found: error
+
+# Final v2.40 packaging verification trigger.
