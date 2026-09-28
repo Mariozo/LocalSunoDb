@@ -86,6 +86,44 @@ def _text_field_label(field):
     }.get(field, field)
 
 
+def _requested_minimum_flag(source, plain):
+    direct = re.search(r"\b([1-5])\s*\+\s*\*", plain)
+    if direct:
+        return int(direct.group(1))
+
+    has_rating_marker = bool(
+        re.search(r"\*{1,5}", source)
+        or re.search(r"\b(?:zvaigzn\w*|stars?)\b", plain)
+    )
+    if not has_rating_marker:
+        return 0
+
+    number_words = {
+        "viens": 1,
+        "viena": 1,
+        "divi": 2,
+        "divas": 2,
+        "tris": 3,
+        "cetri": 4,
+        "cetras": 4,
+        "pieci": 5,
+        "piecas": 5,
+    }
+    threshold = re.search(
+        r"\b(?:vismaz|minimum|at\s+least)\s+"
+        r"([1-5]|viens|viena|divi|divas|tris|cetri|cetras|pieci|piecas)\b",
+        plain,
+    )
+    if threshold:
+        raw = threshold.group(1)
+        return int(raw) if raw.isdigit() else number_words.get(raw, 0)
+
+    repeated = re.search(r"(?<!\*)\*{1,5}(?!\*)", source)
+    if repeated and re.search(r"\b(?:vismaz|minimum|at\s+least)\b", plain):
+        return len(repeated.group(0))
+    return 0
+
+
 def _recognize_local_text_selection(message):
     source = re.sub(r"\s+", " ", str(message or "").strip())
     plain = _fold_user_text(source)
@@ -96,6 +134,11 @@ def _recognize_local_text_selection(message):
 
     text_query = _extract_text_query(source)
     text_fields = _requested_text_fields(plain)
+    minimum_flag = _requested_minimum_flag(source, plain)
+    kind_filter = "liked" if re.search(
+        r"\b(?:like|liked|patik\w*)\b",
+        plain,
+    ) else ""
 
     local_audio = ""
     if (
@@ -107,7 +150,12 @@ def _recognize_local_text_selection(message):
     ):
         local_audio = "with"
 
-    if not local_audio and (not text_query or not text_fields):
+    if (
+        not local_audio
+        and not minimum_flag
+        and not kind_filter
+        and (not text_query or not text_fields)
+    ):
         return None
     if text_query and not text_fields:
         return None
@@ -118,11 +166,11 @@ def _recognize_local_text_selection(message):
         "safe_to_execute": True,
         "reason": "",
         "category": "",
-        "kind_filter": "",
+        "kind_filter": kind_filter,
         "local_audio": local_audio,
         "local_audio_extensions": ["wav"] if re.search(r"\bwav\b", plain) else [],
         "exclude_ui_types": [],
-        "flags": [],
+        "flags": [minimum_flag] if minimum_flag else [],
         "any_flag": False,
         "exact_flags": False,
         "tags": [],
