@@ -155,6 +155,7 @@ ALLOWED_ANSWER_SOURCE_IDS = {
 }
 ALLOWED_ANSWER_SOURCE_KINDS = {"provided", "consulted", "local"}
 ALLOWED_SELECTED_MODES = {"", "UX_REVIEW", "TEST_REVIEW", "TRACK_DB", "LS_CODE"}
+SELECTION_SELFTEST_TOOL_NAME = "ls_selection_selftest"
 
 _HISTORY_LOCK = threading.RLock()
 _SEND_LOCK = threading.Lock()
@@ -302,26 +303,23 @@ application logic must be proposed separately. Never claim that the review
 changed LocalSunoDb.
 
 When TEST_REVIEW is active, act as an embedded LocalSunoDb function tester.
-Use the current-turn screenshot, the supplied read-only LS state, and the
-user's description of the action and expected result. Do not invent an action,
-previous screen state, click sequence, expected result, or hidden application
-behavior that was not supplied or visibly evidenced.
+For one user-described UI action, use the current-turn screenshot and supplied
+read-only LS state exactly as before. For a request to test Elza selection,
+filters, or the selection engine broadly, use the ls_selection_selftest tool.
+That tool runs a fixed read-only parser and canonical-DB regression matrix and
+returns PASS / FAIL / UNCLEAR per case. Do not invent an expected result that
+is absent from either the current evidence or the self-test oracle.
 
-Return a compact test report in this order:
+Return a compact test report. For a self-test, begin with the aggregate result
+(for example, 25 PASS / 1 FAIL / 1 UNCLEAR), then list every FAIL and UNCLEAR
+case with expected and actual counts when supplied. Do not list all passing
+cases unless the user asks. For a single UI test, keep the existing order:
+Test; Observed result; Verdict; Problem (for FAIL); Next check when needed.
 
-1. Test: the function or action being checked.
-2. Observed result: only what the current evidence proves.
-3. Verdict: PASS, FAIL, or UNCLEAR. PASS requires evidence that the stated
-   expected result occurred; FAIL requires evidence of a contradiction;
-   otherwise use UNCLEAR.
-4. Problem: for FAIL, state the exact mismatch without guessing its code cause.
-5. Next check: give one concrete SPS action only when another check is needed.
-
-If the user did not state the action or expected result, infer it only when it
-is unambiguous from the question and visible UI. Otherwise return UNCLEAR and
-ask for the single missing fact. Distinguish visual evidence from supplied
-state context. Do not use database or source-code tools in TEST_REVIEW, do not
-change LocalSunoDb, and never claim that the test repaired anything.
+TEST_REVIEW remains read-only. The dedicated ls_selection_selftest may read the
+canonical database to compare results, but it cannot write data. Do not use
+general database tools or source-code tools in TEST_REVIEW, do not change
+LocalSunoDb, and never claim that the test repaired anything.
 
 When explicit TRACK_DB mode is active, analyze exactly one selected track.
 Use the supplied selected Track ID and the two Track tools. Return a compact
@@ -644,6 +642,26 @@ def configure_ls_elza_app_source(path):
         ) from error
 
 
+def get_selection_selftest_tool_definition():
+    return {
+        "type": "function",
+        "name": SELECTION_SELFTEST_TOOL_NAME,
+        "description": (
+            "Run the built-in read-only LS Elza selection regression matrix "
+            "against the current canonical LocalSunoDb database. Use this in "
+            "TEST_REVIEW when the user asks to test selection/filter behavior "
+            "broadly. It validates deterministic language interpretation plus "
+            "real selection execution and returns PASS/FAIL/UNCLEAR per case. "
+            "It never changes the database or files."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": False,
+        },
+    }
+
+
 def get_available_readonly_tools():
     tools = []
     if database_tools_available():
@@ -691,6 +709,12 @@ def get_track_readonly_tools():
         tool for tool in get_available_readonly_tools()
         if isinstance(tool, dict) and tool.get("name") in allowed_names
     ]
+
+
+def get_test_readonly_tools():
+    tools = [get_selection_selftest_tool_definition()]
+    validate_openai_tool_definitions(tools)
+    return tools
 
 
 def get_code_readonly_tools():
@@ -1289,6 +1313,7 @@ DB_ACTION_LABELS = {
     "ls_search_titles": "Title search",
     "ls_track_summary": "Track summary",
     "ls_local_family_status": "Local family status",
+    SELECTION_SELFTEST_TOOL_NAME: "Selection self-test",
 }
 
 
@@ -1430,6 +1455,9 @@ def _tool_answer_sources(trace):
 def _run_whitelisted_readonly_action(action, arguments):
     if action == SELECTION_TOOL_NAME:
         return normalize_selection_request(arguments)
+    if action == SELECTION_SELFTEST_TOOL_NAME:
+        from ls_web.elza_selftest import run_selection_selftest
+        return run_selection_selftest()
     if action in CODE_READER_ACTIONS:
         if not code_tools_available():
             raise LSElzaError(
@@ -1826,7 +1854,7 @@ def create_answer_response(
     if selected_mode in {"UX_REVIEW", "LS_CODE"}:
         tools = get_code_readonly_tools()
     elif selected_mode == "TEST_REVIEW":
-        tools = []
+        tools = get_test_readonly_tools()
     elif selected_mode == "TRACK_DB":
         tools = get_track_readonly_tools()
     else:
@@ -1852,11 +1880,12 @@ def create_answer_response(
     elif selected_mode == "TEST_REVIEW":
         instructions += (
             "\n\nThe user explicitly selected persistent TEST_REVIEW mode in "
-            "the LocalSunoDb UI. Test the described function against the "
-            "supplied current screenshot and read-only state. Give a strict "
-            "PASS, FAIL, or UNCLEAR verdict using the TEST_REVIEW evidence "
-            "rules, even if the question text alone suggests another route. "
-            "Do not use database or source-code tools."
+            "the LocalSunoDb UI. For a broad request to test Elza selection or "
+            "filter behavior, call ls_selection_selftest exactly once and "
+            "summarize its aggregate result plus every FAIL/UNCLEAR case. For "
+            "a single visible UI action, use the supplied screenshot/state. "
+            "The self-test is strictly read-only. Do not use general database "
+            "or source-code tools and do not claim that testing repaired anything."
         )
     elif selected_mode == "TRACK_DB":
         instructions += (
