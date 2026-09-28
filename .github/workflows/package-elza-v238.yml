@@ -1,0 +1,56 @@
+name: Package Elza v2.38
+
+on:
+  push:
+    branches:
+      - fix/elza-v238-selection-guard
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify Elza v2.38 overlay
+        run: |
+          python -m py_compile LS_Elza/selection_intent.py
+          python -m py_compile LS_Elza/ls_adapter/runtime_bridge.py
+          python -m py_compile LS_Elza/v230_ui_enhancer.py
+          python -m pytest -q tests/test_elza_selection_regression.py
+          python - <<'PY'
+          from pathlib import Path
+          for name in (
+              "LS_Elza/selection_intent.py",
+              "LS_Elza/ls_adapter/runtime_bridge.py",
+              "LS_Elza/__init__.py",
+              "LS_Elza/v230_ui_enhancer.py",
+          ):
+              data = Path(name).read_bytes()
+              assert b"\r\n" not in data, name
+              data.decode("utf-8")
+          PY
+      - name: Build overlay ZIP
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZIP_DEFLATED, ZipFile
+          files = (
+              "LS_Elza/selection_intent.py",
+              "LS_Elza/ls_adapter/runtime_bridge.py",
+              "LS_Elza/__init__.py",
+              "LS_Elza/v230_ui_enhancer.py",
+          )
+          with ZipFile("Elza-v2.38.zip", "w", ZIP_DEFLATED) as archive:
+              for name in files:
+                  archive.write(name, name)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Elza-v2.38
+          path: Elza-v2.38.zip
+          if-no-files-found: error
