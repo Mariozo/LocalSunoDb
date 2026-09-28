@@ -27,6 +27,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path, PurePosixPath
 
 from ls_core.runtime import *
+from ls_data.repository import get_canonical_connection
 
 def ls_elza_fold_text(value):
     text = re.sub(r"\s+", " ", str(value or "").strip().casefold())
@@ -363,6 +364,46 @@ def get_ls_elza_exact_stem_result(stem_count):
         "exact_stem_count": stem_count,
     }
 
+def _ls_elza_canonical_type_keys(track_ids):
+    """Return canonical source/type identities for exact candidate Track IDs."""
+    ids = [
+        str(track_id or "").strip()
+        for track_id in (track_ids or [])
+        if str(track_id or "").strip()
+    ]
+    if not ids:
+        return {}
+    result = {}
+    conn = get_canonical_connection()
+    try:
+        for start in range(0, len(ids), 800):
+            chunk = ids[start:start + 800]
+            placeholders = ",".join(["?"] * len(chunk))
+            rows = conn.execute(
+                f"""
+                SELECT
+                    id,
+                    COALESCE(source_type, '') AS source_type,
+                    COALESCE(source_task, '') AS source_task,
+                    COALESCE(kind, '') AS canonical_kind
+                FROM main.tracks
+                WHERE lower(id) IN ({placeholders})
+                """,
+                [track_id.lower() for track_id in chunk],
+            ).fetchall()
+            for row in rows:
+                keys = {
+                    str(row["source_type"] or "").strip().casefold(),
+                    str(row["source_task"] or "").strip().casefold(),
+                    str(row["canonical_kind"] or "").strip().casefold(),
+                }
+                keys.discard("")
+                result[str(row["id"] or "").strip().lower()] = keys
+    finally:
+        conn.close()
+    return result
+
+
 def get_ls_elza_selection_result(intent, limit=20):
     try:
         preview_limit = max(1, min(int(limit), 50))
@@ -445,6 +486,13 @@ def get_ls_elza_selection_result(intent, limit=20):
             sort_by="title",
             sort_dir="asc",
         )
+        canonical_type_keys = {}
+        if included_ui_types or excluded_ui_types:
+            canonical_type_keys = _ls_elza_canonical_type_keys([
+                row_text(row, "id")
+                for row in candidate_rows
+                if row_text(row, "id")
+            ])
         exact_rows = []
         for row in candidate_rows:
             try:
@@ -457,11 +505,19 @@ def get_ls_elza_selection_result(intent, limit=20):
             if minimum_flag_count and row_marks.bit_count() < minimum_flag_count:
                 continue
 
-            ui_type = row_text(row, "ui_type") or row_text(row, "kind")
-            ui_type_key = ui_type.casefold()
-            if included_ui_types and ui_type_key not in included_ui_types:
+            track_id_key = row_text(row, "id").lower()
+            row_type_keys = set(canonical_type_keys.get(track_id_key, set()))
+            for fallback in (
+                row_text(row, "ui_type"),
+                row_text(row, "type"),
+                row_text(row, "kind"),
+            ):
+                fallback_key = fallback.casefold()
+                if fallback_key:
+                    row_type_keys.add(fallback_key)
+            if included_ui_types and not included_ui_types.intersection(row_type_keys):
                 continue
-            if ui_type_key in excluded_ui_types:
+            if excluded_ui_types.intersection(row_type_keys):
                 continue
 
             if local_audio_extensions:
