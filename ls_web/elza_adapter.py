@@ -374,7 +374,10 @@ def _ls_elza_canonical_type_keys(track_ids):
     if not ids:
         return {}
     result = {}
-    conn = get_canonical_connection()
+    try:
+        conn = get_canonical_connection()
+    except (FileNotFoundError, OSError):
+        return result
     try:
         for start in range(0, len(ids), 800):
             chunk = ids[start:start + 800]
