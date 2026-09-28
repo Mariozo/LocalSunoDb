@@ -770,8 +770,8 @@ def render_ls_elza_dialog_markup():
                         class="ls-elza-mode-btn"
                         id="ls-elza-test-mode"
                         data-ls-elza-mode="TEST_REVIEW"
-                        title="Use function test mode"
-                        aria-label="Use function test mode"
+                        title="Test a function or run the read-only selection self-test"
+                        aria-label="Test a function or run the read-only selection self-test"
                         aria-pressed="false"
                     >Test</button>
                     <button
@@ -918,8 +918,8 @@ def render_ls_elza_script_state_bootstrap_assets():
                     button.setAttribute("aria-label", label);
                 } else if (buttonMode === "TEST_REVIEW") {
                     const label = isActive
-                        ? "Function test mode is active. Click to use automatic mode."
-                        : "Use function test mode";
+                        ? "Test mode is active. Ask “Pārbaudi atlases filtrus” for the read-only self-test."
+                        : "Test a function or run the read-only selection self-test";
                     button.title = label;
                     button.setAttribute("aria-label", label);
                 } else if (buttonMode === "TRACK_DB") {
@@ -945,7 +945,9 @@ def render_ls_elza_script_state_bootstrap_assets():
                 ? "Ask LS Elza about the selected Audio Track..."
                 : selectedMode === "LS_CODE"
                     ? "Ask LS Elza about the current LocalSunoDb code..."
-                    : "Ask LS Elza about LocalSunoDb...";
+                    : selectedMode === "TEST_REVIEW"
+                        ? "Piem.: Pārbaudi atlases filtrus"
+                        : "Ask LS Elza about LocalSunoDb...";
         }
 
         function setSelectedMode(value) {
