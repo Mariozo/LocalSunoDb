@@ -947,3 +947,54 @@ def test_elza_v242_selection_contract_accepts_ui_type_and_minimum_flag_count():
 
     assert normalized["include_ui_types"] == ["Upload"]
     assert normalized["minimum_flag_count"] == 3
+
+def test_elza_v243_upload_uses_canonical_source_type(monkeypatch):
+    rows = [
+        {
+            "id": "upload-wav",
+            "title": "Upload WAV",
+            "workspace": "W",
+            "type": "",
+            "kind": "",
+            "local_wav": r"E:\\Audio\\upload.wav",
+            "local_mp3": "",
+            "ui_best_local_audio_path": r"E:\\Audio\\upload.wav",
+        },
+        {
+            "id": "song-wav",
+            "title": "Song WAV",
+            "workspace": "W",
+            "type": "",
+            "kind": "",
+            "local_wav": r"E:\\Audio\\song.wav",
+            "local_mp3": "",
+            "ui_best_local_audio_path": r"E:\\Audio\\song.wav",
+        },
+    ]
+    monkeypatch.setattr(
+        elza_adapter,
+        "search_tracks",
+        lambda **_kwargs: rows,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        elza_adapter,
+        "_ls_elza_canonical_type_keys",
+        lambda _ids: {
+            "upload-wav": {"upload"},
+            "song-wav": {"gen", "song"},
+        },
+        raising=False,
+    )
+
+    result = elza_adapter.get_ls_elza_selection_result({
+        "filters": {"local_audio_filter": "with"},
+        "local_audio_extensions": ["wav"],
+        "include_ui_types": ["Upload"],
+        "summary": "Local WAV + Type: Upload",
+        "save_name": "Local WAV Upload",
+    }, limit=20)
+
+    assert result["matched_count"] == 1
+    assert "upload-wav" in result["view_url"]
+    assert "song-wav" not in result["view_url"]
