@@ -86,11 +86,7 @@ def _text_field_label(field):
     }.get(field, field)
 
 
-def _requested_minimum_flag(source, plain):
-    direct = re.search(r"\b([1-5])\s*\+\s*\*", plain)
-    if direct:
-        return int(direct.group(1))
-
+def _requested_minimum_flag_count(source, plain):
     has_rating_marker = bool(
         re.search(r"\*{1,5}", source)
         or re.search(r"\b(?:zvaigzn\w*|stars?)\b", plain)
@@ -118,10 +114,26 @@ def _requested_minimum_flag(source, plain):
         raw = threshold.group(1)
         return int(raw) if raw.isdigit() else number_words.get(raw, 0)
 
+    numeric = re.search(r"(?:>=|≥)\s*([1-5])", source)
+    if numeric:
+        return int(numeric.group(1))
+
     repeated = re.search(r"(?<!\*)\*{1,5}(?!\*)", source)
     if repeated and re.search(r"\b(?:vismaz|minimum|at\s+least)\b", plain):
         return len(repeated.group(0))
     return 0
+
+
+def _requested_upload_type_constraints(plain):
+    has_upload = bool(re.search(r"\b(?:upload|uplod)\b", plain))
+    if not has_upload:
+        return [], []
+    excluded = bool(
+        re.search(r"\bbez\s+(?:type\s+)?(?:upload|uplod)\b", plain)
+        or re.search(r"(?:^|\s)-\s*(?:upload|uplod)\b", plain)
+        or re.search(r"\b(?:iznem\w*|izsledz\w*|exclude)\s+(?:upload|uplod)\b", plain)
+    )
+    return ([], ["Upload"]) if excluded else (["Upload"], [])
 
 
 def _recognize_local_text_selection(message):
@@ -134,7 +146,9 @@ def _recognize_local_text_selection(message):
 
     text_query = _extract_text_query(source)
     text_fields = _requested_text_fields(plain)
-    minimum_flag = _requested_minimum_flag(source, plain)
+    minimum_flag_count = _requested_minimum_flag_count(source, plain)
+    include_ui_types, exclude_ui_types = _requested_upload_type_constraints(plain)
+    local_audio_extensions = ["wav"] if re.search(r"\b(?:\.wav|wav)\b", plain) else []
     kind_filter = "liked" if re.search(
         r"\b(?:like|liked|patik\w*)\b",
         plain,
@@ -152,8 +166,11 @@ def _recognize_local_text_selection(message):
 
     if (
         not local_audio
-        and not minimum_flag
+        and not local_audio_extensions
+        and not minimum_flag_count
         and not kind_filter
+        and not include_ui_types
+        and not exclude_ui_types
         and (not text_query or not text_fields)
     ):
         return None
@@ -168,9 +185,11 @@ def _recognize_local_text_selection(message):
         "category": "",
         "kind_filter": kind_filter,
         "local_audio": local_audio,
-        "local_audio_extensions": ["wav"] if re.search(r"\bwav\b", plain) else [],
-        "exclude_ui_types": [],
-        "flags": [minimum_flag] if minimum_flag else [],
+        "local_audio_extensions": local_audio_extensions,
+        "exclude_ui_types": exclude_ui_types,
+        "include_ui_types": include_ui_types,
+        "minimum_flag_count": minimum_flag_count,
+        "flags": [],
         "any_flag": False,
         "exact_flags": False,
         "tags": [],
@@ -265,8 +284,36 @@ def build_host_selection_intent(
         if ui_type and key not in seen_excluded_types:
             exclude_ui_types.append(ui_type)
             seen_excluded_types.add(key)
+
+    raw_included_types = request.get("include_ui_types") or []
+    if not isinstance(raw_included_types, list):
+        return {"error": "Elza atgrieza nederīgu iekļaujamo LS Type sarakstu."}
+    include_ui_types = []
+    seen_included_types = set()
+    for item in raw_included_types[:20]:
+        ui_type = _clean_text(item, 120)
+        key = ui_type.casefold()
+        if ui_type and key not in seen_included_types:
+            include_ui_types.append(ui_type)
+            seen_included_types.add(key)
+
+    overlap = seen_excluded_types.intersection(seen_included_types)
+    if overlap:
+        return {"error": "Vienu LS Type nevar vienlaikus iekļaut un izslēgt."}
+
+    for ui_type in include_ui_types:
+        labels.append(f"Type: {ui_type}")
     for ui_type in exclude_ui_types:
         labels.append(f"Bez Type: {ui_type}")
+
+    try:
+        minimum_flag_count = int(request.get("minimum_flag_count") or 0)
+    except (TypeError, ValueError):
+        return {"error": "Elza atgrieza nederīgu minimālo Flags skaitu."}
+    if minimum_flag_count < 0 or minimum_flag_count > 5:
+        return {"error": "Minimālajam Flags skaitam jābūt no 0 līdz 5."}
+    if minimum_flag_count:
+        labels.append(f"Vismaz {minimum_flag_count} ✶")
 
     raw_flags = request.get("flags")
     if not isinstance(raw_flags, list):
@@ -384,6 +431,8 @@ def build_host_selection_intent(
         filters
         or local_audio_extensions
         or exclude_ui_types
+        or include_ui_types
+        or minimum_flag_count
         or local_family_assigned is not None
         or bool(text_query)
     ):
@@ -402,6 +451,8 @@ def build_host_selection_intent(
         "local_family_assigned": local_family_assigned,
         "local_audio_extensions": local_audio_extensions,
         "exclude_ui_types": exclude_ui_types,
+        "include_ui_types": include_ui_types,
+        "minimum_flag_count": minimum_flag_count,
         "anywhere_query": anywhere_query,
         "text_query": text_query,
         "text_fields": text_fields,
@@ -422,6 +473,8 @@ def build_host_selection_intent(
         not filters
         and not exact_stem_count
         and not exclude_ui_types
+        and not include_ui_types
+        and not minimum_flag_count
         and local_family_assigned is None
         and not text_query
     ):
