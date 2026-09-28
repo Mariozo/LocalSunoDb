@@ -290,3 +290,89 @@ def test_v221_f4_and_bfcache_contracts_present():
     assert "openFinderSearchBox();" in search_events
     assert 'window.addEventListener("pageshow"' in lazy_loader
     assert "event.persisted" in lazy_loader
+
+
+def test_my_library_album_detail_spotify_layout_contract(monkeypatch):
+    from ls_library import music_browser
+
+    monkeypatch.setattr(
+        music_browser,
+        "list_music_databases",
+        lambda: {"databases": [{"name": "Jazz", "track_count": 2}]},
+    )
+    monkeypatch.setattr(
+        music_browser,
+        "music_database_albums",
+        lambda *_args, **_kwargs: {
+            "albums": [],
+            "root_folder": r"D:\\Music",
+            "total_tracks": 2,
+        },
+    )
+    monkeypatch.setattr(
+        music_browser,
+        "music_database_tracks",
+        lambda *_args, **_kwargs: {
+            "rows": [
+                {
+                    "id": 1,
+                    "title": "First",
+                    "artist": "Artist",
+                    "album_artist": "Artist",
+                    "album": "Album",
+                    "year": 2024,
+                    "track_no": 1,
+                    "duration_seconds": 65,
+                    "format": "mp3",
+                    "path": r"D:\\Music\\01 - First.mp3",
+                    "cover_sha1": "a" * 40,
+                },
+                {
+                    "id": 2,
+                    "title": "Second",
+                    "artist": "Artist",
+                    "album_artist": "Artist",
+                    "album": "Album",
+                    "year": 2024,
+                    "track_no": 2,
+                    "duration_seconds": 125,
+                    "format": "mp3",
+                    "path": r"D:\\Music\\02 - Second.mp3",
+                    "cover_sha1": "a" * 40,
+                },
+            ]
+        },
+    )
+    monkeypatch.setattr(music_browser, "get_local_playlists", lambda: [])
+
+    rendered = music_browser.render_music_database_page(
+        name="Jazz",
+        album="Album",
+        artist="Artist",
+        year="2024",
+    )
+
+    assert 'class="album-open"' in rendered
+    assert 'id="album-hero"' in rendered
+    assert 'id="album-hero-cover"' in rendered
+    assert 'data-elza-f4-rail="1"' in rendered
+    assert 'id="album-play"' in rendered
+    assert "2 dziesmas · 3 min 10 s" in rendered
+    assert 'class="track-table album-track-table"' in rendered
+    assert "<th>Albums</th>" not in rendered
+    assert 'class="path-line"' not in rendered
+    assert "--bg:#061F14" in rendered
+
+
+def test_music_library_reads_wav_duration(tmp_path):
+    import wave
+    from ls_data import music_library
+
+    path = tmp_path / "duration.wav"
+    with wave.open(str(path), "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(8000)
+        handle.writeframes(b"\x00\x00" * 8000)
+
+    assert music_library._audio_duration_seconds(path) == pytest.approx(1.0, abs=0.01)
