@@ -67,9 +67,11 @@ jobs:
               "LS_Elza/__init__.py",
               "LS_Elza/v230_ui_enhancer.py",
               "LS_Elza/ui.py",
+              "LS_Elza/service.py",
               "ls_web/elza_selection_bridge.py",
               "ls_web/elza_adapter.py",
               "ls_web/elza_controller.py",
+              "ls_web/elza_selftest.py",
           )
           with ZipFile("Elza-v2.44.zip", "w", ZIP_DEFLATED) as archive:
               for name in files:
