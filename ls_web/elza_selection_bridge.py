@@ -96,8 +96,6 @@ def _recognize_local_text_selection(message):
 
     text_query = _extract_text_query(source)
     text_fields = _requested_text_fields(plain)
-    if not text_query or not text_fields:
-        return None
 
     local_audio = ""
     if (
@@ -108,6 +106,13 @@ def _recognize_local_text_selection(message):
         )
     ):
         local_audio = "with"
+
+    if not local_audio and (not text_query or not text_fields):
+        return None
+    if text_query and not text_fields:
+        return None
+    if text_fields and not text_query:
+        return None
 
     return {
         "safe_to_execute": True,
