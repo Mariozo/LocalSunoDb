@@ -21,6 +21,7 @@ jobs:
       - name: Verify Elza v2.38 overlay
         run: |
           python -m py_compile LS_Elza/selection_intent.py
+          python -m py_compile LS_Elza/selection_guard.py
           python -m py_compile LS_Elza/ls_adapter/runtime_bridge.py
           python -m py_compile LS_Elza/v230_ui_enhancer.py
           python -m pytest -q tests/test_elza_selection_regression.py
@@ -28,6 +29,7 @@ jobs:
           from pathlib import Path
           for name in (
               "LS_Elza/selection_intent.py",
+              "LS_Elza/selection_guard.py",
               "LS_Elza/ls_adapter/runtime_bridge.py",
               "LS_Elza/__init__.py",
               "LS_Elza/v230_ui_enhancer.py",
@@ -43,6 +45,7 @@ jobs:
           from zipfile import ZIP_DEFLATED, ZipFile
           files = (
               "LS_Elza/selection_intent.py",
+              "LS_Elza/selection_guard.py",
               "LS_Elza/ls_adapter/runtime_bridge.py",
               "LS_Elza/__init__.py",
               "LS_Elza/v230_ui_enhancer.py",
