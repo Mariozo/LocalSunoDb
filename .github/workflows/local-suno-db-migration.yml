@@ -13,6 +13,7 @@ on:
       - 'ls_web/render.py'
       - 'ls_web/elza_adapter.py'
       - 'ls_web/elza_selection_bridge.py'
+      - 'ls_web/elza_filter_audit.py'
       - 'LS_Elza/selection_intent.py'
       - 'LS_Elza/service.py'
       - 'LS_Elza/ui.py'
@@ -101,7 +102,7 @@ jobs:
           node --check playlist_actions_v219.js
           git diff --check HEAD^1 HEAD
       - run: python -m pytest -q tests/test_database_context.py tests/test_local_suno_migration.py tests/test_local_suno_runtime.py tests/test_backend_restart.py tests/test_popup_theme_contract.py tests/test_local_playlists.py tests/test_saved_views_runtime.py tests/test_elza_selection_regression.py
-  package-elza-v247:
+  package-elza-v248:
     needs: migration-test
     runs-on: ubuntu-latest
     steps:
@@ -110,9 +111,9 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install pytest
-      - name: Re-run Elza v2.47 controller regression
+      - name: Re-run Elza v2.48 controller regression
         run: python -m pytest -q tests/test_elza_selection_regression.py
-      - name: Build and verify exact Elza v2.47 overlay ZIP
+      - name: Build and verify exact Elza v2.48 overlay ZIP
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -133,9 +134,10 @@ jobs:
               "ls_web/elza_adapter.py",
               "ls_web/elza_controller.py",
               "ls_web/elza_selftest.py",
+              "ls_web/elza_filter_audit.py",
           )
 
-          archive_path = Path("Elza-v2.47.zip")
+          archive_path = Path("Elza-v2.48.zip")
           with ZipFile(archive_path, "w", ZIP_DEFLATED) as archive:
               for name in files:
                   archive.write(name, name)
@@ -157,13 +159,13 @@ jobs:
           init_text = (verify_root / "LS_Elza/__init__.py").read_text(encoding="utf-8")
           enhancer_text = (verify_root / "LS_Elza/v230_ui_enhancer.py").read_text(encoding="utf-8")
           controller_text = (verify_root / "ls_web/elza_controller.py").read_text(encoding="utf-8")
-          assert 'LS_ELZA_PACKAGE_VERSION = "2.47"' in init_text
-          assert "Elza v2.47" in enhancer_text
+          assert 'LS_ELZA_PACKAGE_VERSION = "2.48"' in init_text
+          assert "Elza v2.48" in enhancer_text
           assert "get_selection_result=get_ls_elza_selection_result" in controller_text
           assert "build_ls_elza_selection_answer" in controller_text
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: Elza-v2.47-final
-          path: Elza-v2.47.zip
+          name: Elza-v2.48-final
+          path: Elza-v2.48.zip
           if-no-files-found: error
