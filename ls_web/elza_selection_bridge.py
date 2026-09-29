@@ -41,28 +41,6 @@ def _has_selection_command(plain):
     ))
 
 
-def _has_implicit_selection_phrase(plain):
-    """Recognize terse filter phrases that clearly describe a result set."""
-    text = str(plain or "").strip()
-    if not text:
-        return False
-
-    has_scope = bool(re.search(
-        r"^(?:visi|visas|viss|tikai|vietej\w*|lokal\w*|local\b)",
-        text,
-    ))
-    has_filter = bool(
-        re.search(
-            r"\b(?:wav|upload|uplod|like|liked|patik\w*|"
-            r"karodz\w*|flags?|zvaigzn\w*)\b",
-            text,
-        )
-        or re.search(r"(?<!\d)[0-5]\s*\+\s*\*", text)
-        or re.search(r"(?<!\*)\*{1,5}(?!\*)", text)
-    )
-    return has_scope and has_filter
-
-
 def _extract_text_query(source):
     quoted = re.search(r'["“”]([^"“”]{1,160})["“”]', source)
     if quoted:
@@ -161,13 +139,7 @@ def _requested_upload_type_constraints(plain):
 def _recognize_local_text_selection(message):
     source = re.sub(r"\s+", " ", str(message or "").strip())
     plain = _fold_user_text(source)
-    if (
-        not source
-        or not (
-            _has_selection_command(plain)
-            or _has_implicit_selection_phrase(plain)
-        )
-    ):
+    if not source or not _has_selection_command(plain):
         return None
     if re.search(r"\blocf\b|\blocal\s+family\b", plain):
         return None
