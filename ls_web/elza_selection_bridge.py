@@ -148,7 +148,13 @@ def _recognize_local_text_selection(message):
     text_fields = _requested_text_fields(plain)
     minimum_flag_count = _requested_minimum_flag_count(source, plain)
     include_ui_types, exclude_ui_types = _requested_upload_type_constraints(plain)
-    local_audio_extensions = ["wav"] if re.search(r"\b(?:\.wav|wav)\b", plain) else []
+    has_wav_request = bool(re.search(r"\b(?:\.wav|wav)\b", plain))
+    explicit_local_wav = bool(
+        has_wav_request
+        and re.search(r"\b(?:vietej\w*|lokal\w*|local)\b", plain)
+    )
+    wav_scope = "local" if explicit_local_wav else ("all" if has_wav_request else "")
+    local_audio_extensions = ["wav"] if explicit_local_wav else []
     kind_filter = "liked" if re.search(
         r"\b(?:like|liked|patik\w*)\b",
         plain,
@@ -167,6 +173,7 @@ def _recognize_local_text_selection(message):
     if (
         not local_audio
         and not local_audio_extensions
+        and not wav_scope
         and not minimum_flag_count
         and not kind_filter
         and not include_ui_types
@@ -186,6 +193,7 @@ def _recognize_local_text_selection(message):
         "kind_filter": kind_filter,
         "local_audio": local_audio,
         "local_audio_extensions": local_audio_extensions,
+        "wav_scope": wav_scope,
         "exclude_ui_types": exclude_ui_types,
         "include_ui_types": include_ui_types,
         "minimum_flag_count": minimum_flag_count,
@@ -248,6 +256,10 @@ def build_host_selection_intent(
         filters["local_audio_filter"] = local_audio
         labels.append("With local audio" if local_audio == "with" else "No local audio")
 
+    wav_scope = _clean_text(request.get("wav_scope"), 20).lower()
+    if wav_scope not in {"", "all", "local"}:
+        return {"error": "Elza atgrieza neatbalstītu WAV tvērumu."}
+
     raw_extensions = request.get("local_audio_extensions") or []
     if not isinstance(raw_extensions, list):
         return {"error": "Elza atgrieza nederīgu lokālā audio formātu atlasi."}
@@ -259,6 +271,9 @@ def build_host_selection_intent(
             return {"error": "Elza atgrieza neatbalstītu lokālā audio formātu."}
         if extension not in local_audio_extensions:
             local_audio_extensions.append(extension)
+    if wav_scope == "local" and "wav" not in local_audio_extensions:
+        local_audio_extensions.append("wav")
+
     if local_audio_extensions:
         if local_audio == "without":
             return {
@@ -272,6 +287,10 @@ def build_host_selection_intent(
         labels.append(
             "Local " + "/".join(extension.upper() for extension in local_audio_extensions)
         )
+
+    if wav_scope == "all":
+        labels = [label for label in labels if label not in {"With local audio", "Local WAV"}]
+        labels.append("WAV (Suno + Local)")
 
     raw_excluded_types = request.get("exclude_ui_types") or []
     if not isinstance(raw_excluded_types, list):
@@ -432,6 +451,7 @@ def build_host_selection_intent(
         or local_audio_extensions
         or exclude_ui_types
         or include_ui_types
+        or wav_scope
         or minimum_flag_count
         or local_family_assigned is not None
         or bool(text_query)
@@ -450,6 +470,7 @@ def build_host_selection_intent(
         "save_name": (" + ".join(labels) or "LS Elza selection")[:80],
         "local_family_assigned": local_family_assigned,
         "local_audio_extensions": local_audio_extensions,
+        "wav_scope": wav_scope,
         "exclude_ui_types": exclude_ui_types,
         "include_ui_types": include_ui_types,
         "minimum_flag_count": minimum_flag_count,
@@ -474,6 +495,7 @@ def build_host_selection_intent(
         and not exact_stem_count
         and not exclude_ui_types
         and not include_ui_types
+        and not wav_scope
         and not minimum_flag_count
         and local_family_assigned is None
         and not text_query
