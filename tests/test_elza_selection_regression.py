@@ -910,7 +910,7 @@ def test_elza_v241_ui_preserves_chat_question_and_view_actions():
     assert "rememberLsViewAction" in source
     assert "pendingQuestionAnchor = message" in source
     assert "scrollQuestionIntoView(message)" in source
-    assert "Ctrl+klikšķis = saglabāt kā View" in source
+    assert "Ctrl+klikšķis = saglabāt jautājuma atlasi kā View" in source
     assert "Saruna nav izdzēsta" in source
 
     load_start = source.index("async function loadCurrentChat()")
