@@ -1106,3 +1106,13 @@ def test_elza_v245_failed_fetch_keeps_local_snapshot_if_server_lacks_question():
     catch_source = source[catch_start:catch_end]
     assert "saveVisibleChatSnapshot();" in catch_source
     assert "reconcileAfterNetworkFailure(message)" in catch_source
+
+def test_elza_v246_saved_view_preserves_exact_track_ids():
+    source = Path(
+        "ls_library/static/suno_saved_views_script_assets.js"
+    ).read_text(encoding="utf-8")
+
+    assert '"track_ids"' in source
+    assert "const reusableQuery = buildReusableSavedViewQuery(sourceQuery);" in source
+    assert "if (savedViewPendingQuery && !reusableQuery)" in source
+    assert "filtrs pēc normalizēšanas ir tukšs" in source
