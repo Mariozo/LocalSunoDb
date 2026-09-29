@@ -1048,3 +1048,61 @@ def test_elza_v244_test_mode_does_not_require_screen_share_for_selftest():
     assert activation_marker in source
     assert "Pārbaudi atlases filtrus" in source
     assert "Ekrāns vajadzīgs tikai vizuālam testam." in source
+
+def test_elza_v245_chat_network_and_question_anchor_contracts():
+    source = Path("LS_Elza/ui.py").read_text(encoding="utf-8")
+    compile(source, "LS_Elza/ui.py", "exec")
+
+    assert "overflow-anchor: none;" in source
+    assert "function saveVisibleChatSnapshot()" in source
+    assert "function chatDataContainsQuestion(data, question)" in source
+    assert "async function reconcileAfterNetworkFailure(question)" in source
+    assert "const reconciled = await reconcileAfterNetworkFailure(message);" in source
+    assert "function pinQuestionInView(question)" in source
+    assert "window.requestAnimationFrame(pin);" in source
+
+    send_start = source.index("async function sendMessage()")
+    call_start = source.index("const data = await callService(serviceAction", send_start)
+    pre_call = source[send_start:call_start]
+    assert 'addMessage("user", displayMessage);' in pre_call
+    assert "saveVisibleChatSnapshot();" in pre_call
+
+    reconcile_start = source.index("async function reconcileAfterNetworkFailure(question)")
+    reconcile_end = source.index("async function loadCurrentChat()", reconcile_start)
+    reconcile_source = source[reconcile_start:reconcile_end]
+    assert "chatDataContainsQuestion(data, question)" in reconcile_source
+    assert "applyChatData(data);" in reconcile_source
+    assert reconcile_source.index("chatDataContainsQuestion(data, question)") < reconcile_source.index("applyChatData(data);")
+
+
+def test_elza_v245_ctrl_click_is_connected_to_saved_views_and_uses_question_name():
+    ui_source = Path("LS_Elza/ui.py").read_text(encoding="utf-8")
+    saved_view_source = Path(
+        "ls_library/static/suno_saved_views_script_assets.js"
+    ).read_text(encoding="utf-8")
+
+    assert "event.ctrlKey || event.metaKey" in ui_source
+    assert "dispatchLsViewSave(url, viewName)" in ui_source
+    assert "latestUserQuestionText()" in ui_source
+    assert "saglabāt jautājuma atlasi kā View" in ui_source
+
+    assert 'window.addEventListener("ls-elza-save-view-request"' in saved_view_source
+    assert "openSavedViewModal(" in saved_view_source
+    assert 'window.dispatchEvent(new CustomEvent("ls-elza-view-saved"' in saved_view_source
+
+
+def test_elza_v245_failed_fetch_keeps_local_snapshot_if_server_lacks_question():
+    source = Path("LS_Elza/ui.py").read_text(encoding="utf-8")
+
+    helper_start = source.index("function chatDataContainsQuestion(data, question)")
+    helper_end = source.index("async function reconcileAfterNetworkFailure(question)", helper_start)
+    helper_source = source[helper_start:helper_end]
+    assert 'message.role !== "user"' in helper_source
+    assert 'content === targetText || content.startsWith(targetText + "\\n")' in helper_source
+
+    catch_marker = 'if (/failed to fetch|networkerror|load failed/i.test(errorText)) {'
+    catch_start = source.index(catch_marker)
+    catch_end = source.index("} else {", catch_start)
+    catch_source = source[catch_start:catch_end]
+    assert "saveVisibleChatSnapshot();" in catch_source
+    assert "reconcileAfterNetworkFailure(message)" in catch_source
