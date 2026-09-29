@@ -41,6 +41,7 @@ def _base_request(**changes):
         "title_query": "",
         "exact_stem_count": 0,
         "local_audio_extensions": [],
+        "wav_scope": "",
         "exclude_ui_types": [],
         "include_ui_types": [],
         "minimum_flag_count": 0,
@@ -73,6 +74,7 @@ def _load_facts():
                 COALESCE(t.source_type, '') AS source_type,
                 COALESCE(t.source_task, '') AS source_task,
                 COALESCE(t.kind, '') AS kind,
+                COALESCE(t.audio_url, '') AS audio_url,
                 COALESCE(t.is_liked, 0) AS is_liked,
                 COALESCE(u.marks, 0) AS user_marks,
                 COALESCE(u.tags, '') AS user_tags,
@@ -149,6 +151,7 @@ def _load_facts():
             "marks": marks,
             "main_category": main_category,
             "has_local_audio": bool(int(_row_value(row, "has_local_audio", 0) or 0)),
+            "has_suno_audio": bool(str(_row_value(row, "audio_url", "") or "").strip()),
             "has_wav": bool(int(_row_value(row, "has_wav", 0) or 0)),
             "has_mp3": bool(int(_row_value(row, "has_mp3", 0) or 0)),
             "has_stems": bool(int(_row_value(row, "has_stems", 0) or 0)),
@@ -316,8 +319,21 @@ def _engine_cases(facts):
             True,
         ),
         (
-            "wav_upload",
+            "wav_upload_all",
             _base_request(
+                wav_scope="all",
+                include_ui_types=["Upload"],
+            ),
+            lambda item: (
+                (item["has_suno_audio"] or item["has_wav"])
+                and _type_is_upload(item)
+            ),
+            True,
+        ),
+        (
+            "local_wav_upload",
+            _base_request(
+                wav_scope="local",
                 local_audio_extensions=["wav"],
                 include_ui_types=["Upload"],
             ),
@@ -327,6 +343,7 @@ def _engine_cases(facts):
         (
             "wav_without_upload",
             _base_request(
+                wav_scope="local",
                 local_audio_extensions=["wav"],
                 exclude_ui_types=["Upload"],
             ),
@@ -595,6 +612,17 @@ def _parser_cases():
             "parser_wav_upload",
             "Parādi visus .wav kas ir Upload.",
             {
+                "wav_scope": "all",
+                "local_audio_extensions": [],
+                "include_ui_types": ["Upload"],
+                "exclude_ui_types": [],
+            },
+        ),
+        _parser_case(
+            "parser_local_wav_upload",
+            "Parādi local .wav kam ir pazīme Upload",
+            {
+                "wav_scope": "local",
                 "local_audio_extensions": ["wav"],
                 "include_ui_types": ["Upload"],
                 "exclude_ui_types": [],
@@ -604,6 +632,7 @@ def _parser_cases():
             "parser_wav_without_upload",
             "Parādi visus lokālos Wav - Uplod",
             {
+                "wav_scope": "local",
                 "local_audio_extensions": ["wav"],
                 "include_ui_types": [],
                 "exclude_ui_types": ["Upload"],
