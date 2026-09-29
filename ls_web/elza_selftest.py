@@ -12,7 +12,7 @@ from ls_data.repository import (
 )
 
 
-SELFTEST_SUITE_VERSION = 1
+SELFTEST_SUITE_VERSION = 2
 
 
 def _fold(value):
