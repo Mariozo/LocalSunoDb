@@ -2861,12 +2861,10 @@ def render_ls_elza_script_service_assets():
             const hasSupportedFilter = (
                 /\bliked\b|\blokal\w*\s+audio\b|\binstrumental\w*\b|\bstems?\b|\bkarodz\w*\b|\bflags?\b|\bzvaigzn\w*\b|\bwav\b|\b(?:upload|uplod|uploads?)\b/i.test(plain)
                 || /(?<!\d)[0-5]\s*\+\s*\*/.test(plain)
-                || /(?<!\*)\*{1,5}(?!\*)/.test(source)
                 || /(?<!\w)#[\w-]+/u.test(source)
                 || /(?:workspace|darbviet\w*|local\s+family|nosaukum\w*)\s*(?::|=)?\s*[\"“']/i.test(source)
             );
-            const hasImplicitScope = /^(visi|visas|viss|tikai|vietej\w*|lokal\w*|local\b)/i.test(plain);
-            return hasSupportedFilter && (hasCommand || hasImplicitScope);
+            return hasCommand && hasSupportedFilter;
         }
 
         function reviewLsElzaPrompt(message, imageCount) {
