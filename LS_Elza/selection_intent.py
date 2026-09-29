@@ -11,6 +11,7 @@ SELECTION_TOOL_NAME = "ls_prepare_selection"
 _ALLOWED_CATEGORY = {"", "Song", "Instrumental"}
 _ALLOWED_KIND_FILTER = {"", "liked", "has_stems"}
 _ALLOWED_LOCAL_AUDIO = {"", "with", "without"}
+_ALLOWED_WAV_SCOPE = {"", "all", "local"}
 _ALLOWED_LOCAL_AUDIO_EXTENSIONS = {"wav", "mp3", "flac", "m4a", "aac", "ogg"}
 _ALLOWED_TEXT_FIELDS = {"name", "track_id", "lyrics", "prompt", "tags"}
 _REQUIRED_FIELDS = {
@@ -33,6 +34,7 @@ _OPTIONAL_FIELDS = {
     "exclude_ui_types",
     "include_ui_types",
     "local_audio_extensions",
+    "wav_scope",
     "minimum_flag_count",
     "anywhere_query",
     "text_query",
@@ -112,9 +114,19 @@ def get_selection_tool_definition():
                     },
                     "maxItems": 6,
                     "description": (
-                        "Explicit local audio formats requested by the user. "
-                        "For example, 'local WAV' means ['wav']. Leave empty "
-                        "when no local file format was requested."
+                        "Explicit LOCAL audio formats requested by the user. "
+                        "For example, 'local WAV' means ['wav']. An unqualified "
+                        "'WAV' must not be put here; use wav_scope='all'."
+                    ),
+                },
+                "wav_scope": {
+                    "type": "string",
+                    "enum": ["", "all", "local"],
+                    "description": (
+                        "Meaning of WAV wording. 'all' means WAV available from Suno "
+                        "OR already present locally. 'local' means an already linked "
+                        "local WAV file only. Unqualified 'WAV' means 'all'; explicit "
+                        "'local/vietējais/lokālais WAV' means 'local'."
                     ),
                 },
                 "exclude_ui_types": {
@@ -253,12 +265,15 @@ def normalize_selection_request(arguments):
     category = _clean_text(arguments.get("category"), 40)
     kind_filter = _clean_text(arguments.get("kind_filter"), 40)
     local_audio = _clean_text(arguments.get("local_audio"), 40)
+    wav_scope = _clean_text(arguments.get("wav_scope"), 20).lower()
     if category not in _ALLOWED_CATEGORY:
         raise ValueError("Unsupported category.")
     if kind_filter not in _ALLOWED_KIND_FILTER:
         raise ValueError("Unsupported kind filter.")
     if local_audio not in _ALLOWED_LOCAL_AUDIO:
         raise ValueError("Unsupported local audio filter.")
+    if wav_scope not in _ALLOWED_WAV_SCOPE:
+        raise ValueError("Unsupported WAV scope.")
 
     raw_flags = arguments.get("flags")
     if not isinstance(raw_flags, list):
@@ -359,6 +374,7 @@ def normalize_selection_request(arguments):
         "kind_filter": kind_filter,
         "local_audio": local_audio,
         "local_audio_extensions": local_audio_extensions,
+        "wav_scope": wav_scope,
         "exclude_ui_types": exclude_ui_types,
         "include_ui_types": include_ui_types,
         "minimum_flag_count": minimum_flag_count,
