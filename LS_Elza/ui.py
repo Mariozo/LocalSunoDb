@@ -2900,6 +2900,14 @@ def render_ls_elza_script_service_assets():
                 };
             }
 
+            const isFilterUxAuditRequest = (
+                selectedMode === "TEST_REVIEW"
+                && /(?:filter\s*ux\s*audit|filters?\s*v2|filtru?\s+ux\s+audit|filtru\s+sist[eē]m|filtru\s+izvietoj|filtru\s+izmanto[sš]an)/i.test(folded)
+            );
+            if (isFilterUxAuditRequest) {
+                return {mode: "send"};
+            }
+
             if (
                 Number(imageCount || 0) === 0
                 && text.length <= 90
