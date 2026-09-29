@@ -1831,6 +1831,7 @@ SAVED_VIEW_PARAM_ORDER = (
     "search_tags",
     "flag_filter",
     "tag_filter",
+    "track_ids",
     "sort_by",
     "sort_dir",
 )
@@ -1853,7 +1854,7 @@ def normalize_saved_view_name(value):
 def normalize_saved_view_query(value):
     """Keep only reusable, read-only Suno Database view parameters."""
     text = str(value or "").strip()
-    if len(text) > 16384:
+    if len(text) > 65536:
         raise ValueError("Saved view filter is too large.")
     if "://" in text:
         text = urllib.parse.urlparse(text).query
@@ -1869,8 +1870,13 @@ def normalize_saved_view_query(value):
         clean_value = str(raw_value or "").strip()
         if not clean_value:
             continue
-        if len(clean_value) > 1000:
+        max_value_length = 60000 if key == "track_ids" else 1000
+        if len(clean_value) > max_value_length:
             raise ValueError(f"Saved view value is too large: {key}")
+        if key == "track_ids":
+            clean_value = ",".join(normalize_track_ids_filter(clean_value)[:1500])
+            if not clean_value:
+                continue
         if key in SAVED_VIEW_MULTI_PARAMS:
             if clean_value.casefold() not in {
                 item.casefold() for item in grouped[key]
