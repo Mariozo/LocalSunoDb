@@ -211,6 +211,7 @@ def render_ls_elza_settings_history_style_assets():
         .ls-elza-history {
             flex: 1 1 auto;
             overflow-y: auto;
+            overflow-anchor: none;
             padding: 13px;
             background: rgb(238 242 247 / var(--ls-elza-opacity));
         }
@@ -1912,13 +1913,13 @@ def render_ls_elza_view_action_assets():
             button.className = "ls-elza-view-action";
             button.dataset.lsElzaAction = "open-view";
             button.textContent = String(label || "Atvērt sarakstu ar šo filtru").slice(0, 80);
-            button.title = "Klikšķis = atvērt atlasi · Ctrl+klikšķis = saglabāt kā View";
+            button.title = "Klikšķis = atvērt atlasi · Ctrl+klikšķis = saglabāt jautājuma atlasi kā View";
             button.addEventListener("click", (event) => {
                 if (event.ctrlKey || event.metaKey) {
                     event.preventDefault();
                     event.stopPropagation();
                     dispatchLsViewSave(url, viewName);
-                    setStatus("Saglabāju šo atlasi kā View…");
+                    setStatus("Saglabāju šī jautājuma atlasi kā View…");
                     return;
                 }
                 window.location.assign(url.pathname + url.search);
@@ -2014,6 +2015,7 @@ def render_ls_elza_message_context_assets():
             const safeRole = role === "user" ? "user" : "assistant";
             wrapper.className = "ls-elza-message ls-elza-message-" + safeRole;
             wrapper.dataset.lsElzaContent = String(content || "");
+            wrapper.dataset.lsElzaCreatedAt = String(createdAt || "");
 
             const bubble = document.createElement("div");
             bubble.className = "ls-elza-bubble";
@@ -2115,8 +2117,26 @@ def render_ls_elza_message_context_assets():
                 return content === targetText || content.startsWith(targetText + "\n");
             });
             if (!target) { return false; }
-            historyBox.scrollTop = Math.max(0, Number(target.offsetTop || 0) - 8);
+            const historyRect = historyBox.getBoundingClientRect();
+            const targetRect = target.getBoundingClientRect();
+            const nextTop = (
+                Number(historyBox.scrollTop || 0)
+                + targetRect.top
+                - historyRect.top
+                - 8
+            );
+            historyBox.scrollTop = Math.max(0, nextTop);
             return true;
+        }
+
+        function pinQuestionInView(question) {
+            const targetText = String(question || "").trim();
+            if (!targetText) { return; }
+            const pin = () => scrollQuestionIntoView(targetText);
+            window.requestAnimationFrame(() => {
+                pin();
+                window.requestAnimationFrame(pin);
+            });
         }
 
         function latestUserQuestionText() {
@@ -2140,11 +2160,7 @@ def render_ls_elza_message_context_assets():
             });
             restoreStoredLsViewActions();
             if (anchorQuestion) {
-                window.requestAnimationFrame(() => {
-                    if (!scrollQuestionIntoView(anchorQuestion)) {
-                        scrollHistoryToBottom();
-                    }
-                });
+                pinQuestionInView(anchorQuestion);
             } else {
                 scrollHistoryToBottom();
             }
@@ -2195,6 +2211,25 @@ def render_ls_elza_view_context_state_assets():
                 return Array.isArray(parsed) ? parsed : [];
             } catch (error) {
                 return [];
+            }
+        }
+
+        function visibleChatSnapshotMessages() {
+            return Array.from(
+                historyBox.querySelectorAll(".ls-elza-message")
+            ).slice(-60).map((item) => ({
+                role: item.classList.contains("ls-elza-message-user")
+                    ? "user"
+                    : "assistant",
+                content: String(item.dataset.lsElzaContent || ""),
+                created_at: String(item.dataset.lsElzaCreatedAt || ""),
+            })).filter((item) => item.content);
+        }
+
+        function saveVisibleChatSnapshot() {
+            const messages = visibleChatSnapshotMessages();
+            if (messages.length) {
+                saveChatSnapshot(messages);
             }
         }
 
@@ -2632,8 +2667,9 @@ def render_ls_elza_script_service_assets():
                 }
                 addMessage("assistant", String(data.answer || ""));
                 appendLsViewAction(data);
+                saveVisibleChatSnapshot();
                 if (pendingQuestionAnchor) {
-                    scrollQuestionIntoView(pendingQuestionAnchor);
+                    pinQuestionInView(pendingQuestionAnchor);
                     pendingQuestionAnchor = "";
                 } else {
                     scrollHistoryToBottom();
@@ -2650,6 +2686,37 @@ def render_ls_elza_script_service_assets():
             pendingQuestionAnchor = "";
         }
 
+        function chatDataContainsQuestion(data, question) {
+            const targetText = String(question || "").trim();
+            if (!targetText) { return false; }
+            const messages = data && Array.isArray(data.messages)
+                ? data.messages
+                : [];
+            return messages.some((message) => {
+                if (!message || message.role !== "user") { return false; }
+                const content = String(message.content || "").trim();
+                return content === targetText || content.startsWith(targetText + "\n");
+            });
+        }
+
+        async function reconcileAfterNetworkFailure(question) {
+            const delays = [300, 900];
+            for (const delay of delays) {
+                await new Promise((resolve) => setTimeout(resolve, delay));
+                try {
+                    const data = await callService("load");
+                    if (!chatDataContainsQuestion(data, question)) {
+                        continue;
+                    }
+                    applyChatData(data);
+                    return true;
+                } catch (error) {
+                    console.warn("LS Elza reconciliation load failed", error);
+                }
+            }
+            return false;
+        }
+
         async function loadCurrentChat() {
             setBusy(true, "Loading LS Elza chat...");
             let lastError = null;
@@ -2659,7 +2726,7 @@ def render_ls_elza_script_service_assets():
                         const data = await callService("load");
                         applyChatData(data);
                         setStatus("");
-                        return;
+                        return true;
                     } catch (error) {
                         lastError = error;
                         const cachedMessages = loadChatSnapshot();
@@ -2686,6 +2753,7 @@ def render_ls_elza_script_service_assets():
                     true
                 );
                 console.warn("LS Elza chat load failed", lastError);
+                return false;
             } finally {
                 setBusy(false);
             }
@@ -3039,6 +3107,7 @@ def render_ls_elza_script_chat_actions_assets():
                 : message;
             pendingQuestionAnchor = message;
             addMessage("user", displayMessage);
+            saveVisibleChatSnapshot();
             scrollQuestionIntoView(message);
             input.value = "";
             updateContextLine();
@@ -3070,21 +3139,35 @@ def render_ls_elza_script_chat_actions_assets():
                 const errorText = String(error && error.message || "");
                 if (/safe read-only tool-call limit/i.test(errorText)) {
                     addMessage("assistant", safeReadonlyLimitAnswer(message));
-                    scrollHistoryToBottom();
+                    saveVisibleChatSnapshot();
+                    pinQuestionInView(message);
                     setStatus(
                         "Read-only pārbaude apturēta; Elza paskaidroja nākamo soli."
                     );
                 } else {
                     console.warn("LS Elza request failed", error);
                     if (/failed to fetch|networkerror|load failed/i.test(errorText)) {
+                        saveVisibleChatSnapshot();
                         setStatus(
-                            "Savienojums pārtrūka. Jautājums un saruna nav pazaudēti; nospied Ask, lai atkārtotu.",
+                            "Savienojums pārtrūka. Saruna ir saglabāta lokāli; mēģinu atjaunot atbildi…",
                             true
                         );
+                        const reconciled = await reconcileAfterNetworkFailure(message);
+                        if (reconciled) {
+                            input.value = "";
+                            clearUnsentDraft();
+                            setStatus("Savienojums atjaunots. Saruna sinhronizēta.");
+                        } else {
+                            setStatus(
+                                "Savienojums nav atjaunots. Saruna un jautājums ir saglabāti lokāli; nospied Ask, lai atkārtotu.",
+                                true
+                            );
+                            pinQuestionInView(message);
+                        }
                     } else {
                         setStatus("Elza nevarēja pabeigt šo pieprasījumu.", true);
+                        pinQuestionInView(message);
                     }
-                    scrollQuestionIntoView(message);
                 }
             } finally {
                 setBusy(false);
