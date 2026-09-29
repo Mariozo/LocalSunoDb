@@ -1237,3 +1237,16 @@ def test_elza_v248_filter_ux_audit_is_bounded_test_tool():
     assert any(item["id"] == "wav_scope" for item in result["elza_semantic_dimensions"])
     assert any("Upload" in item for item in result["known_interaction_constraints"])
     assert len(result["audit_requirements"]) >= 8
+
+def test_elza_v249_filter_ux_audit_gets_larger_output_budget_only():
+    source = Path("LS_Elza/service.py").read_text(encoding="utf-8")
+
+    assert "max_output_tokens=1800" in source
+    assert "audit_output_tokens = 1800" in source
+    assert "audit_output_tokens = 6000" in source
+    assert 'selected_mode == "TEST_REVIEW"' in source
+    assert "max_output_tokens=audit_output_tokens" in source
+
+    audit_pos = source.index("audit_output_tokens = 6000")
+    test_mode_pos = source.rfind('selected_mode == "TEST_REVIEW"', 0, audit_pos)
+    assert test_mode_pos >= 0
