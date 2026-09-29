@@ -4,7 +4,7 @@
                 "category_filter", "category_mode", "local_family_filter",
                 "kind_filter", "local_audio_filter", "search_name",
                 "search_lyrics", "search_prompt", "search_marks", "search_tags",
-                "flag_filter", "tag_filter", "sort_by", "sort_dir"
+                "flag_filter", "tag_filter", "track_ids", "sort_by", "sort_dir"
             ]);
             const text = String(value || "").trim();
             let queryText = text;
@@ -171,9 +171,16 @@
                         name: name,
                     });
                 } else {
+                    const sourceQuery = savedViewPendingQuery || window.location.search;
+                    const reusableQuery = buildReusableSavedViewQuery(sourceQuery);
+                    if (savedViewPendingQuery && !reusableQuery) {
+                        throw new Error(
+                            "Elza atlasi nevar saglabāt: filtrs pēc normalizēšanas ir tukšs."
+                        );
+                    }
                     result = await postSavedViewAction("/save-current-view", {
                         name: name,
-                        query: buildReusableSavedViewQuery(savedViewPendingQuery || window.location.search),
+                        query: reusableQuery,
                     });
                 }
                 saveViewState();
