@@ -420,6 +420,9 @@ def get_ls_elza_selection_result(intent, limit=20):
     except (TypeError, ValueError):
         minimum_flag_count = 0
     minimum_flag_count = max(0, min(5, minimum_flag_count))
+    wav_scope = str(intent.get("wav_scope") or "").strip().lower()
+    if wav_scope not in {"", "all", "local"}:
+        wav_scope = ""
     local_audio_extensions = {
         str(item or "").strip().lower().lstrip(".")
         for item in (intent.get("local_audio_extensions") or [])
@@ -463,6 +466,7 @@ def get_ls_elza_selection_result(intent, limit=20):
         exact_flag_mask is not None
         or minimum_flag_count > 0
         or bool(local_audio_extensions)
+        or bool(wav_scope)
         or bool(excluded_ui_types)
         or bool(included_ui_types)
         or bool(text_tokens and text_fields)
@@ -523,9 +527,16 @@ def get_ls_elza_selection_result(intent, limit=20):
             if excluded_ui_types.intersection(row_type_keys):
                 continue
 
+            has_local_wav = bool(row_text(row, "local_wav"))
+            has_suno_audio = bool(row_text(row, "audio_url"))
+            if wav_scope == "local" and not has_local_wav:
+                continue
+            if wav_scope == "all" and not (has_local_wav or has_suno_audio):
+                continue
+
             if local_audio_extensions:
                 row_extensions = set()
-                if row_text(row, "local_wav"):
+                if has_local_wav:
                     row_extensions.add("wav")
                 if row_text(row, "local_mp3"):
                     row_extensions.add("mp3")
