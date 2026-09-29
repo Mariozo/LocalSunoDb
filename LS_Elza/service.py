@@ -1659,14 +1659,20 @@ def _core_readonly_tool_result(tool_call, source_trace=None):
     return ToolResult(call_id=call_id, output=output_text)
 
 
-def _create_openai_response(client, model_input, instructions, tools):
+def _create_openai_response(
+    client,
+    model_input,
+    instructions,
+    tools,
+    max_output_tokens=1800,
+):
     request = {
         "model": get_model_name(),
         "instructions": instructions,
         "input": model_input,
         "store": False,
         "include": ["reasoning.encrypted_content"],
-        "max_output_tokens": 1800,
+        "max_output_tokens": max(1, int(max_output_tokens or 1800)),
     }
     if tools:
         request["tools"] = tools
@@ -1947,6 +1953,18 @@ def create_answer_response(
             "proposed change was applied."
         )
 
+    audit_output_tokens = 1800
+    if (
+        selected_mode == "TEST_REVIEW"
+        and re.search(
+            r"(?:filter\s*ux\s*audit|filters?\s*v2|filtru?\s+ux\s+audit|"
+            r"filtru\s+sist[eē]m|filtru\s+izvietoj|filtru\s+izmanto[sš]an)",
+            user_question,
+            re.IGNORECASE,
+        )
+    ):
+        audit_output_tokens = 6000
+
     source_trace = []
     tool_names_used = []
 
@@ -1961,6 +1979,7 @@ def create_answer_response(
                 provider_input,
                 provider_instructions,
                 provider_tools,
+                max_output_tokens=audit_output_tokens,
             )
         )
     )
