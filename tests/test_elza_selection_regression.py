@@ -1211,3 +1211,29 @@ def test_elza_v246_saved_view_preserves_exact_track_ids():
     assert "const reusableQuery = buildReusableSavedViewQuery(sourceQuery);" in source
     assert "if (savedViewPendingQuery && !reusableQuery)" in source
     assert "filtrs pēc normalizēšanas ir tukšs" in source
+
+def test_elza_v248_filter_ux_audit_is_bounded_test_tool():
+    service_source = Path("LS_Elza/service.py").read_text(encoding="utf-8")
+    ui_source = Path("LS_Elza/ui.py").read_text(encoding="utf-8")
+    audit_source = Path("ls_web/elza_filter_audit.py").read_text(encoding="utf-8")
+
+    compile(service_source, "LS_Elza/service.py", "exec")
+    compile(ui_source, "LS_Elza/ui.py", "exec")
+    compile(audit_source, "ls_web/elza_filter_audit.py", "exec")
+
+    assert 'FILTER_UX_AUDIT_TOOL_NAME = "ls_filter_ux_audit"' in service_source
+    assert "get_filter_ux_audit_tool_definition()" in service_source
+    assert "run_filter_ux_audit" in service_source
+    assert "Filter UX Audit" in service_source
+    assert 'selectedMode === "TEST_REVIEW"' in ui_source
+    assert "isFilterUxAuditRequest" in ui_source
+
+    namespace = {}
+    exec(audit_source, namespace)
+    result = namespace["run_filter_ux_audit"]()
+    assert result["read_only"] is True
+    assert result["scope"] == "LocalSunoDb filter system"
+    assert any(item["id"] == "workspace" for item in result["current_visible_controls"])
+    assert any(item["id"] == "wav_scope" for item in result["elza_semantic_dimensions"])
+    assert any("Upload" in item for item in result["known_interaction_constraints"])
+    assert len(result["audit_requirements"]) >= 8
