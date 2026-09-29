@@ -156,6 +156,7 @@ ALLOWED_ANSWER_SOURCE_IDS = {
 ALLOWED_ANSWER_SOURCE_KINDS = {"provided", "consulted", "local"}
 ALLOWED_SELECTED_MODES = {"", "UX_REVIEW", "TEST_REVIEW", "TRACK_DB", "LS_CODE"}
 SELECTION_SELFTEST_TOOL_NAME = "ls_selection_selftest"
+FILTER_UX_AUDIT_TOOL_NAME = "ls_filter_ux_audit"
 
 _HISTORY_LOCK = threading.RLock()
 _SEND_LOCK = threading.Lock()
@@ -662,6 +663,27 @@ def get_selection_selftest_tool_definition():
     }
 
 
+def get_filter_ux_audit_tool_definition():
+    return {
+        "type": "function",
+        "name": FILTER_UX_AUDIT_TOOL_NAME,
+        "description": (
+            "Return the bounded read-only LocalSunoDb filter-system snapshot used "
+            "for a Filter UX Audit. Use this in TEST_REVIEW when the user asks to "
+            "review the whole filter system or design Filters v2. The result covers "
+            "current visible controls, search/filter dimensions, Elza-only semantic "
+            "dimensions, known interaction constraints, and audit requirements. "
+            "It never changes the database or files and does not permit arbitrary "
+            "whole-code or whole-database reading."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": False,
+        },
+    }
+
+
 def get_available_readonly_tools():
     tools = []
     if database_tools_available():
@@ -712,7 +734,10 @@ def get_track_readonly_tools():
 
 
 def get_test_readonly_tools():
-    tools = [get_selection_selftest_tool_definition()]
+    tools = [
+        get_selection_selftest_tool_definition(),
+        get_filter_ux_audit_tool_definition(),
+    ]
     validate_openai_tool_definitions(tools)
     return tools
 
@@ -1314,6 +1339,7 @@ DB_ACTION_LABELS = {
     "ls_track_summary": "Track summary",
     "ls_local_family_status": "Local family status",
     SELECTION_SELFTEST_TOOL_NAME: "Selection self-test",
+    FILTER_UX_AUDIT_TOOL_NAME: "Filter UX Audit",
 }
 
 
@@ -1458,6 +1484,9 @@ def _run_whitelisted_readonly_action(action, arguments):
     if action == SELECTION_SELFTEST_TOOL_NAME:
         from ls_web.elza_selftest import run_selection_selftest
         return run_selection_selftest()
+    if action == FILTER_UX_AUDIT_TOOL_NAME:
+        from ls_web.elza_filter_audit import run_filter_ux_audit
+        return run_filter_ux_audit()
     if action in CODE_READER_ACTIONS:
         if not code_tools_available():
             raise LSElzaError(
@@ -1880,12 +1909,20 @@ def create_answer_response(
     elif selected_mode == "TEST_REVIEW":
         instructions += (
             "\n\nThe user explicitly selected persistent TEST_REVIEW mode in "
-            "the LocalSunoDb UI. For a broad request to test Elza selection or "
-            "filter behavior, call ls_selection_selftest exactly once and "
-            "summarize its aggregate result plus every FAIL/UNCLEAR case. For "
-            "a single visible UI action, use the supplied screenshot/state. "
-            "The self-test is strictly read-only. Do not use general database "
-            "or source-code tools and do not claim that testing repaired anything."
+            "the LocalSunoDb UI. For a broad request to test Elza selection "
+            "behavior, call ls_selection_selftest exactly once and summarize its "
+            "aggregate result plus every FAIL/UNCLEAR case. When the user asks "
+            "for a Filter UX Audit, Filters v2, filter layout, filter grouping, "
+            "or a review of the whole filter system, call ls_filter_ux_audit "
+            "exactly once instead. Use that bounded snapshot to produce: current "
+            "inventory, problems/overlap, a concrete Filters v2 layout, semantics, "
+            "Quick filters, More filters, Elza-only advanced filters, candidates "
+            "to merge/remove, 10-20 representative examples, and migration/test "
+            "risks. Do not call ls_selection_selftest unless the user also asks "
+            "for regression results. For a single visible UI action, use the "
+            "supplied screenshot/state. Both TEST tools are strictly read-only. "
+            "Do not use general database or source-code tools and do not claim "
+            "that testing or auditing repaired anything."
         )
     elif selected_mode == "TRACK_DB":
         instructions += (
