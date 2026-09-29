@@ -823,7 +823,7 @@ def test_elza_v242_minimum_three_flags_counts_enabled_bits(monkeypatch):
     assert "two" not in result["view_url"]
 
 
-def test_elza_v242_local_wav_positive_upload_type():
+def test_elza_v247_all_wav_upload_means_suno_plus_local():
     service_result = elza_selection_bridge.prepare_local_locf_service_result({
         "action": "send",
         "message": "Parādi visus .wav kas ir Upload.",
@@ -833,7 +833,8 @@ def test_elza_v242_local_wav_positive_upload_type():
 
     assert service_result is not None
     request = service_result["selection_request"]
-    assert request["local_audio_extensions"] == ["wav"]
+    assert request["wav_scope"] == "all"
+    assert request["local_audio_extensions"] == []
     assert request["include_ui_types"] == ["Upload"]
     assert request["exclude_ui_types"] == []
 
@@ -844,24 +845,65 @@ def test_elza_v242_local_wav_positive_upload_type():
         normalize_tags=lambda values: list(values or []),
     )
 
-    assert intent["filters"]["local_audio_filter"] == "with"
-    assert intent["local_audio_extensions"] == ["wav"]
+    assert "local_audio_filter" not in intent["filters"]
+    assert intent["wav_scope"] == "all"
+    assert intent["local_audio_extensions"] == []
     assert intent["include_ui_types"] == ["Upload"]
+    assert "WAV (Suno + Local)" in intent["summary"]
+    assert "Type: Upload" in intent["summary"]
+
+
+def test_elza_v247_local_wav_upload_stays_local_only():
+    service_result = elza_selection_bridge.prepare_local_locf_service_result({
+        "action": "send",
+        "message": "Parādi local .wav kam ir pazīme Upload",
+        "selected_mode": "",
+        "images": [],
+    })
+
+    assert service_result is not None
+    request = service_result["selection_request"]
+    assert request["wav_scope"] == "local"
+    assert request["local_audio_extensions"] == ["wav"]
+    assert request["include_ui_types"] == ["Upload"]
+
+    intent = elza_selection_bridge.build_host_selection_intent(
+        request,
+        resolve_workspace=lambda value: value,
+        resolve_local_family=lambda value: value,
+        normalize_tags=lambda values: list(values or []),
+    )
+
+    assert intent["filters"]["local_audio_filter"] == "with"
+    assert intent["wav_scope"] == "local"
+    assert intent["local_audio_extensions"] == ["wav"]
     assert "Local WAV" in intent["summary"]
     assert "Type: Upload" in intent["summary"]
 
 
-def test_elza_v242_wav_upload_execution_requires_both(monkeypatch):
+def test_elza_v247_all_wav_upload_accepts_suno_or_local(monkeypatch):
     rows = [
         {
-            "id": "keep",
-            "title": "Keep",
+            "id": "local-upload",
+            "title": "Local Upload",
             "workspace": "W",
             "ui_type": "Upload",
             "kind": "Upload",
-            "local_wav": r"E:\\Audio\\keep.wav",
+            "audio_url": "",
+            "local_wav": r"E:\\Audio\\local.wav",
             "local_mp3": "",
-            "ui_best_local_audio_path": r"E:\\Audio\\keep.wav",
+            "ui_best_local_audio_path": r"E:\\Audio\\local.wav",
+        },
+        {
+            "id": "suno-upload",
+            "title": "Suno Upload",
+            "workspace": "W",
+            "ui_type": "Upload",
+            "kind": "Upload",
+            "audio_url": "https://cdn1.suno.ai/suno-upload.mp3",
+            "local_wav": "",
+            "local_mp3": "",
+            "ui_best_local_audio_path": "",
         },
         {
             "id": "wrong-type",
@@ -869,25 +911,78 @@ def test_elza_v242_wav_upload_execution_requires_both(monkeypatch):
             "workspace": "W",
             "ui_type": "Song",
             "kind": "Song",
-            "local_wav": r"E:\\Audio\\wrong.wav",
+            "audio_url": "https://cdn1.suno.ai/song.mp3",
+            "local_wav": r"E:\\Audio\\song.wav",
             "local_mp3": "",
-            "ui_best_local_audio_path": r"E:\\Audio\\wrong.wav",
-        },
-        {
-            "id": "wrong-format",
-            "title": "Wrong format",
-            "workspace": "W",
-            "ui_type": "Upload",
-            "kind": "Upload",
-            "local_wav": "",
-            "local_mp3": r"E:\\Audio\\wrong.mp3",
-            "ui_best_local_audio_path": r"E:\\Audio\\wrong.mp3",
+            "ui_best_local_audio_path": r"E:\\Audio\\song.wav",
         },
     ]
     monkeypatch.setattr(elza_adapter, "search_tracks", lambda **_kwargs: rows, raising=False)
+    monkeypatch.setattr(
+        elza_adapter,
+        "_ls_elza_canonical_type_keys",
+        lambda _ids: {
+            "local-upload": {"upload"},
+            "suno-upload": {"upload"},
+            "wrong-type": {"song"},
+        },
+        raising=False,
+    )
+
+    result = elza_adapter.get_ls_elza_selection_result({
+        "filters": {},
+        "wav_scope": "all",
+        "local_audio_extensions": [],
+        "include_ui_types": ["Upload"],
+        "summary": "WAV (Suno + Local) + Type: Upload",
+        "save_name": "All WAV Upload",
+    }, limit=20)
+
+    assert result["matched_count"] == 2
+    assert "local-upload" in result["view_url"]
+    assert "suno-upload" in result["view_url"]
+    assert "wrong-type" not in result["view_url"]
+
+
+def test_elza_v247_local_wav_upload_execution_requires_local_wav(monkeypatch):
+    rows = [
+        {
+            "id": "keep",
+            "title": "Keep",
+            "workspace": "W",
+            "ui_type": "Upload",
+            "kind": "Upload",
+            "audio_url": "https://cdn1.suno.ai/keep.mp3",
+            "local_wav": r"E:\\Audio\\keep.wav",
+            "local_mp3": "",
+            "ui_best_local_audio_path": r"E:\\Audio\\keep.wav",
+        },
+        {
+            "id": "remote-only",
+            "title": "Remote only",
+            "workspace": "W",
+            "ui_type": "Upload",
+            "kind": "Upload",
+            "audio_url": "https://cdn1.suno.ai/remote.mp3",
+            "local_wav": "",
+            "local_mp3": "",
+            "ui_best_local_audio_path": "",
+        },
+    ]
+    monkeypatch.setattr(elza_adapter, "search_tracks", lambda **_kwargs: rows, raising=False)
+    monkeypatch.setattr(
+        elza_adapter,
+        "_ls_elza_canonical_type_keys",
+        lambda _ids: {
+            "keep": {"upload"},
+            "remote-only": {"upload"},
+        },
+        raising=False,
+    )
 
     result = elza_adapter.get_ls_elza_selection_result({
         "filters": {"local_audio_filter": "with"},
+        "wav_scope": "local",
         "local_audio_extensions": ["wav"],
         "include_ui_types": ["Upload"],
         "summary": "Local WAV + Type: Upload",
@@ -896,8 +991,7 @@ def test_elza_v242_wav_upload_execution_requires_both(monkeypatch):
 
     assert result["matched_count"] == 1
     assert "keep" in result["view_url"]
-    assert "wrong-type" not in result["view_url"]
-    assert "wrong-format" not in result["view_url"]
+    assert "remote-only" not in result["view_url"]
 
 
 def test_elza_v241_ui_preserves_chat_question_and_view_actions():
@@ -1015,10 +1109,11 @@ def test_elza_v244_test_mode_wires_selection_selftest_readonly():
 
 def test_elza_v244_parser_selftest_cases_are_all_green():
     cases = elza_selftest._parser_cases()
-    assert len(cases) == 7
+    assert len(cases) == 8
     assert {item["id"] for item in cases} == {
         "parser_local_like_min3",
         "parser_wav_upload",
+        "parser_local_wav_upload",
         "parser_wav_without_upload",
         "parser_name",
         "parser_prompt",
