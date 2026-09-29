@@ -127,6 +127,8 @@ jobs:
               "LS_Elza/v230_ui_enhancer.py",
               "LS_Elza/ui.py",
               "LS_Elza/service.py",
+              "ls_data/repository.py",
+              "ls_library/static/suno_saved_views_script_assets.js",
               "ls_web/elza_selection_bridge.py",
               "ls_web/elza_adapter.py",
               "ls_web/elza_controller.py",
@@ -149,7 +151,8 @@ jobs:
               extracted = (verify_root / name).read_bytes()
               assert extracted == source, name
               extracted.decode("utf-8")
-              compile(extracted, name, "exec")
+              if name.endswith(".py"):
+                  compile(extracted, name, "exec")
 
           init_text = (verify_root / "LS_Elza/__init__.py").read_text(encoding="utf-8")
           enhancer_text = (verify_root / "LS_Elza/v230_ui_enhancer.py").read_text(encoding="utf-8")
