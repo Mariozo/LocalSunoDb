@@ -1,4 +1,4 @@
-name: Package Elza v2.48
+name: Package Elza v2.49
 
 on:
   push:
@@ -18,7 +18,7 @@ jobs:
           python-version: '3.12'
       - name: Install test runner
         run: python -m pip install pytest
-      - name: Verify Elza v2.48 selection stack
+      - name: Verify Elza v2.49 selection stack
         run: |
           python -m py_compile LS_Elza/selection_intent.py
           python -m py_compile LS_Elza/selection_guard.py
@@ -56,8 +56,8 @@ jobs:
               data = Path(name).read_bytes()
               assert b"\r\n" not in data, name
               data.decode("utf-8")
-          assert 'LS_ELZA_PACKAGE_VERSION = "2.48"' in Path("LS_Elza/__init__.py").read_text(encoding="utf-8")
-          assert "Elza v2.48" in Path("LS_Elza/v230_ui_enhancer.py").read_text(encoding="utf-8")
+          assert 'LS_ELZA_PACKAGE_VERSION = "2.49"' in Path("LS_Elza/__init__.py").read_text(encoding="utf-8")
+          assert "Elza v2.49" in Path("LS_Elza/v230_ui_enhancer.py").read_text(encoding="utf-8")
           PY
       - name: Build overlay ZIP
         run: |
@@ -79,14 +79,14 @@ jobs:
               "ls_web/elza_controller.py",
               "ls_web/elza_selftest.py",
           )
-          with ZipFile("Elza-v2.48.zip", "w", ZIP_DEFLATED) as archive:
+          with ZipFile("Elza-v2.49.zip", "w", ZIP_DEFLATED) as archive:
               for name in files:
                   archive.write(name, name)
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: Elza-v2.48
-          path: Elza-v2.48.zip
+          name: Elza-v2.49
+          path: Elza-v2.49.zip
           if-no-files-found: error
 
-# Final v2.48 packaging verification trigger.
+# Final v2.49 packaging verification trigger.
