@@ -2,7 +2,8 @@
             const allowed = new Set([
                 "q", "style_q", "workspace", "workspace_mode",
                 "category_filter", "category_mode", "local_family_filter",
-                "kind_filter", "local_audio_filter", "search_name",
+                "kind_filter", "upload_filter", "like_filter", "local_wav_filter",
+                "local_audio_filter", "search_name",
                 "search_lyrics", "search_prompt", "search_marks", "search_tags",
                 "flag_filter", "tag_filter", "track_ids", "sort_by", "sort_dir"
             ]);
