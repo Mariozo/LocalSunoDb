@@ -150,7 +150,7 @@ def test_local_wav_minus_upload_returns_precise_track_id_view(monkeypatch):
 
 
 def test_elza_visible_identity_and_ask_router_contract():
-    assert LS_ELZA_PACKAGE_VERSION == "2.49"
+    assert LS_ELZA_PACKAGE_VERSION == "3.00"
     assert "Elza v2.32" in ui.render_ls_elza_dialog_markup()
     service_script = ui.render_ls_elza_script_service_assets()
     assert r"\bwav\b" in service_script
@@ -345,7 +345,7 @@ def test_wav_anywhere_query_matches_name_id_lyrics_prompt_or_tags(monkeypatch):
 
 
 def test_elza_v240_voice_composer_contract():
-    assert LS_ELZA_PACKAGE_VERSION == "2.49"
+    assert LS_ELZA_PACKAGE_VERSION == "3.00"
     assert "Elza v2.32" in ui.render_ls_elza_dialog_markup()
 
     rendered = ui.render_ls_elza_assets(
@@ -1250,3 +1250,22 @@ def test_elza_v249_filter_ux_audit_gets_larger_output_budget_only():
     audit_pos = source.index("audit_output_tokens = 6000")
     test_mode_pos = source.rfind('selected_mode == "TEST_REVIEW"', 0, audit_pos)
     assert test_mode_pos >= 0
+
+def test_elza_v300_shows_live_ls_version_and_integrated_type_baseline():
+    enhancer_source = Path("LS_Elza/v230_ui_enhancer.py").read_text(encoding="utf-8")
+    ui_source = Path("LS_Elza/ui.py").read_text(encoding="utf-8")
+    repository_source = Path("ls_data/repository.py").read_text(encoding="utf-8")
+
+    assert LS_ELZA_PACKAGE_VERSION == "3.00"
+    assert "Elza v3.00" in enhancer_source
+    assert "Elza v3.00" in ui_source
+    assert 'fetch("/app-version", {cache: "no-store"})' in enhancer_source
+    assert "data.running_version || data.app_version" in enhancer_source
+    assert "ls-elza-version-line" in enhancer_source
+    assert "Type baseline 1.0" in enhancer_source
+
+    assert "_canonical_ui_type_sql" in repository_source
+    assert '"artist_cover"' in repository_source
+    assert '"upload_extend"' in repository_source
+    assert '"upsample"' in repository_source
+    assert '"artist_consistency"' in repository_source
