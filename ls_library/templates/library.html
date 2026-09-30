@@ -223,7 +223,20 @@
                 @@LS23@@
                 @@LS24@@
 
-                <div class="library-control-row">
+                <div class="library-search-zone" aria-label="Search">
+                    <span class="library-zone-label">Search</span>
+                    <button type="button" class="library-search-summary" id="ls-filters-v2-search-open" title="Open Search (Ctrl+F)">
+                        <span class="library-search-summary-icon" aria-hidden="true">🔎</span>
+                        <span class="library-search-summary-text">@@LS63@@</span>
+                        <span class="library-search-summary-placeholder">Search Name / Lyrics / Prompt / Track ID / Tags…</span>
+                        <span class="library-search-summary-key">Ctrl+F</span>
+                    </button>
+                </div>
+
+                <div class="library-filter-zone-head">
+                    <span class="library-zone-label">Filters</span>
+                </div>
+                <div class="library-control-row library-filters-v2-row">
                     <details class="library-filter-select library-multi-filter" data-multi-filter="workspace">
                         <summary title="Click = one Workspace · Ctrl+click = add or remove">
                             <span class="library-filter-label">Workspace</span>
@@ -234,18 +247,6 @@
                             @@LS26@@
                             @@LS27@@
                             <div class="library-multi-help">Click = select one · Ctrl+click = add/remove</div>
-                        </div>
-                    </details>
-
-                    <details class="library-filter-select library-multi-filter" data-multi-filter="local_family_filter">
-                        <summary title="Click = one confirmed Local family · Ctrl+click = add or remove">
-                            <span class="library-filter-label">Local family</span>
-                            <span class="library-multi-summary">@@LS28@@</span>
-                            <span class="library-multi-arrow" aria-hidden="true"></span>
-                        </summary>
-                        <div class="library-multi-menu" role="listbox" aria-label="Confirmed Local family filter" aria-multiselectable="true">
-                            @@LS29@@
-                            <div class="library-multi-help">Confirmed Track ID families only · Ctrl+click = add/remove</div>
                         </div>
                     </details>
 
@@ -271,27 +272,81 @@
                         </div>
                     </details>
 
-                    <label class="library-filter-select" title="Audio source">
-                        <span class="library-filter-label">Audio</span>
+                    <label class="library-filter-select" title="Filter by linked local WAV">
+                        <span class="library-filter-label">Local WAV</span>
                         <span class="library-select-shell">
-                            <select name="local_audio_filter" data-auto-submit="1" aria-label="Audio source filter">
-                                @@LS17@@
+                            <select name="local_wav_filter" data-auto-submit="1" aria-label="Local WAV filter">
+                                <option value="">All</option>
+                                <option value="with">With Local WAV</option>
+                                <option value="without">Without Local WAV</option>
+                            </select>
+                            <span class="library-select-arrow" aria-hidden="true"></span>
+                        </span>
+                    </label>
+
+                    <label class="library-filter-select" title="Source Upload identity: source_type/source_task/kind">
+                        <span class="library-filter-label">Upload</span>
+                        <span class="library-select-shell">
+                            <select name="upload_filter" data-auto-submit="1" aria-label="Upload source filter">
+                                <option value="">All</option>
+                                <option value="with">Upload</option>
+                                <option value="without">Not Upload</option>
+                            </select>
+                            <span class="library-select-arrow" aria-hidden="true"></span>
+                        </span>
+                    </label>
+
+                    <label class="library-filter-select" title="Like state">
+                        <span class="library-filter-label">Like</span>
+                        <span class="library-select-shell">
+                            <select name="like_filter" data-auto-submit="1" aria-label="Like filter">
+                                <option value="">All</option>
+                                <option value="with">Liked</option>
+                                <option value="without">Not liked</option>
                             </select>
                             <span class="library-select-arrow" aria-hidden="true"></span>
                         </span>
                     </label>
 
                     <label class="library-filter-select" title="Filter by Suno operation type">
-                        <span class="library-filter-label">Type</span>
+                        <span class="library-filter-label">Type / Operation</span>
                         <span class="library-select-shell">
-                            <select name="kind_filter" data-auto-submit="1" aria-label="Type filter">
+                            <select name="kind_filter" data-auto-submit="1" aria-label="Type / Operation filter">
                                 @@LS33@@
                             </select>
                             <span class="library-select-arrow" aria-hidden="true"></span>
                         </span>
                     </label>
 
+                    <details class="library-more-filters">
+                        <summary title="Open less common filters">More filters</summary>
+                        <div class="library-more-filters-menu">
+                            <details class="library-filter-select library-multi-filter library-more-local-family" data-multi-filter="local_family_filter">
+                                <summary title="Click = one confirmed Local family · Ctrl+click = add or remove">
+                                    <span class="library-filter-label">Local family</span>
+                                    <span class="library-multi-summary">@@LS28@@</span>
+                                    <span class="library-multi-arrow" aria-hidden="true"></span>
+                                </summary>
+                                <div class="library-multi-menu" role="listbox" aria-label="Confirmed Local family filter" aria-multiselectable="true">
+                                    @@LS29@@
+                                    <div class="library-multi-help">Confirmed Track ID families only · Ctrl+click = add/remove</div>
+                                </div>
+                            </details>
+                            <label class="library-filter-select" title="Legacy main local audio filter">
+                                <span class="library-filter-label">Local audio</span>
+                                <span class="library-select-shell">
+                                    <select name="local_audio_filter" data-auto-submit="1" aria-label="Local audio filter">
+                                        @@LS17@@
+                                    </select>
+                                    <span class="library-select-arrow" aria-hidden="true"></span>
+                                </span>
+                            </label>
+                            <div class="library-more-filters-note">Stems, LocF and advanced Flag modes stay for Phase 2 / Elza.</div>
+                        </div>
+                    </details>
+
                     <div class="library-sort-group" aria-label="Sort tracks">
+                        <span class="library-sort-zone-label">Sort</span>
                         <button type="button" class="sort-control library-sort-control" data-column="2" data-type="text">
                             <span>Title</span>
                             <span class="library-sort-icon" aria-hidden="true">
@@ -321,6 +376,38 @@
                         </button>
                     </div>
 
+                    <script>
+                    (() => {
+                        const syncFiltersV2 = () => {
+                            const params = new URL(window.location.href).searchParams;
+                            [
+                                ["local_wav_filter", "local_wav_filter"],
+                                ["upload_filter", "upload_filter"],
+                                ["like_filter", "like_filter"],
+                            ].forEach(([name, key]) => {
+                                const select = document.querySelector('select[name="' + name + '"]');
+                                if (select) { select.value = params.get(key) || ""; }
+                            });
+                            const searchButton = document.getElementById("ls-filters-v2-search-open");
+                            if (searchButton) {
+                                searchButton.addEventListener("click", () => {
+                                    const sidebarSearch = document.getElementById("open-f4-search-btn");
+                                    if (sidebarSearch) { sidebarSearch.click(); }
+                                });
+                            }
+                            const searchText = String(params.get("q") || "").trim();
+                            const summaryText = document.querySelector(".library-search-summary-text");
+                            const summaryPlaceholder = document.querySelector(".library-search-summary-placeholder");
+                            if (summaryText) { summaryText.hidden = !searchText; }
+                            if (summaryPlaceholder) { summaryPlaceholder.hidden = !!searchText; }
+                        };
+                        if (document.readyState === "loading") {
+                            document.addEventListener("DOMContentLoaded", syncFiltersV2, {once:true});
+                        } else {
+                            syncFiltersV2();
+                        }
+                    })();
+                    </script>
                     <script>
                     (() => {
                         if (typeof window.LSRunToolsUpdateDirect === "function") { return; }
@@ -515,6 +602,7 @@
                             <svg class="ls-filter-action-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                                 <path d="M10 4.5V15.5M4.5 10H15.5"></path>
                             </svg>
+                            <span class="ls-add-filter-button-label">Flags / Tags</span>
                         </button>
                         @@LS34@@
                     </div>
