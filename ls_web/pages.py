@@ -219,6 +219,9 @@ def render_library_rows_chunk(
     category_filter="",
     category_mode="or",
     local_family_filter="",
+    like_filter="",
+    upload_filter="",
+    local_wav_filter="",
     local_audio_filter="",
     search_name=True,
     search_lyrics=False,
@@ -303,6 +306,9 @@ def render_library_rows_chunk(
         kind_filter=kind_filter,
         category_filter=selected_categories,
         local_family_filter=selected_local_families,
+        like_filter=like_filter,
+        upload_filter=upload_filter,
+        local_wav_filter=local_wav_filter,
         local_audio_filter=local_audio_filter,
         limit_value=str(batch_size + 1),
         search_name=search_name,
@@ -357,6 +363,9 @@ def render_library_result_count(
     category_filter="",
     category_mode="or",
     local_family_filter="",
+    like_filter="",
+    upload_filter="",
+    local_wav_filter="",
     local_audio_filter="",
     search_name=True,
     search_lyrics=False,
@@ -393,6 +402,9 @@ def render_library_result_count(
         kind_filter=kind_filter,
         category_filter=selected_categories,
         local_family_filter=selected_local_families,
+        like_filter=like_filter,
+        upload_filter=upload_filter,
+        local_wav_filter=local_wav_filter,
         local_audio_filter=search_controls["local_audio_filter"],
         search_name=search_controls["search_name"],
         search_lyrics=search_controls["search_lyrics"],
@@ -407,7 +419,7 @@ def render_library_result_count(
     return {"ok": True, "total": int(total or 0)}
 
 
-def render_page(query="", style_query="", workspace="", workspace_mode="or", kind_filter="", category_filter="", category_mode="or", local_family_filter="", like_filter="", local_audio_filter="", limit_value="300", db_refresh="", search_name=True, search_lyrics=False, search_prompt=False, search_marks=False, search_tags=False, flag_filter="", tag_filter="", track_ids_filter="", sort_by="", sort_dir="asc"):
+def render_page(query="", style_query="", workspace="", workspace_mode="or", kind_filter="", category_filter="", category_mode="or", local_family_filter="", like_filter="", upload_filter="", local_wav_filter="", local_audio_filter="", limit_value="300", db_refresh="", search_name=True, search_lyrics=False, search_prompt=False, search_marks=False, search_tags=False, flag_filter="", tag_filter="", track_ids_filter="", sort_by="", sort_dir="asc"):
     """Render the Library shell only; rows are loaded incrementally by JavaScript."""
     (
         selected_workspaces,
@@ -533,6 +545,9 @@ def render_page(query="", style_query="", workspace="", workspace_mode="or", kin
         category_mode=category_mode,
         selected_local_families=selected_local_families,
         kind_filter=kind_filter,
+        like_filter=like_filter,
+        upload_filter=upload_filter,
+        local_wav_filter=local_wav_filter,
         local_audio_filter=local_audio_filter,
         limit_value="all",
         search_name=search_name,
@@ -567,6 +582,9 @@ def render_page(query="", style_query="", workspace="", workspace_mode="or", kin
         category_mode=category_mode,
         selected_local_families=selected_local_families,
         kind_filter=kind_filter,
+        like_filter=like_filter,
+        upload_filter=upload_filter,
+        local_wav_filter=local_wav_filter,
         total_rows=None,
         loaded_row_count=0,
         limit_value="lazy",

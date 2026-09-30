@@ -27,6 +27,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path, PurePosixPath
 
 from ls_core.runtime import *
+from ls_data.repository import get_canonical_connection
 
 def ls_elza_fold_text(value):
     text = re.sub(r"\s+", " ", str(value or "").strip().casefold())
@@ -363,6 +364,49 @@ def get_ls_elza_exact_stem_result(stem_count):
         "exact_stem_count": stem_count,
     }
 
+def _ls_elza_canonical_type_keys(track_ids):
+    """Return canonical source/type identities for exact candidate Track IDs."""
+    ids = [
+        str(track_id or "").strip()
+        for track_id in (track_ids or [])
+        if str(track_id or "").strip()
+    ]
+    if not ids:
+        return {}
+    result = {}
+    try:
+        conn = get_canonical_connection()
+    except (FileNotFoundError, OSError):
+        return result
+    try:
+        for start in range(0, len(ids), 800):
+            chunk = ids[start:start + 800]
+            placeholders = ",".join(["?"] * len(chunk))
+            rows = conn.execute(
+                f"""
+                SELECT
+                    id,
+                    COALESCE(source_type, '') AS source_type,
+                    COALESCE(source_task, '') AS source_task,
+                    COALESCE(kind, '') AS canonical_kind
+                FROM main.tracks
+                WHERE lower(id) IN ({placeholders})
+                """,
+                [track_id.lower() for track_id in chunk],
+            ).fetchall()
+            for row in rows:
+                keys = {
+                    str(row["source_type"] or "").strip().casefold(),
+                    str(row["source_task"] or "").strip().casefold(),
+                    str(row["canonical_kind"] or "").strip().casefold(),
+                }
+                keys.discard("")
+                result[str(row["id"] or "").strip().lower()] = keys
+    finally:
+        conn.close()
+    return result
+
+
 def get_ls_elza_selection_result(intent, limit=20):
     try:
         preview_limit = max(1, min(int(limit), 50))
@@ -371,6 +415,14 @@ def get_ls_elza_selection_result(intent, limit=20):
 
     filters = dict(intent.get("filters") or {})
     exact_flag_mask = intent.get("exact_flag_mask")
+    try:
+        minimum_flag_count = int(intent.get("minimum_flag_count") or 0)
+    except (TypeError, ValueError):
+        minimum_flag_count = 0
+    minimum_flag_count = max(0, min(5, minimum_flag_count))
+    wav_scope = str(intent.get("wav_scope") or "").strip().lower()
+    if wav_scope not in {"", "all", "local"}:
+        wav_scope = ""
     local_audio_extensions = {
         str(item or "").strip().lower().lstrip(".")
         for item in (intent.get("local_audio_extensions") or [])
@@ -381,21 +433,43 @@ def get_ls_elza_selection_result(intent, limit=20):
         for item in (intent.get("exclude_ui_types") or [])
         if str(item or "").strip()
     }
+    included_ui_types = {
+        str(item or "").strip().casefold()
+        for item in (intent.get("include_ui_types") or [])
+        if str(item or "").strip()
+    }
     anywhere_query = str(intent.get("anywhere_query") or "").strip()
-    anywhere_tokens = [
+    text_query = str(intent.get("text_query") or "").strip() or anywhere_query
+    raw_text_fields = intent.get("text_fields") or []
+    text_fields = [
+        str(item or "").strip().lower()
+        for item in raw_text_fields
+        if str(item or "").strip()
+    ]
+    if anywhere_query and not text_fields:
+        text_fields = ["name", "track_id", "lyrics", "prompt", "tags"]
+    allowed_text_fields = {"name", "track_id", "lyrics", "prompt", "tags"}
+    text_fields = [
+        field for field in text_fields
+        if field in allowed_text_fields
+    ]
+    text_tokens = [
         token
         for token in re.findall(
             r"[^\W_]+",
-            ls_elza_fold_text(anywhere_query),
+            ls_elza_fold_text(text_query),
             flags=re.UNICODE,
         )
         if token
     ]
     needs_exact_track_view = (
         exact_flag_mask is not None
+        or minimum_flag_count > 0
         or bool(local_audio_extensions)
+        or bool(wav_scope)
         or bool(excluded_ui_types)
-        or bool(anywhere_tokens)
+        or bool(included_ui_types)
+        or bool(text_tokens and text_fields)
     )
 
     def row_text(row, key):
@@ -419,23 +493,50 @@ def get_ls_elza_selection_result(intent, limit=20):
             sort_by="title",
             sort_dir="asc",
         )
+        canonical_type_keys = {}
+        if included_ui_types or excluded_ui_types:
+            canonical_type_keys = _ls_elza_canonical_type_keys([
+                row_text(row, "id")
+                for row in candidate_rows
+                if row_text(row, "id")
+            ])
         exact_rows = []
         for row in candidate_rows:
-            if required_marks is not None:
-                try:
-                    row_marks = int(row["user_marks"] or 0)
-                except (TypeError, ValueError, KeyError, IndexError):
-                    row_marks = 0
-                if row_marks != required_marks:
-                    continue
+            try:
+                row_marks = int(row["user_marks"] or 0)
+            except (TypeError, ValueError, KeyError, IndexError):
+                row_marks = 0
+            row_marks = max(0, min(31, row_marks))
+            if required_marks is not None and row_marks != required_marks:
+                continue
+            if minimum_flag_count and row_marks.bit_count() < minimum_flag_count:
+                continue
 
-            ui_type = row_text(row, "ui_type") or row_text(row, "kind")
-            if ui_type.casefold() in excluded_ui_types:
+            track_id_key = row_text(row, "id").lower()
+            row_type_keys = set(canonical_type_keys.get(track_id_key, set()))
+            for fallback in (
+                row_text(row, "ui_type"),
+                row_text(row, "type"),
+                row_text(row, "kind"),
+            ):
+                fallback_key = fallback.casefold()
+                if fallback_key:
+                    row_type_keys.add(fallback_key)
+            if included_ui_types and not included_ui_types.intersection(row_type_keys):
+                continue
+            if excluded_ui_types.intersection(row_type_keys):
+                continue
+
+            has_local_wav = bool(row_text(row, "local_wav"))
+            has_suno_audio = bool(row_text(row, "audio_url"))
+            if wav_scope == "local" and not has_local_wav:
+                continue
+            if wav_scope == "all" and not (has_local_wav or has_suno_audio):
                 continue
 
             if local_audio_extensions:
                 row_extensions = set()
-                if row_text(row, "local_wav"):
+                if has_local_wav:
                     row_extensions.add("wav")
                 if row_text(row, "local_mp3"):
                     row_extensions.add("mp3")
@@ -447,22 +548,24 @@ def get_ls_elza_selection_result(intent, limit=20):
                 if not local_audio_extensions.intersection(row_extensions):
                     continue
 
-            if anywhere_tokens:
-                searchable_values = (
-                    row_text(row, "id"),
-                    row_text(row, "title"),
-                    row_text(row, "lyrics"),
-                    row_text(row, "prompt"),
-                    row_text(row, "user_tags"),
-                )
+            if text_tokens and text_fields:
+                field_values = {
+                    "name": row_text(row, "title"),
+                    "track_id": row_text(row, "id"),
+                    "lyrics": row_text(row, "lyrics"),
+                    "prompt": row_text(row, "prompt"),
+                    "tags": row_text(row, "user_tags"),
+                }
                 searchable_values = [
-                    ls_elza_fold_text(value)
-                    for value in searchable_values
-                    if value
+                    ls_elza_fold_text(field_values.get(field, ""))
+                    for field in text_fields
+                    if field_values.get(field, "")
                 ]
+                if not searchable_values:
+                    continue
                 if not all(
                     any(token in value for value in searchable_values)
-                    for token in anywhere_tokens
+                    for token in text_tokens
                 ):
                     continue
 

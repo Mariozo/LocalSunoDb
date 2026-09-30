@@ -165,14 +165,207 @@
             .library-control-row { flex-wrap: wrap; }
         }
 
+
+        /* Filters v2 Phase 1: separate Search, Filters and Sort. */
+        .library-search-zone {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 5px;
+        }
+        .library-filter-zone-head {
+            display: flex;
+            align-items: center;
+            min-height: 16px;
+            margin: 0 0 2px;
+        }
+        .library-zone-label,
+        .library-sort-zone-label {
+            flex: 0 0 auto;
+            color: rgba(255,255,255,0.58);
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+        .library-search-zone .library-zone-label {
+            width: 48px;
+        }
+        .library-search-summary {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            min-width: 260px;
+            max-width: 620px;
+            height: 32px;
+            box-sizing: border-box;
+            padding: 0 10px;
+            border: 1px solid rgba(255,255,255,0.18);
+            border-radius: 9px;
+            background: rgba(255,255,255,0.045);
+            color: rgba(255,255,255,0.92);
+            font: inherit;
+            text-align: left;
+            cursor: pointer;
+        }
+        .library-search-summary:hover {
+            border-color: rgba(255,255,255,0.32);
+            background: rgba(255,255,255,0.075);
+        }
+        .library-search-summary-icon { flex: 0 0 auto; font-size: 13px; }
+        .library-search-summary-text,
+        .library-search-summary-placeholder {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .library-search-summary-text { color: #fff; }
+        .library-search-summary-placeholder { color: rgba(255,255,255,0.48); }
+        .library-search-summary-key {
+            flex: 0 0 auto;
+            margin-left: auto;
+            color: rgba(255,255,255,0.42);
+            font-size: 10px;
+        }
+
+        .library-filters-v2-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-height: 38px;
+            flex-wrap: nowrap;
+        }
+        .library-filters-v2-row > .library-filter-select,
+        .library-filters-v2-row > .library-multi-filter {
+            min-width: 0;
+        }
+        .library-filters-v2-tools-row {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 6px;
+            min-height: 38px;
+            margin-top: 2px;
+            padding-top: 3px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+        }
+        .library-filters-v2-tools-row .library-sort-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            margin: 0 6px 0 0;
+            padding: 0 8px 0 0;
+            border-right: 1px solid rgba(255,255,255,0.14);
+        }
+        .library-sort-zone-label { margin-right: 4px; }
+
+        .library-more-filters {
+            position: relative;
+            flex: 0 0 auto;
+        }
+        .library-more-filters > summary {
+            display: inline-flex;
+            align-items: center;
+            height: 34px;
+            box-sizing: border-box;
+            padding: 0 11px;
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 8px;
+            color: rgba(255,255,255,0.78);
+            font-size: 12px;
+            font-weight: 650;
+            list-style: none;
+            cursor: pointer;
+            user-select: none;
+        }
+        .library-more-filters > summary::-webkit-details-marker { display: none; }
+        .library-more-filters > summary::after {
+            content: "";
+            width: 0;
+            height: 0;
+            margin-left: 8px;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 5px solid currentColor;
+            opacity: .72;
+        }
+        .library-more-filters[open] > summary {
+            border-color: rgba(255,255,255,0.32);
+            color: #fff;
+        }
+        .library-more-filters[open] > summary::after { transform: rotate(180deg); }
+        .library-more-filters-menu {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: auto;
+            z-index: 7200;
+            display: grid;
+            gap: 8px;
+            min-width: 270px;
+            box-sizing: border-box;
+            padding: 10px;
+            border: 1px solid rgba(255,255,255,0.20);
+            border-radius: 10px;
+            background: #24312d;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.42);
+        }
+        .library-more-filters-menu .library-filter-select {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .library-more-filters-menu .library-more-local-family {
+            position: relative;
+        }
+        .library-more-filters-menu .library-more-local-family > summary {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .library-more-filters-note {
+            padding-top: 4px;
+            border-top: 1px solid rgba(255,255,255,0.10);
+            color: rgba(255,255,255,0.50);
+            font-size: 10px;
+            line-height: 1.35;
+        }
+        .ls-add-filter-button {
+            width: auto;
+            min-width: 34px;
+            gap: 5px;
+            padding: 0 8px;
+        }
+        .ls-add-filter-button-label {
+            font-size: 11px;
+            font-weight: 650;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 1420px) {
+            .library-search-summary { max-width: 480px; }
+            .library-filters-v2-row {
+                flex-wrap: wrap;
+            }
+            .library-filters-v2-tools-row {
+                justify-content: flex-start;
+                flex-wrap: wrap;
+            }
+        }
+        @media (max-width: 980px) {
+            .library-search-zone { align-items: flex-start; }
+            .library-search-zone .library-zone-label { width: auto; padding-top: 8px; }
+            .library-search-summary { min-width: 0; width: 100%; max-width: none; }
+        }
+        /* End Filters v2 Phase 1. */
+
         /* Library filter panel viewport dock. */
         :root {
-            --ls-library-filter-panel-height: 56px;
+            --ls-library-filter-panel-height: 126px;
         }
 
         main {
-            margin-top: var(--ls-library-filter-panel-height, 56px);
-            height: calc(100vh - var(--ls-library-filter-panel-height, 56px));
+            margin-top: var(--ls-library-filter-panel-height, 126px);
+            height: calc(100vh - var(--ls-library-filter-panel-height, 126px));
             padding-top: 10px;
         }
 

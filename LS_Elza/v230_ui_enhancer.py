@@ -1,4 +1,4 @@
-"""Elza v2.32 composer and microphone-level UI.
+"""Elza v3.00 composer and microphone-level UI.
 
 The existing Local Suno STT recorder remains the source of audio/transcription.
 This enhancer only restructures the composer and visualizes the real microphone
@@ -9,6 +9,16 @@ MARKER = 'data-elza-v232'
 
 _STYLE = r"""
 <style data-elza-v232="style">
+.ls-elza-version-line {
+    margin-top: 1px;
+    overflow: hidden;
+    color: #8fd0aa;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 .ls-elza-compose { position: relative; }
 .ls-elza-v232-shell {
     position: relative;
@@ -244,6 +254,8 @@ _SCRIPT = r"""
     window.__elzaV232Installed = true;
 
     const title = document.getElementById("ls-elza-title");
+    const titleBox = title && title.closest(".ls-elza-title-box");
+    const contextLine = document.getElementById("ls-elza-context-line");
     const compose = document.querySelector(".ls-elza-compose");
     const inputRow = compose && compose.querySelector(".ls-elza-input-row");
     const input = document.getElementById("ls-elza-input");
@@ -253,7 +265,38 @@ _SCRIPT = r"""
     const statusLine = document.getElementById("ls-elza-status");
     if (!compose || !inputRow || !input || !modeRow || !voiceButton || !sendButton) { return; }
 
-    if (title) { title.textContent = "Elza v2.32"; }
+    if (title) { title.textContent = "Elza v3.00"; }
+
+    let versionLine = document.getElementById("ls-elza-version-line");
+    if (!versionLine && titleBox) {
+        versionLine = document.createElement("div");
+        versionLine.id = "ls-elza-version-line";
+        versionLine.className = "ls-elza-version-line";
+        versionLine.textContent = "LS … · Elza v3.00 · Type baseline 1.0";
+        if (contextLine && contextLine.parentNode === titleBox) {
+            titleBox.insertBefore(versionLine, contextLine);
+        } else {
+            titleBox.appendChild(versionLine);
+        }
+    }
+
+    async function refreshVersionLine() {
+        if (!versionLine) { return; }
+        try {
+            const response = await fetch("/app-version", {cache: "no-store"});
+            if (!response.ok) { throw new Error("app-version"); }
+            const data = await response.json();
+            const liveLsVersion = String(
+                data.running_version || data.app_version || ""
+            ).trim();
+            versionLine.textContent = "LS " + (liveLsVersion || "?")
+                + " · Elza v3.00 · Type baseline 1.0";
+        } catch (error) {
+            versionLine.textContent = "LS ? · Elza v3.00 · Type baseline 1.0";
+        }
+    }
+    refreshVersionLine();
+
     input.placeholder = "Jautāt Elzai";
 
     const shell = document.createElement("div");

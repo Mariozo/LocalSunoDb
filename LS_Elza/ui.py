@@ -211,6 +211,7 @@ def render_ls_elza_settings_history_style_assets():
         .ls-elza-history {
             flex: 1 1 auto;
             overflow-y: auto;
+            overflow-anchor: none;
             padding: 13px;
             background: rgb(238 242 247 / var(--ls-elza-opacity));
         }
@@ -729,7 +730,7 @@ def render_ls_elza_dialog_markup():
             <div class="ls-elza-head" id="ls-elza-drag-handle" title="Drag LS Elza">
                 <span class="ls-elza-dock-grip" aria-hidden="true">⠿</span>
                 <div class="ls-elza-title-box">
-                    <div class="ls-elza-title" id="ls-elza-title">Elza v2.32</div>
+                    <div class="ls-elza-title" id="ls-elza-title">Elza v3.00</div>
                     <div class="ls-elza-context-line" id="ls-elza-context-line"></div>
                 </div>
                 <div class="ls-elza-head-actions">
@@ -770,8 +771,8 @@ def render_ls_elza_dialog_markup():
                         class="ls-elza-mode-btn"
                         id="ls-elza-test-mode"
                         data-ls-elza-mode="TEST_REVIEW"
-                        title="Use function test mode"
-                        aria-label="Use function test mode"
+                        title="Test a function or run the read-only selection self-test"
+                        aria-label="Test a function or run the read-only selection self-test"
                         aria-pressed="false"
                     >Test</button>
                     <button
@@ -825,6 +826,8 @@ def render_ls_elza_script_state_bootstrap_assets():
         const windowStateStorageKey = "ls_elza_window_state_v1";
         const draftStorageKey = "ls_elza_unsent_draft_v1";
         const selectedModeStorageKey = "ls_elza_selected_mode_v1";
+        const chatSnapshotStoragePrefix = "ls_elza_chat_snapshot_v241:";
+        const viewActionStoragePrefix = "ls_elza_view_actions_v241:";
         const allowedSelectedModes = new Set([
             "", "UX_REVIEW", "TEST_REVIEW", "TRACK_DB", "LS_CODE"
         ]);
@@ -884,6 +887,7 @@ def render_ls_elza_script_state_bootstrap_assets():
         let voiceRecording = false;
         let voiceTranscribing = false;
         let voiceMimeType = "";
+        let pendingQuestionAnchor = "";
         try {
             chatId = localStorage.getItem(chatStorageKey) || "";
         } catch (error) {}
@@ -915,8 +919,8 @@ def render_ls_elza_script_state_bootstrap_assets():
                     button.setAttribute("aria-label", label);
                 } else if (buttonMode === "TEST_REVIEW") {
                     const label = isActive
-                        ? "Function test mode is active. Click to use automatic mode."
-                        : "Use function test mode";
+                        ? "Test mode is active. Ask “Pārbaudi atlases filtrus” for the read-only self-test."
+                        : "Test a function or run the read-only selection self-test";
                     button.title = label;
                     button.setAttribute("aria-label", label);
                 } else if (buttonMode === "TRACK_DB") {
@@ -942,7 +946,9 @@ def render_ls_elza_script_state_bootstrap_assets():
                 ? "Ask LS Elza about the selected Audio Track..."
                 : selectedMode === "LS_CODE"
                     ? "Ask LS Elza about the current LocalSunoDb code..."
-                    : "Ask LS Elza about LocalSunoDb...";
+                    : selectedMode === "TEST_REVIEW"
+                        ? "Piem.: Pārbaudi atlases filtrus"
+                        : "Ask LS Elza about LocalSunoDb...";
         }
 
         function setSelectedMode(value) {
@@ -1842,7 +1848,56 @@ def render_ls_elza_view_action_assets():
             return container;
         }
 
-        function addLsElzaViewActionButton(bubble, targetUrl, label) {
+        function currentViewActionStorageKey() {
+            return viewActionStoragePrefix + String(chatId || "current");
+        }
+
+        function readStoredLsViewActions() {
+            try {
+                const raw = localStorage.getItem(currentViewActionStorageKey());
+                const parsed = raw ? JSON.parse(raw) : [];
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (error) {
+                return [];
+            }
+        }
+
+        function rememberLsViewAction(action) {
+            if (!action || !action.answer || !action.rawUrl) { return; }
+            try {
+                const stored = readStoredLsViewActions().filter((item) => (
+                    item
+                    && !(item.answer === action.answer && item.rawUrl === action.rawUrl)
+                ));
+                stored.push(action);
+                localStorage.setItem(
+                    currentViewActionStorageKey(),
+                    JSON.stringify(stored.slice(-20))
+                );
+            } catch (error) {}
+        }
+
+        function clearStoredLsViewActions() {
+            try {
+                localStorage.removeItem(currentViewActionStorageKey());
+            } catch (error) {}
+        }
+
+        function dispatchLsViewSave(url, viewName) {
+            window.dispatchEvent(new CustomEvent("ls-elza-save-view-request", {
+                detail: {
+                    url: url.pathname + url.search,
+                    name: String(viewName || "LS Elza selection").slice(0, 80),
+                },
+            }));
+        }
+
+        function addLsElzaViewActionButton(
+            bubble,
+            targetUrl,
+            label,
+            viewName="LS Elza selection"
+        ) {
             if (!bubble || !targetUrl) { return; }
             if (bubble.querySelector('[data-ls-elza-action="open-view"]')) { return; }
             let url = null;
@@ -1858,11 +1913,48 @@ def render_ls_elza_view_action_assets():
             button.className = "ls-elza-view-action";
             button.dataset.lsElzaAction = "open-view";
             button.textContent = String(label || "Atvērt sarakstu ar šo filtru").slice(0, 80);
-            button.title = "Open the current LS list with this filter applied";
-            button.addEventListener("click", () => {
+            button.title = "Klikšķis = atvērt atlasi · Ctrl+klikšķis = saglabāt jautājuma atlasi kā View";
+            button.addEventListener("click", (event) => {
+                if (event.ctrlKey || event.metaKey) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    dispatchLsViewSave(url, viewName);
+                    setStatus("Saglabāju šī jautājuma atlasi kā View…");
+                    return;
+                }
                 window.location.assign(url.pathname + url.search);
             });
             getLsElzaViewActionsContainer(bubble).appendChild(button);
+        }
+
+        function restoreStoredLsViewActions() {
+            const actions = readStoredLsViewActions();
+            if (!actions.length) { return; }
+            const assistantMessages = Array.from(
+                historyBox.querySelectorAll(".ls-elza-message-assistant")
+            );
+            actions.forEach((action) => {
+                if (!action || !action.answer) { return; }
+                const wrapper = assistantMessages.slice().reverse().find((item) => (
+                    String(item.dataset.lsElzaContent || "") === String(action.answer)
+                ));
+                const bubble = wrapper ? wrapper.querySelector(".ls-elza-bubble") : null;
+                if (!bubble) { return; }
+                addLsElzaViewActionButton(
+                    bubble,
+                    action.rawUrl,
+                    action.openLabel || "Atvērt sarakstu ar šo filtru",
+                    action.viewName || "LS Elza selection"
+                );
+                addLsElzaSaveViewActionButton(
+                    bubble,
+                    action.saveUrl || action.rawUrl,
+                    action.viewName || "LS Elza selection",
+                    action.saveLabel || "Saglabāt kā View"
+                );
+                const footer = bubble.querySelector(".ls-elza-message-footer");
+                if (footer) { bubble.appendChild(footer); }
+            });
         }
 
         function addLsElzaSaveViewActionButton(bubble, targetUrl, viewName, label) {
@@ -1897,7 +1989,10 @@ def render_ls_elza_view_action_assets():
         window.addEventListener("ls-elza-view-saved", () => {
             const button = pendingLsElzaSaveViewButton;
             pendingLsElzaSaveViewButton = null;
-            if (!button || !button.isConnected) { return; }
+            if (!button || !button.isConnected) {
+                setStatus("Atlase saglabāta kā View.");
+                return;
+            }
             button.textContent = "View saglabāts";
             button.title = "This LS Elza selection is saved";
             button.disabled = true;
@@ -1919,6 +2014,8 @@ def render_ls_elza_message_context_assets():
             const wrapper = document.createElement("div");
             const safeRole = role === "user" ? "user" : "assistant";
             wrapper.className = "ls-elza-message ls-elza-message-" + safeRole;
+            wrapper.dataset.lsElzaContent = String(content || "");
+            wrapper.dataset.lsElzaCreatedAt = String(createdAt || "");
 
             const bubble = document.createElement("div");
             bubble.className = "ls-elza-bubble";
@@ -2006,9 +2103,49 @@ def render_ls_elza_message_context_assets():
             bubble.appendChild(footer);
             wrapper.appendChild(bubble);
             historyBox.appendChild(wrapper);
+            return wrapper;
         }
 
-        function renderMessages(messages) {
+        function scrollQuestionIntoView(question) {
+            const targetText = String(question || "").trim();
+            if (!targetText) { return false; }
+            const candidates = Array.from(
+                historyBox.querySelectorAll(".ls-elza-message-user")
+            ).reverse();
+            const target = candidates.find((item) => {
+                const content = String(item.dataset.lsElzaContent || "").trim();
+                return content === targetText || content.startsWith(targetText + "\n");
+            });
+            if (!target) { return false; }
+            const historyRect = historyBox.getBoundingClientRect();
+            const targetRect = target.getBoundingClientRect();
+            const nextTop = (
+                Number(historyBox.scrollTop || 0)
+                + targetRect.top
+                - historyRect.top
+                - 8
+            );
+            historyBox.scrollTop = Math.max(0, nextTop);
+            return true;
+        }
+
+        function pinQuestionInView(question) {
+            const targetText = String(question || "").trim();
+            if (!targetText) { return; }
+            const pin = () => scrollQuestionIntoView(targetText);
+            window.requestAnimationFrame(() => {
+                pin();
+                window.requestAnimationFrame(pin);
+            });
+        }
+
+        function latestUserQuestionText() {
+            const items = historyBox.querySelectorAll(".ls-elza-message-user");
+            const latest = items[items.length - 1];
+            return latest ? String(latest.dataset.lsElzaContent || "").trim() : "";
+        }
+
+        function renderMessages(messages, anchorQuestion="") {
             historyBox.innerHTML = "";
             if (!Array.isArray(messages) || !messages.length) {
                 const empty = document.createElement("div");
@@ -2021,7 +2158,12 @@ def render_ls_elza_message_context_assets():
                 if (!message || !message.content) { return; }
                 addMessage(message.role, message.content, message.created_at || "");
             });
-            scrollHistoryToBottom();
+            restoreStoredLsViewActions();
+            if (anchorQuestion) {
+                pinQuestionInView(anchorQuestion);
+            } else {
+                scrollHistoryToBottom();
+            }
         }
 
 """
@@ -2038,6 +2180,57 @@ def render_ls_elza_view_context_state_assets():
                     localStorage.removeItem(chatStorageKey);
                 }
             } catch (error) {}
+        }
+
+        function currentChatSnapshotStorageKey() {
+            return chatSnapshotStoragePrefix + String(chatId || "current");
+        }
+
+        function saveChatSnapshot(messages) {
+            try {
+                if (!Array.isArray(messages) || !messages.length) {
+                    localStorage.removeItem(currentChatSnapshotStorageKey());
+                    return;
+                }
+                const safeMessages = messages.slice(-60).map((message) => ({
+                    role: message && message.role === "user" ? "user" : "assistant",
+                    content: String(message && message.content || "").slice(0, 20000),
+                    created_at: String(message && message.created_at || ""),
+                }));
+                localStorage.setItem(
+                    currentChatSnapshotStorageKey(),
+                    JSON.stringify(safeMessages)
+                );
+            } catch (error) {}
+        }
+
+        function loadChatSnapshot() {
+            try {
+                const raw = localStorage.getItem(currentChatSnapshotStorageKey());
+                const parsed = raw ? JSON.parse(raw) : [];
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (error) {
+                return [];
+            }
+        }
+
+        function visibleChatSnapshotMessages() {
+            return Array.from(
+                historyBox.querySelectorAll(".ls-elza-message")
+            ).slice(-60).map((item) => ({
+                role: item.classList.contains("ls-elza-message-user")
+                    ? "user"
+                    : "assistant",
+                content: String(item.dataset.lsElzaContent || ""),
+                created_at: String(item.dataset.lsElzaCreatedAt || ""),
+            })).filter((item) => item.content);
+        }
+
+        function saveVisibleChatSnapshot() {
+            const messages = visibleChatSnapshotMessages();
+            if (messages.length) {
+                saveChatSnapshot(messages);
+            }
         }
 
         function collectCurrentViewContext(selectedCount) {
@@ -2432,17 +2625,34 @@ def render_ls_elza_script_service_assets():
             );
             const latest = assistantMessages[assistantMessages.length - 1];
             const bubble = latest ? latest.querySelector(".ls-elza-bubble") : null;
+            const answerText = latest
+                ? String(latest.dataset.lsElzaContent || "")
+                : String(data && data.answer || "");
+            const viewName = (
+                latestUserQuestionText()
+                || String(data && data.ls_save_view_name || "")
+                || "LS Elza selection"
+            ).slice(0, 80);
             addLsElzaViewActionButton(
                 bubble,
                 rawUrl,
-                data.ls_view_label || "Atvērt sarakstu ar šo filtru"
+                data.ls_view_label || "Atvērt sarakstu ar šo filtru",
+                viewName
             );
             addLsElzaSaveViewActionButton(
                 bubble,
                 saveUrl,
-                data.ls_save_view_name || "LS Elza selection",
+                viewName,
                 data.ls_save_view_label || "Saglabāt kā View"
             );
+            rememberLsViewAction({
+                answer: answerText,
+                rawUrl: rawUrl,
+                saveUrl: saveUrl,
+                viewName: viewName,
+                openLabel: String(data && data.ls_view_label || ""),
+                saveLabel: String(data && data.ls_save_view_label || ""),
+            });
             const footer = bubble ? bubble.querySelector(".ls-elza-message-footer") : null;
             if (footer) { bubble.appendChild(footer); }
         }
@@ -2457,22 +2667,93 @@ def render_ls_elza_script_service_assets():
                 }
                 addMessage("assistant", String(data.answer || ""));
                 appendLsViewAction(data);
-                scrollHistoryToBottom();
+                saveVisibleChatSnapshot();
+                if (pendingQuestionAnchor) {
+                    pinQuestionInView(pendingQuestionAnchor);
+                    pendingQuestionAnchor = "";
+                } else {
+                    scrollHistoryToBottom();
+                }
                 return;
             }
-            renderMessages(data && data.messages ? data.messages : []);
+            const messages = data && Array.isArray(data.messages)
+                ? data.messages
+                : [];
+            const anchorQuestion = pendingQuestionAnchor;
+            renderMessages(messages, anchorQuestion);
+            saveChatSnapshot(messages);
             appendLsViewAction(data);
+            pendingQuestionAnchor = "";
+        }
+
+        function chatDataContainsQuestion(data, question) {
+            const targetText = String(question || "").trim();
+            if (!targetText) { return false; }
+            const messages = data && Array.isArray(data.messages)
+                ? data.messages
+                : [];
+            return messages.some((message) => {
+                if (!message || message.role !== "user") { return false; }
+                const content = String(message.content || "").trim();
+                return content === targetText || content.startsWith(targetText + "\n");
+            });
+        }
+
+        async function reconcileAfterNetworkFailure(question) {
+            const delays = [300, 900];
+            for (const delay of delays) {
+                await new Promise((resolve) => setTimeout(resolve, delay));
+                try {
+                    const data = await callService("load");
+                    if (!chatDataContainsQuestion(data, question)) {
+                        continue;
+                    }
+                    applyChatData(data);
+                    return true;
+                } catch (error) {
+                    console.warn("LS Elza reconciliation load failed", error);
+                }
+            }
+            return false;
         }
 
         async function loadCurrentChat() {
             setBusy(true, "Loading LS Elza chat...");
+            let lastError = null;
             try {
-                const data = await callService("load");
-                applyChatData(data);
-                setStatus("");
-            } catch (error) {
-                renderMessages([]);
-                setStatus(error.message || "Could not load LS Elza.", true);
+                for (let attempt = 0; attempt < 3; attempt += 1) {
+                    try {
+                        const data = await callService("load");
+                        applyChatData(data);
+                        setStatus("");
+                        return true;
+                    } catch (error) {
+                        lastError = error;
+                        const cachedMessages = loadChatSnapshot();
+                        if (
+                            cachedMessages.length
+                            && historyBox.querySelector(".ls-elza-empty")
+                        ) {
+                            renderMessages(cachedMessages);
+                        }
+                        if (attempt < 2) {
+                            setStatus(
+                                "Savienojums ar Elzu pārtrūka. Saruna ir saglabāta; mēģinu vēlreiz…",
+                                true
+                            );
+                            await new Promise((resolve) => setTimeout(
+                                resolve,
+                                attempt === 0 ? 350 : 900
+                            ));
+                        }
+                    }
+                }
+                setStatus(
+                    "Savienojums ar Elzu pārtrūka. Saruna nav izdzēsta; vari mēģināt vēlreiz.",
+                    true
+                );
+                console.warn("LS Elza chat load failed", lastError);
+                return false;
             } finally {
                 setBusy(false);
             }
@@ -2617,6 +2898,14 @@ def render_ls_elza_script_service_assets():
                     mode: "block",
                     warning: "Pieprasījums nav nosūtīts: tas skar API atslēgu, sistēmas instrukcijas vai koda izpildi. Pārformulē to kā drošas, read-only konsultācijas jautājumu.",
                 };
+            }
+
+            const isFilterUxAuditRequest = (
+                selectedMode === "TEST_REVIEW"
+                && /(?:filter\s*ux\s*audit|filters?\s*v2|filtru?\s+ux\s+audit|filtru\s+sist[eē]m|filtru\s+izvietoj|filtru\s+izmanto[sš]an)/i.test(folded)
+            );
+            if (isFilterUxAuditRequest) {
+                return {mode: "send"};
             }
 
             if (
@@ -2824,8 +3113,10 @@ def render_ls_elza_script_chat_actions_assets():
                     + String(outgoingImages.length)
                     + " (attēlu dati nav saglabāti)."
                 : message;
+            pendingQuestionAnchor = message;
             addMessage("user", displayMessage);
-            scrollHistoryToBottom();
+            saveVisibleChatSnapshot();
+            scrollQuestionIntoView(message);
             input.value = "";
             updateContextLine();
             const serviceAction = promptReview.mode === "local_db"
@@ -2856,13 +3147,35 @@ def render_ls_elza_script_chat_actions_assets():
                 const errorText = String(error && error.message || "");
                 if (/safe read-only tool-call limit/i.test(errorText)) {
                     addMessage("assistant", safeReadonlyLimitAnswer(message));
-                    scrollHistoryToBottom();
+                    saveVisibleChatSnapshot();
+                    pinQuestionInView(message);
                     setStatus(
                         "Read-only pārbaude apturēta; Elza paskaidroja nākamo soli."
                     );
                 } else {
                     console.warn("LS Elza request failed", error);
-                    setStatus("Elza could not finish this request.");
+                    if (/failed to fetch|networkerror|load failed/i.test(errorText)) {
+                        saveVisibleChatSnapshot();
+                        setStatus(
+                            "Savienojums pārtrūka. Saruna ir saglabāta lokāli; mēģinu atjaunot atbildi…",
+                            true
+                        );
+                        const reconciled = await reconcileAfterNetworkFailure(message);
+                        if (reconciled) {
+                            input.value = "";
+                            clearUnsentDraft();
+                            setStatus("Savienojums atjaunots. Saruna sinhronizēta.");
+                        } else {
+                            setStatus(
+                                "Savienojums nav atjaunots. Saruna un jautājums ir saglabāti lokāli; nospied Ask, lai atkārtotu.",
+                                true
+                            );
+                            pinQuestionInView(message);
+                        }
+                    } else {
+                        setStatus("Elza nevarēja pabeigt šo pieprasījumu.", true);
+                        pinQuestionInView(message);
+                    }
                 }
             } finally {
                 setBusy(false);
@@ -2895,6 +3208,8 @@ def render_ls_elza_script_chat_actions_assets():
             try {
                 const data = await callService("clear");
                 clearPendingImages();
+                clearStoredLsViewActions();
+                saveChatSnapshot([]);
                 applyChatData(data);
                 setStatus("");
                 input.focus();
@@ -3000,10 +3315,10 @@ def render_ls_elza_script_window_interaction_assets():
                     input.focus();
                     return;
                 }
-                if (buttonMode === "UX_REVIEW" || buttonMode === "TEST_REVIEW") {
+                if (buttonMode === "UX_REVIEW") {
                     try {
                         setStatus(
-                            "Select this LS tab or window once. The active mode will capture a fresh frame for each question."
+                            "Select this LS tab or window once. UX mode will capture a fresh frame for each visual question."
                         );
                         await requestUxCapture();
                     } catch (error) {
@@ -3029,7 +3344,7 @@ def render_ls_elza_script_window_interaction_assets():
                     buttonMode === "UX_REVIEW"
                         ? "UX review is ready · the current LS view will be attached automatically."
                         : buttonMode === "TEST_REVIEW"
-                            ? "Test mode is ready · describe the action and expected result. The current LS view will be attached automatically."
+                            ? "Test mode is ready · “Pārbaudi atlases filtrus” palaiž read-only paštestu. Ekrāns vajadzīgs tikai vizuālam testam."
                             : buttonMode === "TRACK_DB"
                                 ? "Track mode is ready · ask about the selected track."
                                 : buttonMode === "LS_CODE"

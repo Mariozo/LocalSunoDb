@@ -155,6 +155,8 @@ ALLOWED_ANSWER_SOURCE_IDS = {
 }
 ALLOWED_ANSWER_SOURCE_KINDS = {"provided", "consulted", "local"}
 ALLOWED_SELECTED_MODES = {"", "UX_REVIEW", "TEST_REVIEW", "TRACK_DB", "LS_CODE"}
+SELECTION_SELFTEST_TOOL_NAME = "ls_selection_selftest"
+FILTER_UX_AUDIT_TOOL_NAME = "ls_filter_ux_audit"
 
 _HISTORY_LOCK = threading.RLock()
 _SEND_LOCK = threading.Lock()
@@ -302,26 +304,23 @@ application logic must be proposed separately. Never claim that the review
 changed LocalSunoDb.
 
 When TEST_REVIEW is active, act as an embedded LocalSunoDb function tester.
-Use the current-turn screenshot, the supplied read-only LS state, and the
-user's description of the action and expected result. Do not invent an action,
-previous screen state, click sequence, expected result, or hidden application
-behavior that was not supplied or visibly evidenced.
+For one user-described UI action, use the current-turn screenshot and supplied
+read-only LS state exactly as before. For a request to test Elza selection,
+filters, or the selection engine broadly, use the ls_selection_selftest tool.
+That tool runs a fixed read-only parser and canonical-DB regression matrix and
+returns PASS / FAIL / UNCLEAR per case. Do not invent an expected result that
+is absent from either the current evidence or the self-test oracle.
 
-Return a compact test report in this order:
+Return a compact test report. For a self-test, begin with the aggregate result
+(for example, 25 PASS / 1 FAIL / 1 UNCLEAR), then list every FAIL and UNCLEAR
+case with expected and actual counts when supplied. Do not list all passing
+cases unless the user asks. For a single UI test, keep the existing order:
+Test; Observed result; Verdict; Problem (for FAIL); Next check when needed.
 
-1. Test: the function or action being checked.
-2. Observed result: only what the current evidence proves.
-3. Verdict: PASS, FAIL, or UNCLEAR. PASS requires evidence that the stated
-   expected result occurred; FAIL requires evidence of a contradiction;
-   otherwise use UNCLEAR.
-4. Problem: for FAIL, state the exact mismatch without guessing its code cause.
-5. Next check: give one concrete SPS action only when another check is needed.
-
-If the user did not state the action or expected result, infer it only when it
-is unambiguous from the question and visible UI. Otherwise return UNCLEAR and
-ask for the single missing fact. Distinguish visual evidence from supplied
-state context. Do not use database or source-code tools in TEST_REVIEW, do not
-change LocalSunoDb, and never claim that the test repaired anything.
+TEST_REVIEW remains read-only. The dedicated ls_selection_selftest may read the
+canonical database to compare results, but it cannot write data. Do not use
+general database tools or source-code tools in TEST_REVIEW, do not change
+LocalSunoDb, and never claim that the test repaired anything.
 
 When explicit TRACK_DB mode is active, analyze exactly one selected track.
 Use the supplied selected Track ID and the two Track tools. Return a compact
@@ -644,6 +643,47 @@ def configure_ls_elza_app_source(path):
         ) from error
 
 
+def get_selection_selftest_tool_definition():
+    return {
+        "type": "function",
+        "name": SELECTION_SELFTEST_TOOL_NAME,
+        "description": (
+            "Run the built-in read-only LS Elza selection regression matrix "
+            "against the current canonical LocalSunoDb database. Use this in "
+            "TEST_REVIEW when the user asks to test selection/filter behavior "
+            "broadly. It validates deterministic language interpretation plus "
+            "real selection execution and returns PASS/FAIL/UNCLEAR per case. "
+            "It never changes the database or files."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": False,
+        },
+    }
+
+
+def get_filter_ux_audit_tool_definition():
+    return {
+        "type": "function",
+        "name": FILTER_UX_AUDIT_TOOL_NAME,
+        "description": (
+            "Return the bounded read-only LocalSunoDb filter-system snapshot used "
+            "for a Filter UX Audit. Use this in TEST_REVIEW when the user asks to "
+            "review the whole filter system or design Filters v2. The result covers "
+            "current visible controls, search/filter dimensions, Elza-only semantic "
+            "dimensions, known interaction constraints, and audit requirements. "
+            "It never changes the database or files and does not permit arbitrary "
+            "whole-code or whole-database reading."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": False,
+        },
+    }
+
+
 def get_available_readonly_tools():
     tools = []
     if database_tools_available():
@@ -691,6 +731,15 @@ def get_track_readonly_tools():
         tool for tool in get_available_readonly_tools()
         if isinstance(tool, dict) and tool.get("name") in allowed_names
     ]
+
+
+def get_test_readonly_tools():
+    tools = [
+        get_selection_selftest_tool_definition(),
+        get_filter_ux_audit_tool_definition(),
+    ]
+    validate_openai_tool_definitions(tools)
+    return tools
 
 
 def get_code_readonly_tools():
@@ -1289,6 +1338,8 @@ DB_ACTION_LABELS = {
     "ls_search_titles": "Title search",
     "ls_track_summary": "Track summary",
     "ls_local_family_status": "Local family status",
+    SELECTION_SELFTEST_TOOL_NAME: "Selection self-test",
+    FILTER_UX_AUDIT_TOOL_NAME: "Filter UX Audit",
 }
 
 
@@ -1430,6 +1481,12 @@ def _tool_answer_sources(trace):
 def _run_whitelisted_readonly_action(action, arguments):
     if action == SELECTION_TOOL_NAME:
         return normalize_selection_request(arguments)
+    if action == SELECTION_SELFTEST_TOOL_NAME:
+        from ls_web.elza_selftest import run_selection_selftest
+        return run_selection_selftest()
+    if action == FILTER_UX_AUDIT_TOOL_NAME:
+        from ls_web.elza_filter_audit import run_filter_ux_audit
+        return run_filter_ux_audit()
     if action in CODE_READER_ACTIONS:
         if not code_tools_available():
             raise LSElzaError(
@@ -1602,14 +1659,20 @@ def _core_readonly_tool_result(tool_call, source_trace=None):
     return ToolResult(call_id=call_id, output=output_text)
 
 
-def _create_openai_response(client, model_input, instructions, tools):
+def _create_openai_response(
+    client,
+    model_input,
+    instructions,
+    tools,
+    max_output_tokens=1800,
+):
     request = {
         "model": get_model_name(),
         "instructions": instructions,
         "input": model_input,
         "store": False,
         "include": ["reasoning.encrypted_content"],
-        "max_output_tokens": 1800,
+        "max_output_tokens": max(1, int(max_output_tokens or 1800)),
     }
     if tools:
         request["tools"] = tools
@@ -1826,7 +1889,7 @@ def create_answer_response(
     if selected_mode in {"UX_REVIEW", "LS_CODE"}:
         tools = get_code_readonly_tools()
     elif selected_mode == "TEST_REVIEW":
-        tools = []
+        tools = get_test_readonly_tools()
     elif selected_mode == "TRACK_DB":
         tools = get_track_readonly_tools()
     else:
@@ -1852,11 +1915,20 @@ def create_answer_response(
     elif selected_mode == "TEST_REVIEW":
         instructions += (
             "\n\nThe user explicitly selected persistent TEST_REVIEW mode in "
-            "the LocalSunoDb UI. Test the described function against the "
-            "supplied current screenshot and read-only state. Give a strict "
-            "PASS, FAIL, or UNCLEAR verdict using the TEST_REVIEW evidence "
-            "rules, even if the question text alone suggests another route. "
-            "Do not use database or source-code tools."
+            "the LocalSunoDb UI. For a broad request to test Elza selection "
+            "behavior, call ls_selection_selftest exactly once and summarize its "
+            "aggregate result plus every FAIL/UNCLEAR case. When the user asks "
+            "for a Filter UX Audit, Filters v2, filter layout, filter grouping, "
+            "or a review of the whole filter system, call ls_filter_ux_audit "
+            "exactly once instead. Use that bounded snapshot to produce: current "
+            "inventory, problems/overlap, a concrete Filters v2 layout, semantics, "
+            "Quick filters, More filters, Elza-only advanced filters, candidates "
+            "to merge/remove, 10-20 representative examples, and migration/test "
+            "risks. Do not call ls_selection_selftest unless the user also asks "
+            "for regression results. For a single visible UI action, use the "
+            "supplied screenshot/state. Both TEST tools are strictly read-only. "
+            "Do not use general database or source-code tools and do not claim "
+            "that testing or auditing repaired anything."
         )
     elif selected_mode == "TRACK_DB":
         instructions += (
@@ -1881,6 +1953,18 @@ def create_answer_response(
             "proposed change was applied."
         )
 
+    audit_output_tokens = 1800
+    if (
+        selected_mode == "TEST_REVIEW"
+        and re.search(
+            r"(?:filter\s*ux\s*audit|filters?\s*v2|filtru?\s+ux\s+audit|"
+            r"filtru\s+sist[eē]m|filtru\s+izvietoj|filtru\s+izmanto[sš]an)",
+            user_question,
+            re.IGNORECASE,
+        )
+    ):
+        audit_output_tokens = 6000
+
     source_trace = []
     tool_names_used = []
 
@@ -1895,6 +1979,7 @@ def create_answer_response(
                 provider_input,
                 provider_instructions,
                 provider_tools,
+                max_output_tokens=audit_output_tokens,
             )
         )
     )

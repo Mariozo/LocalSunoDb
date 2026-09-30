@@ -9,6 +9,7 @@ from ..elza_core.context import ElzaContext
 from ..elza_core.contract import Capabilities, CoreRequest, ToolDeclaration
 from ..elza_core.providers import AIRequest, AIResult, ProviderCapabilities
 from ..elza_core.tools import SideEffectLevel, ToolCall, ToolResult, ToolSpec
+from ..selection_guard import reconcile_selection_tool_arguments
 from .context_adapter import build_core_context_items, build_elza_context
 
 
@@ -191,6 +192,11 @@ class OpenAIResponsesProvider:
                 arguments = {
                     INVALID_TOOL_ARGUMENTS_KEY: str(raw_arguments or "")
                 }
+            arguments = reconcile_selection_tool_arguments(
+                item.get("name"),
+                arguments,
+                model_input,
+            )
             tool_calls.append({
                 "id": str(item.get("call_id") or item.get("id") or ""),
                 "tool_id": str(item.get("name") or ""),

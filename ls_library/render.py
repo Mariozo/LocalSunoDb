@@ -315,6 +315,9 @@ def render_show_more_html(
     category_mode,
     selected_local_families,
     kind_filter,
+    like_filter,
+    upload_filter,
+    local_wav_filter,
     local_audio_filter,
     search_name,
     search_lyrics,
@@ -353,6 +356,9 @@ def render_show_more_html(
             "category_mode": category_mode if category_mode == "family_and" else "",
             "local_family_filter": selected_local_families,
             "kind_filter": kind_filter,
+            "like_filter": like_filter,
+            "upload_filter": upload_filter,
+            "local_wav_filter": local_wav_filter,
             "local_audio_filter": local_audio_filter,
             "rows": str(next_count),
             "search_name": "1" if search_name else "0",
@@ -396,6 +402,9 @@ def build_active_filter_chips(
     category_mode,
     selected_local_families,
     kind_filter,
+    like_filter,
+    upload_filter,
+    local_wav_filter,
     local_audio_filter,
     limit_value,
     search_name,
@@ -422,6 +431,9 @@ def build_active_filter_chips(
         "category_mode": category_mode if category_mode == "family_and" else "",
         "local_family_filter": selected_local_families,
         "kind_filter": str(kind_filter or "").strip(),
+        "like_filter": str(like_filter or "").strip(),
+        "upload_filter": str(upload_filter or "").strip(),
+        "local_wav_filter": str(local_wav_filter or "").strip(),
         "local_audio_filter": local_audio_filter,
         "search_name": "1" if search_name else "0",
         "search_lyrics": "1" if search_lyrics else "0",
@@ -548,16 +560,45 @@ def build_active_filter_chips(
         "__last_imported__": "Last imported Suno",
         "__unlinked_stems__": "Unlinked Stems",
     }
+    normalized_upload_filter = str(upload_filter or "").strip().lower()
+    if normalized_upload_filter in {"with", "without"}:
+        filter_chips.append(filter_chip(
+            "Upload" if normalized_upload_filter == "with" else "Not Upload",
+            "type",
+            ("upload_filter",),
+            "Source Upload",
+        ))
+
+    normalized_like_filter = str(like_filter or "").strip().lower()
+    if normalized_like_filter in {
+        "with", "liked", "1", "true",
+        "without", "unliked", "0", "false",
+    }:
+        liked_on = normalized_like_filter in {"with", "liked", "1", "true"}
+        filter_chips.append(filter_chip(
+            "Liked" if liked_on else "Not liked",
+            "selected",
+            ("like_filter",),
+        ))
+
+    normalized_local_wav_filter = str(local_wav_filter or "").strip().lower()
+    if normalized_local_wav_filter in {"with", "without"}:
+        filter_chips.append(filter_chip(
+            "Local WAV" if normalized_local_wav_filter == "with" else "No Local WAV",
+            "local",
+            ("local_wav_filter",),
+        ))
+
     if kind_filter:
         filter_chips.append(filter_chip(
-            type_label_map.get(kind_filter, f"Type: {kind_filter}"),
+            type_label_map.get(kind_filter, f"Operation: {kind_filter}"),
             "type",
             ("kind_filter",),
         ))
 
     if local_audio_filter:
         filter_chips.append(filter_chip(
-            "Local" if local_audio_filter == "with" else "Suno.com",
+            "Local audio" if local_audio_filter == "with" else "No local audio",
             "local",
             ("local_audio_filter",),
         ))
@@ -832,44 +873,14 @@ def build_category_and_type_controls(
     """
 
     kind_filter_options = [
-        f'<option value="" data-hotkey="a" {selected_attr(kind_filter, "")}>All types ({all_main_count})</option>',
+        f'<option value="" data-hotkey="a" {selected_attr(kind_filter, "")}>All operations ({all_main_count})</option>',
     ]
     for type_row in get_ui_type_counts():
         ui_type = str(type_row["ui_type"] or "").strip()
-        if not ui_type or ui_type in ("Song", "Instrumental"):
+        if not ui_type or ui_type in ("Song", "Instrumental", "Upload"):
             continue
         kind_filter_options.append(
             f'<option value="{esc(ui_type)}" {selected_attr(kind_filter, ui_type)}>{esc(ui_type)} ({int(type_row["count"] or 0)})</option>'
-        )
-    kind_filter_options.extend([
-        f'<option value="__has_stems__" data-hotkey="m" {selected_attr(kind_filter, "__has_stems__")}>Has Stems — {stats.get("total_has_stems", 0)} tracks / {stats.get("total_local_stem_files", 0)} files</option>',
-        f'<option value="__liked__" data-hotkey="l" {selected_attr(kind_filter, "__liked__")}>Liked ({stats.get("total_liked", 0)})</option>',
-    ])
-
-    review_s_to_i_count = stats.get("total_conflict_s_to_i", 0)
-    review_i_to_s_count = stats.get("total_conflict_i_to_s", 0)
-    intent_s_to_i_count = stats.get("total_intent_s_to_i", 0)
-    intent_i_to_s_count = stats.get("total_intent_i_to_s", 0)
-    if intent_s_to_i_count:
-        kind_filter_options.append(
-            f'<option value="__intent_s_to_i__" {selected_attr(kind_filter, "__intent_s_to_i__")}>Audit: Song → Instrumental ({intent_s_to_i_count})</option>'
-        )
-    if intent_i_to_s_count:
-        kind_filter_options.append(
-            f'<option value="__intent_i_to_s__" {selected_attr(kind_filter, "__intent_i_to_s__")}>Audit: Instrumental → Song ({intent_i_to_s_count})</option>'
-        )
-    if review_s_to_i_count:
-        kind_filter_options.append(
-            f'<option value="__conflict_s_to_i__" {selected_attr(kind_filter, "__conflict_s_to_i__")}>Legacy S→I conflicts ({review_s_to_i_count})</option>'
-        )
-    if review_i_to_s_count:
-        kind_filter_options.append(
-            f'<option value="__conflict_i_to_s__" {selected_attr(kind_filter, "__conflict_i_to_s__")}>Legacy I→S conflicts ({review_i_to_s_count})</option>'
-        )
-    last_imported_count = len(get_last_imported_suno_ids())
-    if last_imported_count:
-        kind_filter_options.append(
-            f'<option value="__last_imported__" data-hotkey="" {selected_attr(kind_filter, "__last_imported__")}>Last imported Suno ({last_imported_count})</option>'
         )
 
     return {
@@ -1017,6 +1028,9 @@ def build_ls_elza_view_context(
     category_mode,
     selected_local_families,
     kind_filter,
+    like_filter,
+    upload_filter,
+    local_wav_filter,
     total_rows,
     loaded_row_count,
     limit_value,
@@ -1090,6 +1104,9 @@ def build_ls_elza_view_context(
         "filters": {
             "track_ids_filter_count": len(selected_track_ids),
             "selection_view_active": bool(selection_view_active),
+            "like_filter": str(like_filter or "").strip() or None,
+            "upload_filter": str(upload_filter or "").strip() or None,
+            "local_wav_filter": str(local_wav_filter or "").strip() or None,
             "local_audio_filter": local_audio_filter or None,
             "family_group_match_count": (
                 len(family_group_track_ids)
@@ -1194,6 +1211,9 @@ def build_filter_navigation_html(
     category_mode,
     selected_local_families,
     kind_filter,
+    like_filter,
+    upload_filter,
+    local_wav_filter,
     local_audio_filter,
     limit_value,
     search_name,
@@ -1223,6 +1243,9 @@ def build_filter_navigation_html(
         category_mode=category_mode,
         selected_local_families=selected_local_families,
         kind_filter=kind_filter,
+        like_filter=like_filter,
+        upload_filter=upload_filter,
+        local_wav_filter=local_wav_filter,
         local_audio_filter=local_audio_filter,
         limit_value=limit_value,
         search_name=search_name,
@@ -1261,6 +1284,9 @@ def build_filter_navigation_html(
         category_mode=category_mode,
         selected_local_families=selected_local_families,
         kind_filter=kind_filter,
+        like_filter=like_filter,
+        upload_filter=upload_filter,
+        local_wav_filter=local_wav_filter,
         local_audio_filter=local_audio_filter,
         search_name=search_name,
         search_lyrics=search_lyrics,

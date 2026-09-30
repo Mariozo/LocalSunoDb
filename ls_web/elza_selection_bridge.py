@@ -6,6 +6,9 @@
 
 """Translate validated LS Elza semantic selections to host filter intents."""
 
+import re
+import unicodedata
+
 from LS_Elza.locf_intent import recognize_locf_selection
 
 
@@ -14,6 +17,201 @@ def _clean_text(value, max_chars):
     if len(text) > int(max_chars):
         text = text[: int(max_chars)].rstrip()
     return text
+
+
+
+
+_ALL_TEXT_FIELDS = ["name", "track_id", "lyrics", "prompt", "tags"]
+
+
+def _fold_user_text(value):
+    text = re.sub(r"\s+", " ", str(value or "").strip().casefold())
+    return "".join(
+        char
+        for char in unicodedata.normalize("NFKD", text)
+        if not unicodedata.combining(char)
+    )
+
+
+def _has_selection_command(plain):
+    return bool(re.search(
+        r"\b(?:parad\w*|atlas\w*|atrod\w*|atrast\w*|mekl\w*|"
+        r"uzskait\w*|atver\w*|show|find|list|open)\b",
+        plain,
+    ))
+
+
+def _extract_text_query(source):
+    quoted = re.search(r'["“”]([^"“”]{1,160})["“”]', source)
+    if quoted:
+        return re.sub(r"\s+", " ", quoted.group(1).strip())
+    named = re.search(
+        r"\b(?:vārds?|vārdu|frāze|fraze|word)\s+"
+        r'["“”]?([^\s,;:.!?"“”]{1,120})',
+        source,
+        flags=re.IGNORECASE,
+    )
+    return named.group(1).strip() if named else ""
+
+
+def _requested_text_fields(plain):
+    if (
+        re.search(r"\b(?:jebkur|citur|elsewhere|anywhere|visur)\b", plain)
+        or re.search(r"\bkaut\s+kur\b", plain)
+        or re.search(r"\bkad[aā]\s+cit[aā]\s+lauk[aā]\b", plain)
+    ):
+        return list(_ALL_TEXT_FIELDS)
+
+    fields = []
+    if re.search(r"\b(?:nosaukum\w*|name|title)\b", plain):
+        fields.append("name")
+    if re.search(r"\btrack\s*id\b", plain):
+        fields.append("track_id")
+    if re.search(r"\b(?:lyrics?|dziesm\w*\s+tekst\w*|tekst\w*)\b", plain):
+        fields.append("lyrics")
+    if re.search(r"\bpromp?t\w*\b", plain):
+        fields.append("prompt")
+    if re.search(r"(?:^|\s)#?tag\w*\b", plain):
+        fields.append("tags")
+    return fields
+
+
+def _text_field_label(field):
+    return {
+        "name": "Name",
+        "track_id": "Track ID",
+        "lyrics": "Lyrics",
+        "prompt": "Prompt",
+        "tags": "Tags",
+    }.get(field, field)
+
+
+def _requested_minimum_flag_count(source, plain):
+    has_rating_marker = bool(
+        re.search(r"\*{1,5}", source)
+        or re.search(r"\b(?:zvaigzn\w*|stars?)\b", plain)
+    )
+    if not has_rating_marker:
+        return 0
+
+    number_words = {
+        "viens": 1,
+        "viena": 1,
+        "divi": 2,
+        "divas": 2,
+        "tris": 3,
+        "cetri": 4,
+        "cetras": 4,
+        "pieci": 5,
+        "piecas": 5,
+    }
+    threshold = re.search(
+        r"\b(?:vismaz|minimum|at\s+least)\s+"
+        r"([1-5]|viens|viena|divi|divas|tris|cetri|cetras|pieci|piecas)\b",
+        plain,
+    )
+    if threshold:
+        raw = threshold.group(1)
+        return int(raw) if raw.isdigit() else number_words.get(raw, 0)
+
+    numeric = re.search(r"(?:>=|≥)\s*([1-5])", source)
+    if numeric:
+        return int(numeric.group(1))
+
+    repeated = re.search(r"(?<!\*)\*{1,5}(?!\*)", source)
+    if repeated and re.search(r"\b(?:vismaz|minimum|at\s+least)\b", plain):
+        return len(repeated.group(0))
+    return 0
+
+
+def _requested_upload_type_constraints(plain):
+    has_upload = bool(re.search(r"\b(?:upload|uplod)\b", plain))
+    if not has_upload:
+        return [], []
+    excluded = bool(
+        re.search(r"\bbez\s+(?:type\s+)?(?:upload|uplod)\b", plain)
+        or re.search(r"(?:^|\s)-\s*(?:upload|uplod)\b", plain)
+        or re.search(r"\b(?:iznem\w*|izsledz\w*|exclude)\s+(?:upload|uplod)\b", plain)
+    )
+    return ([], ["Upload"]) if excluded else (["Upload"], [])
+
+
+def _recognize_local_text_selection(message):
+    source = re.sub(r"\s+", " ", str(message or "").strip())
+    plain = _fold_user_text(source)
+    if not source or not _has_selection_command(plain):
+        return None
+    if re.search(r"\blocf\b|\blocal\s+family\b", plain):
+        return None
+
+    text_query = _extract_text_query(source)
+    text_fields = _requested_text_fields(plain)
+    minimum_flag_count = _requested_minimum_flag_count(source, plain)
+    include_ui_types, exclude_ui_types = _requested_upload_type_constraints(plain)
+    has_wav_request = bool(re.search(r"\b(?:\.wav|wav)\b", plain))
+    explicit_local_wav = bool(
+        has_wav_request
+        and re.search(r"\b(?:vietej\w*|lokal\w*|local)\b", plain)
+    )
+    wav_scope = "local" if explicit_local_wav else ("all" if has_wav_request else "")
+    local_audio_extensions = ["wav"] if explicit_local_wav else []
+    kind_filter = "liked" if re.search(
+        r"\b(?:like|liked|patik\w*)\b",
+        plain,
+    ) else ""
+
+    local_audio = ""
+    if (
+        re.search(r"\b(?:vietej\w*|lokal\w*)\b", plain)
+        and re.search(
+            r"\b(?:dziesm\w*|ierakst\w*|audio\w*|wav\w*|fail\w*|track\w*)\b",
+            plain,
+        )
+    ):
+        local_audio = "with"
+
+    if (
+        not local_audio
+        and not local_audio_extensions
+        and not wav_scope
+        and not minimum_flag_count
+        and not kind_filter
+        and not include_ui_types
+        and not exclude_ui_types
+        and (not text_query or not text_fields)
+    ):
+        return None
+    if text_query and not text_fields:
+        return None
+    if text_fields and not text_query:
+        return None
+
+    return {
+        "safe_to_execute": True,
+        "reason": "",
+        "category": "",
+        "kind_filter": kind_filter,
+        "local_audio": local_audio,
+        "local_audio_extensions": local_audio_extensions,
+        "wav_scope": wav_scope,
+        "exclude_ui_types": exclude_ui_types,
+        "include_ui_types": include_ui_types,
+        "minimum_flag_count": minimum_flag_count,
+        "flags": [],
+        "any_flag": False,
+        "exact_flags": False,
+        "tags": [],
+        "workspace": "",
+        "local_family": "",
+        "local_family_assigned": None,
+        "title_query": "",
+        "anywhere_query": (
+            text_query if set(text_fields) == set(_ALL_TEXT_FIELDS) else ""
+        ),
+        "text_query": text_query,
+        "text_fields": text_fields,
+        "exact_stem_count": 0,
+    }
 
 
 def build_host_selection_intent(
@@ -58,6 +256,10 @@ def build_host_selection_intent(
         filters["local_audio_filter"] = local_audio
         labels.append("With local audio" if local_audio == "with" else "No local audio")
 
+    wav_scope = _clean_text(request.get("wav_scope"), 20).lower()
+    if wav_scope not in {"", "all", "local"}:
+        return {"error": "Elza atgrieza neatbalstītu WAV tvērumu."}
+
     raw_extensions = request.get("local_audio_extensions") or []
     if not isinstance(raw_extensions, list):
         return {"error": "Elza atgrieza nederīgu lokālā audio formātu atlasi."}
@@ -69,6 +271,9 @@ def build_host_selection_intent(
             return {"error": "Elza atgrieza neatbalstītu lokālā audio formātu."}
         if extension not in local_audio_extensions:
             local_audio_extensions.append(extension)
+    if wav_scope == "local" and "wav" not in local_audio_extensions:
+        local_audio_extensions.append("wav")
+
     if local_audio_extensions:
         if local_audio == "without":
             return {
@@ -83,6 +288,10 @@ def build_host_selection_intent(
             "Local " + "/".join(extension.upper() for extension in local_audio_extensions)
         )
 
+    if wav_scope == "all":
+        labels = [label for label in labels if label not in {"With local audio", "Local WAV"}]
+        labels.append("WAV (Suno + Local)")
+
     raw_excluded_types = request.get("exclude_ui_types") or []
     if not isinstance(raw_excluded_types, list):
         return {"error": "Elza atgrieza nederīgu izslēdzamo LS Type sarakstu."}
@@ -94,8 +303,36 @@ def build_host_selection_intent(
         if ui_type and key not in seen_excluded_types:
             exclude_ui_types.append(ui_type)
             seen_excluded_types.add(key)
+
+    raw_included_types = request.get("include_ui_types") or []
+    if not isinstance(raw_included_types, list):
+        return {"error": "Elza atgrieza nederīgu iekļaujamo LS Type sarakstu."}
+    include_ui_types = []
+    seen_included_types = set()
+    for item in raw_included_types[:20]:
+        ui_type = _clean_text(item, 120)
+        key = ui_type.casefold()
+        if ui_type and key not in seen_included_types:
+            include_ui_types.append(ui_type)
+            seen_included_types.add(key)
+
+    overlap = seen_excluded_types.intersection(seen_included_types)
+    if overlap:
+        return {"error": "Vienu LS Type nevar vienlaikus iekļaut un izslēgt."}
+
+    for ui_type in include_ui_types:
+        labels.append(f"Type: {ui_type}")
     for ui_type in exclude_ui_types:
         labels.append(f"Bez Type: {ui_type}")
+
+    try:
+        minimum_flag_count = int(request.get("minimum_flag_count") or 0)
+    except (TypeError, ValueError):
+        return {"error": "Elza atgrieza nederīgu minimālo Flags skaitu."}
+    if minimum_flag_count < 0 or minimum_flag_count > 5:
+        return {"error": "Minimālajam Flags skaitam jābūt no 0 līdz 5."}
+    if minimum_flag_count:
+        labels.append(f"Vismaz {minimum_flag_count} ✶")
 
     raw_flags = request.get("flags")
     if not isinstance(raw_flags, list):
@@ -171,8 +408,37 @@ def build_host_selection_intent(
         labels.append(f"Name: {title_query}")
 
     anywhere_query = _clean_text(request.get("anywhere_query"), 300)
-    if anywhere_query:
-        labels.append(f"Anywhere: {anywhere_query}")
+    text_query = _clean_text(request.get("text_query"), 300) or anywhere_query
+    raw_text_fields = request.get("text_fields") or []
+    if not isinstance(raw_text_fields, list):
+        return {"error": "Elza atgrieza nederīgu teksta meklēšanas lauku sarakstu."}
+    text_fields = []
+    for item in raw_text_fields[:5]:
+        field = _clean_text(item, 20).lower()
+        if field not in set(_ALL_TEXT_FIELDS):
+            return {"error": "Elza atgrieza neatbalstītu teksta meklēšanas lauku."}
+        if field not in text_fields:
+            text_fields.append(field)
+    if anywhere_query and not text_fields:
+        text_fields = list(_ALL_TEXT_FIELDS)
+    if text_query and text_fields:
+        if set(text_fields) == set(_ALL_TEXT_FIELDS):
+            labels.append(f"Anywhere: {text_query}")
+        elif text_fields == ["name"]:
+            labels.append(f"Name: {text_query}")
+        elif text_fields == ["prompt"]:
+            labels.append(f"Prompt: {text_query}")
+        elif text_fields == ["lyrics"]:
+            labels.append(f"Lyrics: {text_query}")
+        elif text_fields == ["tags"]:
+            labels.append(f"Tags: {text_query}")
+        elif text_fields == ["track_id"]:
+            labels.append(f"Track ID: {text_query}")
+        else:
+            labels.append(
+                " + ".join(_text_field_label(field) for field in text_fields)
+                + f": {text_query}"
+            )
 
     try:
         exact_stem_count = int(request.get("exact_stem_count") or 0)
@@ -184,8 +450,11 @@ def build_host_selection_intent(
         filters
         or local_audio_extensions
         or exclude_ui_types
+        or include_ui_types
+        or wav_scope
+        or minimum_flag_count
         or local_family_assigned is not None
-        or bool(anywhere_query)
+        or bool(text_query)
     ):
         return {
             "error": (
@@ -201,8 +470,13 @@ def build_host_selection_intent(
         "save_name": (" + ".join(labels) or "LS Elza selection")[:80],
         "local_family_assigned": local_family_assigned,
         "local_audio_extensions": local_audio_extensions,
+        "wav_scope": wav_scope,
         "exclude_ui_types": exclude_ui_types,
+        "include_ui_types": include_ui_types,
+        "minimum_flag_count": minimum_flag_count,
         "anywhere_query": anywhere_query,
+        "text_query": text_query,
+        "text_fields": text_fields,
     }
 
     if exact_flags:
@@ -220,8 +494,11 @@ def build_host_selection_intent(
         not filters
         and not exact_stem_count
         and not exclude_ui_types
+        and not include_ui_types
+        and not wav_scope
+        and not minimum_flag_count
         and local_family_assigned is None
-        and not anywhere_query
+        and not text_query
     ):
         return {"error": "Elza neatrada nevienu droši izpildāmu LS atlases nosacījumu."}
 
@@ -229,7 +506,7 @@ def build_host_selection_intent(
 
 
 def prepare_local_locf_service_result(payload):
-    """Return a service-compatible local selection only for clear simple LocF commands."""
+    """Return a deterministic local text selection first, then explicit LocF."""
     if not isinstance(payload, dict):
         return None
     if str(payload.get("action") or "send").strip().lower() != "send":
@@ -238,14 +515,22 @@ def prepare_local_locf_service_result(payload):
         return None
     if str(payload.get("selected_mode") or "").strip():
         return None
-    selection_request = recognize_locf_selection(payload.get("message"))
+    message = payload.get("message")
+    selection_request = _recognize_local_text_selection(message)
+    model_name = "local-readonly-text-v240"
+    if selection_request is None:
+        plain = _fold_user_text(message)
+        if not re.search(r"\blocf\b|\blocal\s+family\b", plain):
+            return None
+        selection_request = recognize_locf_selection(message)
+        model_name = "local-readonly-locf-v240"
     if selection_request is None:
         return None
     return {
         "ok": True,
         "chat_id": str(payload.get("chat_id") or "").strip(),
         "selection_request": selection_request,
-        "model": "local-readonly",
+        "model": model_name,
         "image_count": 0,
         "sources": [],
     }

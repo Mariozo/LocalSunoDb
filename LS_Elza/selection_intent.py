@@ -11,7 +11,9 @@ SELECTION_TOOL_NAME = "ls_prepare_selection"
 _ALLOWED_CATEGORY = {"", "Song", "Instrumental"}
 _ALLOWED_KIND_FILTER = {"", "liked", "has_stems"}
 _ALLOWED_LOCAL_AUDIO = {"", "with", "without"}
+_ALLOWED_WAV_SCOPE = {"", "all", "local"}
 _ALLOWED_LOCAL_AUDIO_EXTENSIONS = {"wav", "mp3", "flac", "m4a", "aac", "ogg"}
+_ALLOWED_TEXT_FIELDS = {"name", "track_id", "lyrics", "prompt", "tags"}
 _REQUIRED_FIELDS = {
     "safe_to_execute",
     "reason",
@@ -30,8 +32,13 @@ _REQUIRED_FIELDS = {
 }
 _OPTIONAL_FIELDS = {
     "exclude_ui_types",
+    "include_ui_types",
     "local_audio_extensions",
+    "wav_scope",
+    "minimum_flag_count",
     "anywhere_query",
+    "text_query",
+    "text_fields",
 }
 _ALLOWED_FIELDS = _REQUIRED_FIELDS | _OPTIONAL_FIELDS
 
@@ -43,8 +50,14 @@ def get_selection_tool_definition():
         "description": (
             "Interpret a user request to select, filter, show, find, or list LocalSunoDb tracks. "
             "Use semantic meaning rather than exact spelling, including ordinary typing and "
-            "speech-to-text errors. Preserve every stated condition. This tool does not change "
-            "the database; it only returns a structured read-only selection request."
+            "speech-to-text errors. Preserve every stated condition. Latvian 'vietējās/lokālās "
+            "dziesmas' means local_audio='with', not Local Family/LocF. Generic 'dziesmas' does "
+            "not by itself mean category='Song'. Use Local Family fields only when LocF or Local "
+            "Family is explicitly requested. Cross-field wording such as 'nosaukumā vai citur', "
+            "'jebkur', or 'tekstā vai #tagā' uses text_query plus text_fields. Exact field requests "
+            "are supported: name, track_id, lyrics, prompt, tags. When the user means every text "
+            "field, use all five. Keep title_query only for legacy name-only requests. This tool "
+            "does not change the database."
         ),
         "parameters": {
             "type": "object",
@@ -87,7 +100,11 @@ def get_selection_tool_definition():
                 "local_audio": {
                     "type": "string",
                     "enum": ["", "with", "without"],
-                    "description": "Whether local audio must exist, must not exist, or is unspecified.",
+                    "description": (
+                        "Whether local audio must exist, must not exist, or is unspecified. "
+                        "Latvian 'vietējās/lokālās dziesmas' or 'vietējie/lokālie ieraksti' "
+                        "means local_audio='with', not Local Family."
+                    ),
                 },
                 "local_audio_extensions": {
                     "type": "array",
@@ -97,9 +114,19 @@ def get_selection_tool_definition():
                     },
                     "maxItems": 6,
                     "description": (
-                        "Explicit local audio formats requested by the user. "
-                        "For example, 'local WAV' means ['wav']. Leave empty "
-                        "when no local file format was requested."
+                        "Explicit LOCAL audio formats requested by the user. "
+                        "For example, 'local WAV' means ['wav']. An unqualified "
+                        "'WAV' must not be put here; use wav_scope='all'."
+                    ),
+                },
+                "wav_scope": {
+                    "type": "string",
+                    "enum": ["", "all", "local"],
+                    "description": (
+                        "Meaning of WAV wording. 'all' means WAV available from Suno "
+                        "OR already present locally. 'local' means an already linked "
+                        "local WAV file only. Unqualified 'WAV' means 'all'; explicit "
+                        "'local/vietējais/lokālais WAV' means 'local'."
                     ),
                 },
                 "exclude_ui_types": {
@@ -110,6 +137,26 @@ def get_selection_tool_definition():
                         "Exact LocalSunoDb Type badges to exclude from the selection. "
                         "For example, 'bez Upload', '- Upload', or 'izņem Upload' "
                         "means ['Upload']. Preserve the visible LS Type name."
+                    ),
+                },
+                "include_ui_types": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "maxItems": 20,
+                    "description": (
+                        "Exact visible LocalSunoDb Type badges that must be present. "
+                        "For example, 'kas ir Upload' or 'Type Upload' means ['Upload']. "
+                        "This is inclusion, not exclusion."
+                    ),
+                },
+                "minimum_flag_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 5,
+                    "description": (
+                        "Minimum number of the five independent LS Flags that must be enabled. "
+                        "Use this for wording such as 'vismaz 3 zvaigznes/✶'. Do not encode "
+                        "that wording as flags=[3], because flags identifies specific Flags."
                     ),
                 },
                 "tags": {
@@ -129,20 +176,43 @@ def get_selection_tool_definition():
                 "local_family_assigned": {
                     "type": ["boolean", "null"],
                     "description": (
-                        "True when any confirmed Local Family assignment is required; false when "
-                        "no confirmed assignment is required; null when unspecified."
+                        "True only when the user explicitly requests LocF/Local Family assignment; "
+                        "false only when the user explicitly requests no LocF/Local Family; null "
+                        "otherwise. Never infer this from 'vietējās/lokālās' songs, tracks or audio."
                     ),
                 },
                 "title_query": {
                     "type": "string",
-                    "description": "Explicit title/name search text, otherwise empty.",
+                    "description": (
+                        "Explicit title/name-only search text, otherwise empty. If the term may "
+                        "appear in the name OR elsewhere/lyrics/tags, use anywhere_query instead."
+                    ),
                 },
                 "anywhere_query": {
                     "type": "string",
                     "description": (
-                        "Free-text term that may match Name/Track ID, Lyrics, Prompt, "
-                        "or Tags. Use this for requests such as 'word Elizabete is in "
-                        "a tag or elsewhere'. Leave empty when not requested."
+                        "Backward-compatible alias for a text query across every text field. "
+                        "Prefer text_query + text_fields for new requests."
+                    ),
+                },
+                "text_query": {
+                    "type": "string",
+                    "description": (
+                        "Free-text term to match in the explicitly requested text fields. "
+                        "Examples include a word requested only in Prompt, only in Lyrics, "
+                        "or in any combination of Name, Track ID, Lyrics, Prompt and Tags."
+                    ),
+                },
+                "text_fields": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": ["name", "track_id", "lyrics", "prompt", "tags"],
+                    },
+                    "maxItems": 5,
+                    "description": (
+                        "Exact text fields requested by the user. Use all five only for "
+                        "anywhere/citur/jebkur or an explicit list covering every field."
                     ),
                 },
                 "exact_stem_count": {
@@ -195,12 +265,15 @@ def normalize_selection_request(arguments):
     category = _clean_text(arguments.get("category"), 40)
     kind_filter = _clean_text(arguments.get("kind_filter"), 40)
     local_audio = _clean_text(arguments.get("local_audio"), 40)
+    wav_scope = _clean_text(arguments.get("wav_scope"), 20).lower()
     if category not in _ALLOWED_CATEGORY:
         raise ValueError("Unsupported category.")
     if kind_filter not in _ALLOWED_KIND_FILTER:
         raise ValueError("Unsupported kind filter.")
     if local_audio not in _ALLOWED_LOCAL_AUDIO:
         raise ValueError("Unsupported local audio filter.")
+    if wav_scope not in _ALLOWED_WAV_SCOPE:
+        raise ValueError("Unsupported WAV scope.")
 
     raw_flags = arguments.get("flags")
     if not isinstance(raw_flags, list):
@@ -230,6 +303,30 @@ def normalize_selection_request(arguments):
     exclude_ui_types = _normalize_optional_text_list(
         arguments.get("exclude_ui_types"), max_items=20, max_chars=120
     )
+    include_ui_types = _normalize_optional_text_list(
+        arguments.get("include_ui_types"), max_items=20, max_chars=120
+    )
+    excluded_type_keys = {item.casefold() for item in exclude_ui_types}
+    included_type_keys = {item.casefold() for item in include_ui_types}
+    if excluded_type_keys.intersection(included_type_keys):
+        raise ValueError("The same UI Type cannot be both included and excluded.")
+
+    try:
+        minimum_flag_count = int(arguments.get("minimum_flag_count") or 0)
+    except (TypeError, ValueError) as error:
+        raise ValueError("Minimum flag count must be an integer.") from error
+    if minimum_flag_count < 0 or minimum_flag_count > 5:
+        raise ValueError("Minimum flag count is out of range.")
+
+    text_fields = []
+    for item in _normalize_optional_text_list(
+        arguments.get("text_fields"), max_items=5, max_chars=20
+    ):
+        field = item.strip().lower()
+        if field not in _ALLOWED_TEXT_FIELDS:
+            raise ValueError("Unsupported text search field.")
+        if field not in text_fields:
+            text_fields.append(field)
 
     raw_tags = arguments.get("tags")
     if not isinstance(raw_tags, list):
@@ -277,13 +374,18 @@ def normalize_selection_request(arguments):
         "kind_filter": kind_filter,
         "local_audio": local_audio,
         "local_audio_extensions": local_audio_extensions,
+        "wav_scope": wav_scope,
         "exclude_ui_types": exclude_ui_types,
+        "include_ui_types": include_ui_types,
+        "minimum_flag_count": minimum_flag_count,
         "tags": tags,
         "workspace": _clean_text(arguments.get("workspace"), 300),
         "local_family": local_family,
         "local_family_assigned": local_family_assigned,
         "title_query": _clean_text(arguments.get("title_query"), 300),
         "anywhere_query": _clean_text(arguments.get("anywhere_query"), 300),
+        "text_query": _clean_text(arguments.get("text_query"), 300),
+        "text_fields": text_fields,
         "exact_stem_count": exact_stem_count,
     }
 
