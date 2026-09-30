@@ -832,44 +832,14 @@ def build_category_and_type_controls(
     """
 
     kind_filter_options = [
-        f'<option value="" data-hotkey="a" {selected_attr(kind_filter, "")}>All types ({all_main_count})</option>',
+        f'<option value="" data-hotkey="a" {selected_attr(kind_filter, "")}>All operations ({all_main_count})</option>',
     ]
     for type_row in get_ui_type_counts():
         ui_type = str(type_row["ui_type"] or "").strip()
-        if not ui_type or ui_type in ("Song", "Instrumental"):
+        if not ui_type or ui_type in ("Song", "Instrumental", "Upload"):
             continue
         kind_filter_options.append(
             f'<option value="{esc(ui_type)}" {selected_attr(kind_filter, ui_type)}>{esc(ui_type)} ({int(type_row["count"] or 0)})</option>'
-        )
-    kind_filter_options.extend([
-        f'<option value="__has_stems__" data-hotkey="m" {selected_attr(kind_filter, "__has_stems__")}>Has Stems — {stats.get("total_has_stems", 0)} tracks / {stats.get("total_local_stem_files", 0)} files</option>',
-        f'<option value="__liked__" data-hotkey="l" {selected_attr(kind_filter, "__liked__")}>Liked ({stats.get("total_liked", 0)})</option>',
-    ])
-
-    review_s_to_i_count = stats.get("total_conflict_s_to_i", 0)
-    review_i_to_s_count = stats.get("total_conflict_i_to_s", 0)
-    intent_s_to_i_count = stats.get("total_intent_s_to_i", 0)
-    intent_i_to_s_count = stats.get("total_intent_i_to_s", 0)
-    if intent_s_to_i_count:
-        kind_filter_options.append(
-            f'<option value="__intent_s_to_i__" {selected_attr(kind_filter, "__intent_s_to_i__")}>Audit: Song → Instrumental ({intent_s_to_i_count})</option>'
-        )
-    if intent_i_to_s_count:
-        kind_filter_options.append(
-            f'<option value="__intent_i_to_s__" {selected_attr(kind_filter, "__intent_i_to_s__")}>Audit: Instrumental → Song ({intent_i_to_s_count})</option>'
-        )
-    if review_s_to_i_count:
-        kind_filter_options.append(
-            f'<option value="__conflict_s_to_i__" {selected_attr(kind_filter, "__conflict_s_to_i__")}>Legacy S→I conflicts ({review_s_to_i_count})</option>'
-        )
-    if review_i_to_s_count:
-        kind_filter_options.append(
-            f'<option value="__conflict_i_to_s__" {selected_attr(kind_filter, "__conflict_i_to_s__")}>Legacy I→S conflicts ({review_i_to_s_count})</option>'
-        )
-    last_imported_count = len(get_last_imported_suno_ids())
-    if last_imported_count:
-        kind_filter_options.append(
-            f'<option value="__last_imported__" data-hotkey="" {selected_attr(kind_filter, "__last_imported__")}>Last imported Suno ({last_imported_count})</option>'
         )
 
     return {
