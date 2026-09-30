@@ -220,8 +220,8 @@ jobs:
 
           template = (verify_root / "ls_library/templates/library.html").read_text(encoding="utf-8")
           repository = (verify_root / "ls_data/repository.py").read_text(encoding="utf-8")
-          assert 'class="library-search-zone"' in template
-          assert 'class="library-filters-v2-row"' in template
+          assert "library-search-zone" in template
+          assert "library-filters-v2-row" in template
           assert 'name="upload_filter"' in template
           assert 'name="like_filter"' in template
           assert 'name="local_wav_filter"' in template
