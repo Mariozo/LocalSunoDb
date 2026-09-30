@@ -539,15 +539,31 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
   const inspectorDuration = document.getElementById('album-inspector-duration');
   const inspectorYearGenre = document.getElementById('album-inspector-year-genre');
   const inspectorCover = document.getElementById('album-inspector-cover');
+  const inspectorGoogleTrack = document.getElementById('album-google-track');
+  const nowPlaying = document.getElementById('album-now-playing');
+  const nowPlayingLabel = document.getElementById('album-now-playing-label');
+  const nowPlayingTitle = document.getElementById('album-now-playing-title');
+  let selectedAlbumRow = null;
+  const updateGoogleTrackLink = row => {{
+    if (!inspectorGoogleTrack || !row) return;
+    const title = String(row.dataset.playerTitle || '');
+    const artistValue = String(row.dataset.playerArtist || '');
+    inspectorGoogleTrack.href = 'https://www.google.com/search?q=' + encodeURIComponent([artistValue,title,'song'].filter(Boolean).join(' '));
+  }};
   const selectAlbumRow = row => {{
     if (!row || !row.classList.contains('album-track-row')) return;
+    selectedAlbumRow = row;
     document.querySelectorAll('.album-track-row.is-selected').forEach(item => item.classList.remove('is-selected'));
     row.classList.add('is-selected');
-    if (inspectorTitle) inspectorTitle.textContent = String(row.dataset.playerTitle || 'Track');
+    const title = String(row.dataset.playerTitle || 'Track');
+    if (inspectorTitle) inspectorTitle.textContent = title;
     if (inspectorMeta) inspectorMeta.textContent = String(row.dataset.playerArtist || '');
     if (inspectorFormat) inspectorFormat.textContent = String(row.dataset.trackFormat || '');
     if (inspectorDuration) inspectorDuration.textContent = String(row.dataset.trackDuration || '');
     if (inspectorYearGenre) inspectorYearGenre.textContent = [row.dataset.trackYear,row.dataset.trackGenre].filter(Boolean).join(' · ');
+    if (nowPlayingTitle && !nowPlaying?.classList.contains('is-playing')) nowPlayingTitle.textContent = title;
+    if (nowPlayingLabel && !nowPlaying?.classList.contains('is-playing')) nowPlayingLabel.textContent = 'Izvēlētā dziesma';
+    updateGoogleTrackLink(row);
     const cover = String(row.dataset.playerCover || '');
     if (inspectorCover && cover) inspectorCover.src = cover;
   }};
@@ -1002,6 +1018,15 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
       const button = row.querySelector('.music-row-play');
       if (button) button.textContent = index === currentIndex && playing ? '❚❚' : '▶';
     }});
+    if (nowPlaying) nowPlaying.classList.toggle('is-playing', playing);
+    const currentRow = currentIndex >= 0 ? playerRows[currentIndex] : null;
+    if (playing && currentRow) {{
+      if (nowPlayingLabel) nowPlayingLabel.textContent = 'Tagad skan';
+      if (nowPlayingTitle) nowPlayingTitle.textContent = String(currentRow.dataset.playerTitle || 'Track');
+    }} else if (selectedAlbumRow) {{
+      if (nowPlayingLabel) nowPlayingLabel.textContent = 'Izvēlētā dziesma';
+      if (nowPlayingTitle) nowPlayingTitle.textContent = String(selectedAlbumRow.dataset.playerTitle || 'Track');
+    }}
   }};
   const enablePlayer = enabled => {{
     [playerPlay, playerPrevious, playerNext, playerRestart, playerLoop, playerProgress, playerSetA, playerSetB, playerZoomToggle].forEach(node => {{ if (node) node.disabled = !enabled; }});
@@ -1051,6 +1076,12 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
   }});
   const firstAlbumRow = document.querySelector('.album-track-row');
   if (firstAlbumRow) selectAlbumRow(firstAlbumRow);
+  nowPlaying?.addEventListener('click', () => {{
+    const target = currentIndex >= 0 ? playerRows[currentIndex] : selectedAlbumRow;
+    if (!target) return;
+    selectAlbumRow(target);
+    target.scrollIntoView({{block:'center',behavior:'smooth'}});
+  }});
   document.getElementById('album-play-all')?.addEventListener('click', () => {{
     const firstVisible = playerRows.findIndex(row => row.classList.contains('album-track-row') && !row.hidden);
     if (firstVisible >= 0) loadTrack(firstVisible, true);
