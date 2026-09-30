@@ -238,33 +238,47 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
             f'<img id="album-inspector-cover" src="{_esc(album_cover_url)}" alt="">'
             if album_cover_url else '<span class="album-inspector-cover-empty" id="album-inspector-cover-empty">♪</span>'
         )
+        album_google_url = "https://www.google.com/search?q=" + urllib.parse.quote(
+            " ".join(part for part in [artist, album, "album"] if part)
+        )
         detail_block = f"""
         <section class="album-detail-v2">
-          <div class="album-hero-v2" id="album-hero-v2">
-            <a class="album-back-v2" href="{_esc(back_url)}" title="Atpakaļ uz albumiem">←</a>
-            <div class="album-hero-inner-v2">
-              <div class="album-hero-cover-v2">{hero_cover}</div>
-              <div class="album-hero-copy-v2">
-                <div class="album-kind-v2">Albums</div>
-                <h1>{_esc(album)}</h1>
-                <div class="album-meta-v2"><strong>{_esc(artist or "Unknown Artist")}</strong>{(" · " + _esc(album_meta)) if album_meta else ""}</div>
+          <div class="album-layout-v3">
+            <div class="album-left-v3">
+              <div class="album-hero-v2" id="album-hero-v2">
+                <a class="album-back-v2" href="{_esc(back_url)}" title="Atpakaļ uz albumiem">←</a>
+                <div class="album-hero-inner-v2">
+                  <div class="album-hero-cover-v2">{hero_cover}</div>
+                  <div class="album-hero-copy-v2">
+                    <div class="album-kind-v2">Albums</div>
+                    <h1>{_esc(album)}</h1>
+                    <div class="album-meta-v2"><strong>{_esc(artist or "Unknown Artist")}</strong>{(" · " + _esc(album_meta)) if album_meta else ""}</div>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
 
-          <div class="album-detail-body-v2">
-            <div class="album-main-v2">
-              <div class="album-actions-v2">
-                <button type="button" class="album-play-v2" id="album-play-all" title="Atskaņot albumu" aria-label="Atskaņot albumu">▶</button>
-                <input type="search" class="album-search-v2" id="album-track-search" placeholder="Meklēt šajā albumā" autocomplete="off">
-              </div>
-              <div class="album-track-head-v2"><span>#</span><span>Nosaukums</span><span>◷</span></div>
-              <div class="album-track-list-v2" id="album-track-list">
-                {''.join(album_row_html) if album_row_html else '<div class="none">Nav ierakstu.</div>'}
+              <div class="album-main-v2">
+                <div class="album-actions-v2">
+                  <button type="button" class="album-play-v2" id="album-play-all" title="Atskaņot albumu" aria-label="Atskaņot albumu">▶</button>
+                  <input type="search" class="album-search-v2" id="album-track-search" placeholder="Meklēt šajā albumā" autocomplete="off">
+                </div>
+                <div class="album-track-head-v2"><span>#</span><span>Nosaukums</span><span>◷</span></div>
+                <div class="album-track-list-v2" id="album-track-list">
+                  {''.join(album_row_html) if album_row_html else '<div class="none">Nav ierakstu.</div>'}
+                </div>
               </div>
             </div>
 
             <aside class="album-inspector-v2" id="album-inspector">
+              <button type="button" class="album-now-playing-v3" id="album-now-playing" title="Parādīt skanošo dziesmu sarakstā">
+                <span class="album-now-playing-dot" id="album-now-playing-dot"></span>
+                <span>
+                  <small id="album-now-playing-label">Izvēlētā dziesma</small>
+                  <strong id="album-now-playing-title">{_esc(tracks[0].get("title") if tracks else album)}</strong>
+                </span>
+                <span class="album-now-playing-arrow">↗</span>
+              </button>
+
               <div class="album-inspector-cover-v2">{inspector_cover}</div>
               <h2 id="album-inspector-title">{_esc(tracks[0].get("title") if tracks else album)}</h2>
               <div class="album-inspector-meta" id="album-inspector-meta">{_esc(artist or "")}</div>
@@ -272,6 +286,12 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
                 <span id="album-inspector-format">{_esc(str((tracks[0].get("format") if tracks else "") or "").upper())}</span>
                 <span id="album-inspector-duration">{_esc(_duration(tracks[0].get("duration_seconds") if tracks else ""))}</span>
               </div>
+
+              <div class="album-info-actions-v3">
+                <a class="album-info-link-v3" id="album-google-track" href="{_esc(album_google_url)}" target="_blank" rel="noopener noreferrer">Google: dziesma</a>
+                <a class="album-info-link-v3" href="{_esc(album_google_url)}" target="_blank" rel="noopener noreferrer">Google: albums</a>
+              </div>
+
               <div class="album-inspector-block">
                 <div class="album-inspector-label">Albums</div>
                 <div>{_esc(album)}</div>
