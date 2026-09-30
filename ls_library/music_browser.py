@@ -466,6 +466,80 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
       setTimeout(() => shellNavigate('/my-library?db=' + encodeURIComponent(data.name)), 500);
     }} catch (e) {{ status.className='status error'; status.textContent=String(e.message || e); }} finally {{ button.disabled=false; }}
   }});
+  const heroCover = document.getElementById('album-hero-cover');
+  const applyAlbumTheme = () => {{
+    if (!heroCover || !heroCover.naturalWidth || !heroCover.naturalHeight) return;
+    try {{
+      const canvas = document.createElement('canvas');
+      canvas.width = 40;
+      canvas.height = 40;
+      const ctx = canvas.getContext('2d', {{willReadFrequently:true}});
+      ctx.drawImage(heroCover, 0, 0, 40, 40);
+      const pixels = ctx.getImageData(0, 0, 40, 40).data;
+      const buckets = new Map();
+      for (let i = 0; i < pixels.length; i += 4) {{
+        if (pixels[i + 3] < 180) continue;
+        const r0 = pixels[i], g0 = pixels[i + 1], b0 = pixels[i + 2];
+        const max = Math.max(r0,g0,b0), min = Math.min(r0,g0,b0);
+        const lum = .2126*r0 + .7152*g0 + .0722*b0;
+        if (lum < 24 || (min > 222 && max > 238)) continue;
+        const r = (r0 >> 4) * 16 + 8;
+        const g = (g0 >> 4) * 16 + 8;
+        const b = (b0 >> 4) * 16 + 8;
+        const key = r + ',' + g + ',' + b;
+        const saturation = (max - min) / Math.max(1,max);
+        const score = 1 + saturation * 1.8 + Math.min(lum,175) / 330;
+        buckets.set(key, (buckets.get(key) || 0) + score);
+      }}
+      let picked = [66,109,88], best = -1;
+      buckets.forEach((score,key) => {{
+        if (score > best) {{ best = score; picked = key.split(',').map(Number); }}
+      }});
+      const mix = (from,to,amount) => from.map((v,i) => Math.round(v*(1-amount)+to[i]*amount));
+      const luminance = .2126*picked[0] + .7152*picked[1] + .0722*picked[2];
+      const hero = mix(picked,[255,255,255],luminance < 80 ? .34 : luminance < 125 ? .24 : .16);
+      const dark = hero.map(v => Math.max(0,Math.round(v*.80)));
+      const wash = mix(dark,[6,31,20],.78);
+      const rgb = value => 'rgb(' + value.join(',') + ')';
+      document.body.style.setProperty('--album-hero',rgb(hero));
+      document.body.style.setProperty('--album-hero-dark',rgb(dark));
+      document.body.style.setProperty('--album-wash',rgb(wash));
+    }} catch (_) {{}}
+  }};
+  if (heroCover) {{
+    if (heroCover.complete) applyAlbumTheme();
+    else heroCover.addEventListener('load',applyAlbumTheme,{{once:true}});
+  }}
+
+  const inspector = document.getElementById('album-inspector');
+  const inspectorTitle = document.getElementById('album-inspector-title');
+  const inspectorMeta = document.getElementById('album-inspector-meta');
+  const inspectorFormat = document.getElementById('album-inspector-format');
+  const inspectorDuration = document.getElementById('album-inspector-duration');
+  const inspectorYearGenre = document.getElementById('album-inspector-year-genre');
+  const inspectorCover = document.getElementById('album-inspector-cover');
+  const selectAlbumRow = row => {{
+    if (!row || !row.classList.contains('album-track-row')) return;
+    document.querySelectorAll('.album-track-row.is-selected').forEach(item => item.classList.remove('is-selected'));
+    row.classList.add('is-selected');
+    if (inspectorTitle) inspectorTitle.textContent = String(row.dataset.playerTitle || 'Track');
+    if (inspectorMeta) inspectorMeta.textContent = String(row.dataset.playerArtist || '');
+    if (inspectorFormat) inspectorFormat.textContent = String(row.dataset.trackFormat || '');
+    if (inspectorDuration) inspectorDuration.textContent = String(row.dataset.trackDuration || '');
+    if (inspectorYearGenre) inspectorYearGenre.textContent = [row.dataset.trackYear,row.dataset.trackGenre].filter(Boolean).join(' · ');
+    const cover = String(row.dataset.playerCover || '');
+    if (inspectorCover && cover) inspectorCover.src = cover;
+  }};
+
+  const albumSearch = document.getElementById('album-track-search');
+  albumSearch?.addEventListener('input', () => {{
+    const needle = String(albumSearch.value || '').trim().toLocaleLowerCase();
+    document.querySelectorAll('.album-track-row').forEach(row => {{
+      const hay = [row.dataset.playerTitle,row.dataset.playerArtist].filter(Boolean).join(' ').toLocaleLowerCase();
+      row.hidden = Boolean(needle && !hay.includes(needle));
+    }});
+  }});
+
   const playerRoot = document.getElementById('my-music-player');
   const playerAudio = document.getElementById('my-player-audio');
   const playerRows = Array.from(document.querySelectorAll('.music-track-row'));
@@ -924,6 +998,7 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
     const artist = String(row.dataset.playerArtist || '');
     const album = String(row.dataset.playerAlbum || '');
     const cover = String(row.dataset.playerCover || '');
+    selectAlbumRow(row);
     playerTitle.textContent = title;
     playerSource.textContent = [artist, album].filter(Boolean).join(' · ') || 'My Library';
     if (cover) {{ playerCover.src = cover; playerCover.style.display = 'block'; playerCoverPlaceholder.style.display = 'none'; }} else {{ playerCover.removeAttribute('src'); playerCover.style.display = 'none'; playerCoverPlaceholder.style.display = 'inline'; }}
@@ -942,7 +1017,22 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
       else if (currentIndex === index && playerAudio.src) playerAudio.play().catch(() => {{}});
       else loadTrack(index, true);
     }});
+    row.addEventListener('click', event => {{
+      if (!event.target.closest('button')) selectAlbumRow(row);
+    }});
+    row.addEventListener('keydown', event => {{
+      if ((event.key === 'Enter' || event.key === ' ') && row.classList.contains('album-track-row')) {{
+        event.preventDefault();
+        selectAlbumRow(row);
+      }}
+    }});
     row.addEventListener('dblclick', event => {{ if (!event.target.closest('button')) loadTrack(index, true); }});
+  }});
+  const firstAlbumRow = document.querySelector('.album-track-row');
+  if (firstAlbumRow) selectAlbumRow(firstAlbumRow);
+  document.getElementById('album-play-all')?.addEventListener('click', () => {{
+    const firstVisible = playerRows.findIndex(row => row.classList.contains('album-track-row') && !row.hidden);
+    if (firstVisible >= 0) loadTrack(firstVisible, true);
   }});
   playerPlay?.addEventListener('click', () => {{
     if (currentIndex < 0) {{ if (playerRows.length) loadTrack(0, true); return; }}
