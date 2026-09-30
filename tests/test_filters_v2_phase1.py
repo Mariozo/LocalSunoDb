@@ -17,9 +17,12 @@ def test_filters_v2_phase1_layout_and_routing_contract():
     assert 'class="library-search-zone"' in template
     assert 'class="library-filter-zone-head"' in template
     assert 'class="library-control-row library-filters-v2-row"' in template
+    assert 'class="library-control-row library-filters-v2-tools-row"' in template
     assert 'class="library-sort-group"' in template
     assert "library-zone-label" in layout_css
     assert "library-filters-v2-row" in layout_css
+    assert "library-filters-v2-tools-row" in layout_css
+    assert "left: 0;" in layout_css
 
     # Phase 1 quick dimensions are separate from Type / Operation.
     assert 'name="local_wav_filter"' in template
