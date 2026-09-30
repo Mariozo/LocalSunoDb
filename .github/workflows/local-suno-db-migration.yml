@@ -218,4 +218,3 @@ jobs:
           name: LS-Type-Baseline-1.0
           path: LS_Type_Baseline_1.0.zip
           if-no-files-found: error
-
