@@ -1921,6 +1921,9 @@ SAVED_VIEW_PARAM_ORDER = (
     "category_mode",
     "local_family_filter",
     "kind_filter",
+    "upload_filter",
+    "like_filter",
+    "local_wav_filter",
     "local_audio_filter",
     "search_name",
     "search_lyrics",
@@ -2099,6 +2102,27 @@ def _canonical_has_stems_sql(track_alias="t"):
     )
 
 
+def _canonical_has_local_wav_sql(track_alias="t"):
+    return (
+        "EXISTS ("
+        "SELECT 1 FROM main.track_variants tvw "
+        "JOIN main.media_files mfw ON mfw.variant_id = tvw.id "
+        f"WHERE tvw.track_id = {track_alias}.id "
+        "AND mfw.role = 'main' AND lower(COALESCE(mfw.format, '')) = 'wav'"
+        ")"
+    )
+
+
+def _canonical_is_upload_sql(track_alias="t"):
+    return (
+        "("
+        f"lower(TRIM(COALESCE({track_alias}.source_type, ''))) = 'upload' OR "
+        f"lower(TRIM(COALESCE({track_alias}.source_task, ''))) = 'upload' OR "
+        f"lower(TRIM(COALESCE({track_alias}.kind, ''))) = 'upload'"
+        ")"
+    )
+
+
 def build_track_filter_query_parts(
     query="",
     style_query="",
@@ -2107,6 +2131,8 @@ def build_track_filter_query_parts(
     category_filter="",
     local_family_filter="",
     like_filter="",
+    upload_filter="",
+    local_wav_filter="",
     local_audio_filter="",
     search_name=True,
     search_lyrics=False,
@@ -2125,6 +2151,8 @@ def build_track_filter_query_parts(
     kind_filter = normalize_ui_type_filter(kind_filter)
     selected_categories = normalize_multi_filter_values(category_filter)
     selected_local_families = normalize_multi_filter_values(local_family_filter)
+    upload_filter = str(upload_filter or "").strip().lower()
+    local_wav_filter = str(local_wav_filter or "").strip().lower()
     local_audio_filter = (local_audio_filter or "").strip().lower()
 
     params = []
@@ -2242,6 +2270,20 @@ def build_track_filter_query_parts(
         params.append(kind_filter)
 
     append_main_category_filter(where_parts, params, selected_categories)
+
+    if upload_filter in {"with", "without"}:
+        is_upload_sql = _canonical_is_upload_sql("t")
+        if upload_filter == "with":
+            where_parts.append(is_upload_sql)
+        else:
+            where_parts.append(f"NOT ({is_upload_sql})")
+
+    if local_wav_filter in {"with", "without"}:
+        has_local_wav_sql = _canonical_has_local_wav_sql("t")
+        if local_wav_filter == "with":
+            where_parts.append(has_local_wav_sql)
+        else:
+            where_parts.append(f"NOT ({has_local_wav_sql})")
 
     if local_audio_filter in {"with", "without"}:
         has_local_audio_sql = _canonical_has_local_audio_sql("t")
@@ -2365,7 +2407,7 @@ def _track_cursor_predicate(cursor_value, sort_by="", sort_dir="asc"):
         ],
     )
 
-def search_tracks(query="", style_query="", workspace="", kind_filter="", category_filter="", local_family_filter="", like_filter="", local_audio_filter="", limit_value="300", search_name=True, search_lyrics=False, search_prompt=False, search_marks=False, search_tags=False, flag_filter="", tag_filter="", track_ids_filter="", family_group_track_ids=None, sort_by="", sort_dir="asc", offset_value=0, cursor_value=""):
+def search_tracks(query="", style_query="", workspace="", kind_filter="", category_filter="", local_family_filter="", like_filter="", upload_filter="", local_wav_filter="", local_audio_filter="", limit_value="300", search_name=True, search_lyrics=False, search_prompt=False, search_marks=False, search_tags=False, flag_filter="", tag_filter="", track_ids_filter="", family_group_track_ids=None, sort_by="", sort_dir="asc", offset_value=0, cursor_value=""):
     """Direct Library query over canonical tables only."""
     conn = get_canonical_connection()
     cur = conn.cursor()
@@ -2386,6 +2428,8 @@ def search_tracks(query="", style_query="", workspace="", kind_filter="", catego
         category_filter=category_filter,
         local_family_filter=local_family_filter,
         like_filter=like_filter,
+        upload_filter=upload_filter,
+        local_wav_filter=local_wav_filter,
         local_audio_filter=local_audio_filter,
         search_name=search_name,
         search_lyrics=search_lyrics,
@@ -2517,7 +2561,7 @@ def search_tracks(query="", style_query="", workspace="", kind_filter="", catego
     conn.close()
     return rows
 
-def count_tracks(query="", style_query="", workspace="", kind_filter="", category_filter="", local_family_filter="", like_filter="", local_audio_filter="", search_name=True, search_lyrics=False, search_prompt=False, search_marks=False, search_tags=False, flag_filter="", tag_filter="", track_ids_filter="", family_group_track_ids=None):
+def count_tracks(query="", style_query="", workspace="", kind_filter="", category_filter="", local_family_filter="", like_filter="", upload_filter="", local_wav_filter="", local_audio_filter="", search_name=True, search_lyrics=False, search_prompt=False, search_marks=False, search_tags=False, flag_filter="", tag_filter="", track_ids_filter="", family_group_track_ids=None):
     """Count Direct Library rows with the exact canonical filter builder."""
     conn = get_canonical_connection()
     cur = conn.cursor()
@@ -2529,6 +2573,8 @@ def count_tracks(query="", style_query="", workspace="", kind_filter="", categor
         category_filter=category_filter,
         local_family_filter=local_family_filter,
         like_filter=like_filter,
+        upload_filter=upload_filter,
+        local_wav_filter=local_wav_filter,
         local_audio_filter=local_audio_filter,
         search_name=search_name,
         search_lyrics=search_lyrics,
