@@ -730,7 +730,7 @@ def render_ls_elza_dialog_markup():
             <div class="ls-elza-head" id="ls-elza-drag-handle" title="Drag LS Elza">
                 <span class="ls-elza-dock-grip" aria-hidden="true">⠿</span>
                 <div class="ls-elza-title-box">
-                    <div class="ls-elza-title" id="ls-elza-title">Elza v2.32</div>
+                    <div class="ls-elza-title" id="ls-elza-title">Elza v3.00</div>
                     <div class="ls-elza-context-line" id="ls-elza-context-line"></div>
                 </div>
                 <div class="ls-elza-head-actions">
