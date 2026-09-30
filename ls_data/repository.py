@@ -438,6 +438,7 @@ def get_local_family_group_match_track_ids(
         "CASE WHEN t.kind IN ('Song', 'Instrumental', 'SongOrInstrumental') "
         "THEN t.kind ELSE '' END)"
     )
+    ui_type_sql = _canonical_ui_type_sql("t")
     family_workspaces = {key: set() for key in family_track_ids}
     family_categories = {key: set() for key in family_track_ids}
     conn = get_canonical_connection()
@@ -556,22 +557,118 @@ def get_last_sync():
         "marked_missing": row["marked_missing"] or 0,
     }
 
+_CANONICAL_UI_TYPE_TASK_GROUPS = (
+    ("Cover", ("cover", "vox_cover", "artist_cover", "cover_stem_condition")),
+    ("Edit", ("infill", "fixed_infill", "overpainting", "underpainting", "edit")),
+    ("Extend", ("extend", "upload_extend", "vox_extend", "artist_extend")),
+    (
+        "Mashup",
+        (
+            "mashup_condition",
+            "playlist_condition",
+            "vox_playlist_condition",
+            "chop_sample_condition",
+            "mashup",
+        ),
+    ),
+    ("Persona", ("artist_consistency", "persona")),
+    ("Remaster", ("upsample", "remaster")),
+    ("Stems", ("gen_stem", "stem_condition_infill", "stem_condition", "stems")),
+    ("Vocals", ("vox", "vocals")),
+    ("Upload", ("upload",)),
+    ("Studio", ("studio",)),
+)
+
+_CANONICAL_UI_TYPE_SOURCE_GROUPS = (
+    ("Edit", ("concat_infilling", "edit_crop", "edit_fade", "edit_speed")),
+    ("Studio", ("edit_v3_export", "studio_export")),
+    ("Remaster", ("upsample",)),
+    ("Stems", ("stem",)),
+    ("Upload", ("upload",)),
+)
+
+_CANONICAL_UI_TYPE_SORT = {
+    "Song": 10,
+    "Instrumental": 20,
+    "Upload": 30,
+    "Studio": 35,
+    "Cover": 40,
+    "Extend": 50,
+    "Mashup": 60,
+    "Remaster": 70,
+    "Edit": 80,
+    "Stems": 90,
+    "Persona": 100,
+    "Vocals": 110,
+}
+
+
+def _canonical_ui_type_sql(track_alias="t"):
+    """Rebuild the pre-canonical user-facing Type groups from canonical fields."""
+    alias = str(track_alias or "t").strip() or "t"
+    task_expr = f"lower(TRIM(COALESCE({alias}.source_task, '')))"
+    source_expr = f"lower(TRIM(COALESCE({alias}.source_type, '')))"
+    kind_expr = f"lower(TRIM(COALESCE({alias}.kind, '')))"
+
+    parts = ["CASE"]
+    for label, raw_values in _CANONICAL_UI_TYPE_TASK_GROUPS:
+        values = ",".join("'" + value.replace("'", "''") + "'" for value in raw_values)
+        parts.append(f"WHEN {task_expr} IN ({values}) THEN '{label}'")
+    for label, raw_values in _CANONICAL_UI_TYPE_SOURCE_GROUPS:
+        values = ",".join("'" + value.replace("'", "''") + "'" for value in raw_values)
+        parts.append(f"WHEN {source_expr} IN ({values}) THEN '{label}'")
+    parts.extend([
+        f"WHEN {kind_expr} = 'song' THEN 'Song'",
+        f"WHEN {kind_expr} = 'instrumental' THEN 'Instrumental'",
+        "ELSE ''",
+        "END",
+    ])
+    return " ".join(parts)
+
+
+def normalize_ui_type_filter(value):
+    """Normalize old/raw Type URLs to the restored user-facing Type group."""
+    text = str(value or "").strip()
+    if not text or text.startswith("__"):
+        return text
+
+    key = text.casefold()
+    for label, raw_values in (
+        _CANONICAL_UI_TYPE_TASK_GROUPS + _CANONICAL_UI_TYPE_SOURCE_GROUPS
+    ):
+        if key == label.casefold() or key in raw_values:
+            return label
+    if key == "song":
+        return "Song"
+    if key == "instrumental":
+        return "Instrumental"
+    return text
+
+
 def get_ui_type_counts():
-    """Type filter counts from canonical tracks.source_task only."""
+    """Return restored user-facing Type groups derived from canonical fields."""
+    ui_type_sql = _canonical_ui_type_sql("t")
+    sort_cases = " ".join(
+        f"WHEN '{label}' THEN {sort_value}"
+        for label, sort_value in _CANONICAL_UI_TYPE_SORT.items()
+    )
     conn = get_canonical_connection()
     try:
-        rows = conn.execute("""
+        rows = conn.execute(f"""
             SELECT
-                TRIM(COALESCE(t.source_task, '')) AS ui_type,
+                ui_type,
                 COUNT(*) AS count,
-                0 AS sort_value
-            FROM main.tracks t
-            WHERE IFNULL(t.library_status, 'active') = 'active'
-              AND IFNULL(t.finder_hidden, 0) != 1
-              AND IFNULL(t.kind, '') != 'Stem'
-              AND TRIM(COALESCE(t.source_task, '')) != ''
-            GROUP BY TRIM(COALESCE(t.source_task, ''))
-            ORDER BY ui_type COLLATE NOCASE ASC;
+                CASE ui_type {sort_cases} ELSE 999 END AS sort_value
+            FROM (
+                SELECT {ui_type_sql} AS ui_type
+                FROM main.tracks t
+                WHERE IFNULL(t.library_status, 'active') = 'active'
+                  AND IFNULL(t.finder_hidden, 0) != 1
+                  AND IFNULL(t.kind, '') != 'Stem'
+            )
+            WHERE TRIM(COALESCE(ui_type, '')) != ''
+            GROUP BY ui_type
+            ORDER BY sort_value ASC, ui_type COLLATE NOCASE ASC;
         """).fetchall()
     finally:
         conn.close()
@@ -621,11 +718,11 @@ def get_stats():
     """)
     total_uploads = safe_count(cur, f"""
         SELECT COUNT(*) {base_from} {main_where}
-          AND lower(TRIM(COALESCE(t.source_task, ''))) = 'upload';
+          AND ({ui_type_sql}) = 'Upload';
     """)
     total_cover = safe_count(cur, f"""
         SELECT COUNT(*) {base_from} {main_where}
-          AND lower(TRIM(COALESCE(t.source_task, ''))) = 'cover';
+          AND ({ui_type_sql}) = 'Cover';
     """)
     total_with_style = safe_count(cur, f"""
         SELECT COUNT(*) {base_from} {main_where}
@@ -2024,7 +2121,7 @@ def build_track_filter_query_parts(
     query = (query or "").strip()
     style_query = (style_query or "").strip()
     selected_workspaces = normalize_multi_filter_values(workspace)
-    kind_filter = (kind_filter or "").strip()
+    kind_filter = normalize_ui_type_filter(kind_filter)
     selected_categories = normalize_multi_filter_values(category_filter)
     selected_local_families = normalize_multi_filter_values(local_family_filter)
     local_audio_filter = (local_audio_filter or "").strip().lower()
@@ -2140,7 +2237,7 @@ def build_track_filter_query_parts(
             )
         """)
     elif kind_filter:
-        where_parts.append("TRIM(COALESCE(t.source_task, '')) = ?")
+        where_parts.append(_canonical_ui_type_sql("t") + " = ?")
         params.append(kind_filter)
 
     append_main_category_filter(where_parts, params, selected_categories)
@@ -2315,6 +2412,7 @@ def search_tracks(query="", style_query="", workspace="", kind_filter="", catego
             params.extend([limit, offset])
 
     category_sql = _canonical_main_category_sql("t", "u")
+    ui_type_sql = _canonical_ui_type_sql("t")
     full_select_sql = f"""
         SELECT
             t.id,
@@ -2334,7 +2432,7 @@ def search_tracks(query="", style_query="", workspace="", kind_filter="", catego
             END AS duration,
             COALESCE(t.duration_seconds, 0) AS sort_duration_seconds,
             COALESCE(t.duration_seconds, 0) AS ui_duration_seconds,
-            COALESCE(t.source_task, '') AS type,
+            {ui_type_sql} AS type,
             CASE WHEN t.kind = 'Stem' THEN 1 ELSE 0 END AS is_stem,
             COALESCE((
                 SELECT mf.path
@@ -2366,7 +2464,7 @@ def search_tracks(query="", style_query="", workspace="", kind_filter="", catego
                 ELSE ''
             END AS lyrics,
             CASE WHEN TRIM(COALESCE(t.lyrics, '')) != '' THEN 1 ELSE 0 END AS has_lyrics,
-            COALESCE(t.source_task, '') AS kind,
+            {ui_type_sql} AS kind,
             CASE WHEN IFNULL(t.is_liked, 0) = 1 THEN 'True' ELSE 'False' END AS raw_is_liked,
             COALESCE(t.image_url, '') AS raw_image_url,
             COALESCE(NULLIF(t.image_large_url, ''), t.image_url, '') AS raw_image_large_url,
