@@ -360,6 +360,10 @@ def test_my_library_album_hybrid_layout_contract(monkeypatch):
     assert 'id="album-track-list"' in rendered
     assert 'id="album-inspector"' in rendered
     assert 'id="album-inspector-title"' in rendered
+    assert 'id="album-now-playing"' in rendered
+    assert 'id="album-google-track"' in rendered
+    assert "Google: albums" in rendered
+    assert 'class="album-layout-v3"' in rendered
     assert "2 dziesmas · 3 min 10 s" in rendered
     assert 'class="album-track-row music-track-row"' in rendered
     assert 'class="path-line"' not in rendered
@@ -381,3 +385,9 @@ def test_music_library_reads_wav_duration(tmp_path):
         handle.writeframes(b"\x00\x00" * 8000)
 
     assert music_library._audio_duration_seconds(path) == pytest.approx(1.0, abs=0.01)
+
+
+def test_main_sidebar_has_no_stems_choice():
+    template = Path("ls_library/templates/library.html").read_text(encoding="utf-8")
+    assert 'id="ls-sidebar-stems-btn"' not in template
+    assert '<span class="ls-sidebar-label">Stems</span>' not in template
