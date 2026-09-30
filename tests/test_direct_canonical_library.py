@@ -440,3 +440,62 @@ def test_restored_type_baseline_historical_order(canonical_library):
     rows = repository.get_ui_type_counts()
     order = [str(row["ui_type"]) for row in rows]
     assert order == ["Instrumental", "Cover", "Extend"]
+
+def test_filters_v2_quick_dimensions_are_independent(canonical_library):
+    conn = sqlite3.connect(canonical_library["db"])
+    try:
+        conn.execute(
+            """
+            INSERT INTO tracks(
+                id,title,created_at,workspace_id,workspace_name,audio_url,
+                source_type,source_task,kind,is_liked,library_status,finder_hidden
+            ) VALUES (
+                'upload-extend','Upload Extend','2026-09-24T11:00:00Z',
+                'ws-studio-a','Studio A','https://example.invalid/upload-extend.mp3',
+                'upload','upload_extend','Upload',0,'active',0
+            )
+            """
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    # Broad Upload means canonical upload identity, even when the visible
+    # operation is Extend.
+    upload_ids = set(ids(repository.search_tracks(
+        upload_filter="with",
+        limit_value="all",
+    )))
+    assert "upload-extend" in upload_ids
+
+    # Type / Operation remains the transformed operation group.
+    assert "upload-extend" in set(ids(repository.search_tracks(
+        kind_filter="Extend",
+        limit_value="all",
+    )))
+    assert "upload-extend" not in set(ids(repository.search_tracks(
+        kind_filter="Upload",
+        limit_value="all",
+    )))
+
+    # Like and Local WAV are independent quick dimensions.
+    assert set(ids(repository.search_tracks(
+        like_filter="with",
+        limit_value="all",
+    ))) == {"alpha", "gamma"}
+    assert {"beta", "delta", "upload-extend"}.issubset(set(ids(
+        repository.search_tracks(
+            like_filter="without",
+            limit_value="all",
+        )
+    )))
+    assert set(ids(repository.search_tracks(
+        local_wav_filter="with",
+        limit_value="all",
+    ))) == {"alpha", "gamma"}
+    assert {"beta", "delta", "upload-extend"}.issubset(set(ids(
+        repository.search_tracks(
+            local_wav_filter="without",
+            limit_value="all",
+        )
+    )))
