@@ -153,6 +153,9 @@ class LocalSunoDbHandler(LibraryControllerMixin, DownloaderControllerMixin, Medi
             category_mode = params.get("category_mode", ["or"])[0]
             local_family_filter = params.get("local_family_filter", [])
             kind_filter = params.get("kind_filter", [""])[0]
+            like_filter = params.get("like_filter", [""])[0]
+            upload_filter = params.get("upload_filter", [""])[0]
+            local_wav_filter = params.get("local_wav_filter", [""])[0]
             local_audio_filter = params.get("local_audio_filter", [""])[0]
             if params.get("last_imported", [""])[0] == "1":
                 kind_filter = "__last_imported__"
@@ -165,6 +168,9 @@ class LocalSunoDbHandler(LibraryControllerMixin, DownloaderControllerMixin, Medi
                 category_mode=category_mode,
                 local_family_filter=local_family_filter,
                 kind_filter=kind_filter,
+                like_filter=like_filter,
+                upload_filter=upload_filter,
+                local_wav_filter=local_wav_filter,
                 local_audio_filter=local_audio_filter,
                 search_name=params.get("search_name", ["1"])[0],
                 search_lyrics=params.get("search_lyrics", ["0"])[0],
@@ -195,6 +201,9 @@ class LocalSunoDbHandler(LibraryControllerMixin, DownloaderControllerMixin, Medi
             category_mode = params.get("category_mode", ["or"])[0]
             local_family_filter = params.get("local_family_filter", [])
             kind_filter = params.get("kind_filter", [""])[0]
+            like_filter = params.get("like_filter", [""])[0]
+            upload_filter = params.get("upload_filter", [""])[0]
+            local_wav_filter = params.get("local_wav_filter", [""])[0]
             local_audio_filter = params.get("local_audio_filter", [""])[0]
             if params.get("last_imported", [""])[0] == "1":
                 kind_filter = "__last_imported__"
@@ -207,6 +216,9 @@ class LocalSunoDbHandler(LibraryControllerMixin, DownloaderControllerMixin, Medi
                 category_mode=category_mode,
                 local_family_filter=local_family_filter,
                 kind_filter=kind_filter,
+                like_filter=like_filter,
+                upload_filter=upload_filter,
+                local_wav_filter=local_wav_filter,
                 local_audio_filter=local_audio_filter,
                 search_name=params.get("search_name", ["1"])[0],
                 search_lyrics=params.get("search_lyrics", ["0"])[0],
@@ -234,6 +246,9 @@ class LocalSunoDbHandler(LibraryControllerMixin, DownloaderControllerMixin, Medi
             category_mode = params.get("category_mode", ["or"])[0]
             local_family_filter = params.get("local_family_filter", [])
             kind_filter = params.get("kind_filter", [""])[0]
+            like_filter = params.get("like_filter", [""])[0]
+            upload_filter = params.get("upload_filter", [""])[0]
+            local_wav_filter = params.get("local_wav_filter", [""])[0]
             local_audio_filter = params.get("local_audio_filter", [""])[0]
             if params.get("last_imported", [""])[0] == "1":
                 kind_filter = "__last_imported__"
@@ -259,6 +274,9 @@ class LocalSunoDbHandler(LibraryControllerMixin, DownloaderControllerMixin, Medi
                 category_mode=category_mode,
                 local_family_filter=local_family_filter,
                 kind_filter=kind_filter,
+                like_filter=like_filter,
+                upload_filter=upload_filter,
+                local_wav_filter=local_wav_filter,
                 local_audio_filter=local_audio_filter,
                 limit_value=limit_value,
                 db_refresh=db_refresh,
