@@ -683,6 +683,7 @@ def get_stats():
         "CASE WHEN t.kind IN ('Song', 'Instrumental', 'SongOrInstrumental') "
         "THEN t.kind ELSE '' END)"
     )
+    ui_type_sql = _canonical_ui_type_sql("t")
     base_from = """
         FROM main.tracks t
         LEFT JOIN main.track_user u ON u.track_id = t.id
