@@ -35,6 +35,7 @@ on:
       - 'tests/test_local_suno_migration.py'
       - 'tests/test_local_suno_runtime.py'
       - 'tests/test_database_context.py'
+      - 'tests/test_direct_canonical_library.py'
       - '.github/workflows/local-suno-db-migration.yml'
 
 permissions:
@@ -169,3 +170,52 @@ jobs:
           name: Elza-v2.49-final
           path: Elza-v2.49.zip
           if-no-files-found: error
+
+  package-type-baseline-v1:
+    needs: migration-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install pytest
+      - name: Verify restored Type baseline
+        run: python -m pytest -q tests/test_direct_canonical_library.py
+      - name: Build and verify Type baseline overlay
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZIP_DEFLATED, ZipFile
+
+          files = ("ls_data/repository.py",)
+          archive_path = Path("LS_Type_Baseline_1.0.zip")
+          with ZipFile(archive_path, "w", ZIP_DEFLATED) as archive:
+              for name in files:
+                  archive.write(name, name)
+
+          verify_root = Path("_type_baseline_verify")
+          with ZipFile(archive_path, "r") as archive:
+              assert tuple(archive.namelist()) == files
+              assert archive.testzip() is None
+              archive.extractall(verify_root)
+
+          for name in files:
+              source = Path(name).read_bytes()
+              extracted = (verify_root / name).read_bytes()
+              assert source == extracted
+              compile(extracted, name, "exec")
+
+          text = (verify_root / "ls_data/repository.py").read_text(encoding="utf-8")
+          assert "_canonical_ui_type_sql" in text
+          assert '"artist_cover"' in text
+          assert '"upload_extend"' in text
+          assert '"upsample"' in text
+          assert '"artist_consistency"' in text
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LS-Type-Baseline-1.0
+          path: LS_Type_Baseline_1.0.zip
+          if-no-files-found: error
+
