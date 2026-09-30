@@ -271,7 +271,8 @@ def test_direct_library_filters_use_canonical_columns(canonical_library, monkeyp
         category_filter=["Song"], limit_value="all"
     ))) == {"alpha", "delta"}
 
-    # Type is source_task only. Gamma remains Cover although its category is Instrumental.
+    # Type is the restored user-facing operation group. Gamma remains Cover
+    # although its independent Category is Instrumental.
     assert set(ids(repository.search_tracks(
         kind_filter="Cover", limit_value="all"
     ))) == {"alpha", "gamma"}
@@ -369,8 +370,73 @@ def test_direct_library_sort_cursor_count_and_local_media(canonical_library, mon
     workspaces = {row["workspace"]: row["count"] for row in repository.get_workspaces()}
     assert workspaces == {"Studio A": 2, "Studio B": 1, "Studio C": 1}
     types = {row["ui_type"]: row["count"] for row in repository.get_ui_type_counts()}
-    assert types == {"Cover": 2, "Extend": 1, "Generate": 1}
+    assert types == {"Cover": 2, "Extend": 1, "Instrumental": 1}
     stats = repository.get_stats()
     assert stats["total_main_active"] == 4
     assert stats["total_liked"] == 2
     assert stats["total_has_stems"] == 1
+
+def test_restored_type_baseline_groups_raw_canonical_tasks(canonical_library):
+    raw_cases = [
+        ("raw_artist_cover", "gen", "artist_cover", "Song", "Cover"),
+        ("raw_cover_stem", "gen", "cover_stem_condition", "Song", "Cover"),
+        ("raw_upload_extend", "upload", "upload_extend", "Upload", "Extend"),
+        ("raw_artist_extend", "gen", "artist_extend", "Song", "Extend"),
+        ("raw_mashup", "gen", "mashup_condition", "Song", "Mashup"),
+        ("raw_playlist", "gen", "playlist_condition", "Song", "Mashup"),
+        ("raw_upsample", "upsample", "upsample", "Song", "Remaster"),
+        ("raw_infill", "concat_infilling", "infill", "Song", "Edit"),
+        ("raw_persona", "gen", "artist_consistency", "Song", "Persona"),
+        ("raw_stem", "stem", "gen_stem", "Song", "Stems"),
+        ("raw_vox", "gen", "vox", "Song", "Vocals"),
+        ("raw_upload", "upload", "", "Upload", "Upload"),
+        ("raw_studio", "studio_export", "", "Song", "Studio"),
+    ]
+
+    conn = sqlite3.connect(canonical_library["db"])
+    try:
+        for track_id, source_type, source_task, kind, _expected in raw_cases:
+            conn.execute(
+                """
+                INSERT INTO tracks(
+                    id,title,source_type,source_task,kind,library_status,finder_hidden
+                ) VALUES (?,?,?,?,?,'active',0)
+                """,
+                (track_id, track_id, source_type, source_task, kind),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+    type_counts = {
+        row["ui_type"]: int(row["count"] or 0)
+        for row in repository.get_ui_type_counts()
+    }
+    raw_names = {source_task for _, _, source_task, _, _ in raw_cases if source_task}
+    assert raw_names.isdisjoint(type_counts)
+
+    for track_id, _source_type, raw_task, _kind, expected in raw_cases:
+        matched = {
+            str(row["id"])
+            for row in repository.search_tracks(
+                kind_filter=expected,
+                limit_value="all",
+            )
+        }
+        assert track_id in matched
+
+        if raw_task:
+            legacy_url_matched = {
+                str(row["id"])
+                for row in repository.search_tracks(
+                    kind_filter=raw_task,
+                    limit_value="all",
+                )
+            }
+            assert track_id in legacy_url_matched
+
+
+def test_restored_type_baseline_historical_order(canonical_library):
+    rows = repository.get_ui_type_counts()
+    order = [str(row["ui_type"]) for row in rows]
+    assert order == ["Instrumental", "Cover", "Extend"]
