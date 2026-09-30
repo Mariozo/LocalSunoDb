@@ -396,6 +396,9 @@ def build_active_filter_chips(
     category_mode,
     selected_local_families,
     kind_filter,
+    like_filter,
+    upload_filter,
+    local_wav_filter,
     local_audio_filter,
     limit_value,
     search_name,
@@ -422,6 +425,9 @@ def build_active_filter_chips(
         "category_mode": category_mode if category_mode == "family_and" else "",
         "local_family_filter": selected_local_families,
         "kind_filter": str(kind_filter or "").strip(),
+        "like_filter": str(like_filter or "").strip(),
+        "upload_filter": str(upload_filter or "").strip(),
+        "local_wav_filter": str(local_wav_filter or "").strip(),
         "local_audio_filter": local_audio_filter,
         "search_name": "1" if search_name else "0",
         "search_lyrics": "1" if search_lyrics else "0",
@@ -548,16 +554,45 @@ def build_active_filter_chips(
         "__last_imported__": "Last imported Suno",
         "__unlinked_stems__": "Unlinked Stems",
     }
+    normalized_upload_filter = str(upload_filter or "").strip().lower()
+    if normalized_upload_filter in {"with", "without"}:
+        filter_chips.append(filter_chip(
+            "Upload" if normalized_upload_filter == "with" else "Not Upload",
+            "type",
+            ("upload_filter",),
+            "Source Upload",
+        ))
+
+    normalized_like_filter = str(like_filter or "").strip().lower()
+    if normalized_like_filter in {
+        "with", "liked", "1", "true",
+        "without", "unliked", "0", "false",
+    }:
+        liked_on = normalized_like_filter in {"with", "liked", "1", "true"}
+        filter_chips.append(filter_chip(
+            "Liked" if liked_on else "Not liked",
+            "selected",
+            ("like_filter",),
+        ))
+
+    normalized_local_wav_filter = str(local_wav_filter or "").strip().lower()
+    if normalized_local_wav_filter in {"with", "without"}:
+        filter_chips.append(filter_chip(
+            "Local WAV" if normalized_local_wav_filter == "with" else "No Local WAV",
+            "local",
+            ("local_wav_filter",),
+        ))
+
     if kind_filter:
         filter_chips.append(filter_chip(
-            type_label_map.get(kind_filter, f"Type: {kind_filter}"),
+            type_label_map.get(kind_filter, f"Operation: {kind_filter}"),
             "type",
             ("kind_filter",),
         ))
 
     if local_audio_filter:
         filter_chips.append(filter_chip(
-            "Local" if local_audio_filter == "with" else "Suno.com",
+            "Local audio" if local_audio_filter == "with" else "No local audio",
             "local",
             ("local_audio_filter",),
         ))
