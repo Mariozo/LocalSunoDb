@@ -1028,6 +1028,9 @@ def build_ls_elza_view_context(
     category_mode,
     selected_local_families,
     kind_filter,
+    like_filter,
+    upload_filter,
+    local_wav_filter,
     total_rows,
     loaded_row_count,
     limit_value,
@@ -1101,6 +1104,9 @@ def build_ls_elza_view_context(
         "filters": {
             "track_ids_filter_count": len(selected_track_ids),
             "selection_view_active": bool(selection_view_active),
+            "like_filter": str(like_filter or "").strip() or None,
+            "upload_filter": str(upload_filter or "").strip() or None,
+            "local_wav_filter": str(local_wav_filter or "").strip() or None,
             "local_audio_filter": local_audio_filter or None,
             "family_group_match_count": (
                 len(family_group_track_ids)
