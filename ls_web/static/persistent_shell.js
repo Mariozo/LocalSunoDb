@@ -530,18 +530,18 @@
             const section = sectionFor(target);
             updateSidebar(section);
             const rememberedSelection = selectedTrackByFrame.get(frame);
-            if (rememberedSelection) {{
+            if (rememberedSelection) {
                 setSharedPanelExternal(rememberedSelection);
-            }} else if (section === "my-library" || section === "playlists") {{
-                setSharedPanelExternal({{
+            } else if (section === "my-library" || section === "playlists") {
+                setSharedPanelExternal({
                     title: "Izvēlies dziesmu",
                     artist: section === "my-library" ? "My Library" : "Playlists",
                     album: "",
                     cover: "",
                     format: "",
                     duration: "",
-                }});
-            }}
+                });
+            }
             setHistory(target, mode);
             try {
                 const title = frame.contentDocument?.title;
