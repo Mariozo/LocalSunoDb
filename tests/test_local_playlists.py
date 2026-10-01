@@ -432,6 +432,9 @@ def test_secondary_screens_reuse_parent_suno_panel_and_player():
     assert 'bottom: var(--ls-global-player-reserved, 78px);' in shell_css
     assert 'html.ls-shell-embedded .my-music-player' in shell_css
     assert 'html.ls-shell-embedded .playlist-player' in shell_css
+    assert 'ls-shell-embedded-shared-chrome' in shell_js
+    assert 'html.ls-shell-embedded .my-music-player' in shell_js
+    assert 'html.ls-shell-embedded .playlist-player' in shell_js
     assert '.selected-track-panel.is-external-track' in panel_css
     assert 'id="ls-external-google-track"' in template
     assert 'id="ls-external-google-album"' in template
