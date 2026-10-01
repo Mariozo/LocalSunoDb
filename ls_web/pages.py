@@ -628,7 +628,7 @@ def render_page(query="", style_query="", workspace="", workspace_mode="or", kin
     )
     return page.encode("utf-8")
 
-def render_downloader_page(message=""):
+def render_downloader_page(message="", embedded=False):
     settings = get_settings()
     local_family_title = get_local_family_title()
     ensure_suno_token_bridge_files()
@@ -653,12 +653,12 @@ def render_downloader_page(message=""):
     page = render_template_tokens('ls_downloader/templates/downloader.html', [
             APP_VERSION,
             render_downloader_page_styles(),
-            render_top_tabs('downloader'),
+            "" if embedded else render_top_tabs('downloader'),
             render_downloader_status_markup(),
             render_downloader_connection_section(token_invalid_at, token, token_status, masked_token, token_updated_at, token_source, bridge_status),
             render_downloader_audio_section(),
             render_downloader_metadata_section(),
-            render_downloader_side_panels_markup(),
+            "" if embedded else render_downloader_side_panels_markup(),
             render_downloader_section_navigation_script(),
             render_downloader_action_status_script(),
             render_downloader_wav_workflow_script(),
@@ -671,7 +671,7 @@ def render_downloader_page(message=""):
             render_downloader_token_bridge_script(),
             render_downloader_update_workflows_script(),
             render_ls_update_monitor(),
-            render_ls_elza_assets('Downloader', docked=True, local_family_title=get_local_family_title(), app_version=APP_VERSION, opacity=get_ls_elza_background_opacity()),
+            "" if embedded else render_ls_elza_assets('Downloader', docked=True, local_family_title=get_local_family_title(), app_version=APP_VERSION, opacity=get_ls_elza_background_opacity()),
             render_ls_web_runtime_assets() + render_ls_popup_theme_assets()
         ])
     return page.encode("utf-8")
