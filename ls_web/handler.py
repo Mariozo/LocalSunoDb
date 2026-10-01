@@ -120,7 +120,7 @@ class LocalSunoDbHandler(LibraryControllerMixin, DownloaderControllerMixin, Medi
             embedded = str(params.get("ls_embedded", [""])[0]).strip() == "1"
             if not embedded:
                 save_last_view_url(self.path)
-            self.send_html(render_music_database_page(db_name, query, view, album, artist, year, open_new))
+            self.send_html(render_music_database_page(db_name, query, view, album, artist, year, open_new, embedded=embedded))
             return
 
         if path == "/music-db-cover":
@@ -145,7 +145,7 @@ class LocalSunoDbHandler(LibraryControllerMixin, DownloaderControllerMixin, Medi
             embedded = str(params.get("ls_embedded", [""])[0]).strip() == "1"
             if not embedded:
                 save_last_view_url(self.path)
-            self.send_html(render_playlists_page(playlist_id, add_track_id))
+            self.send_html(render_playlists_page(playlist_id, add_track_id, embedded=embedded))
             return
 
         if path == "/library-rows":
