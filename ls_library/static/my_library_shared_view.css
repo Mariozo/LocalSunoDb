@@ -1,0 +1,421 @@
+.ls-my-library-view {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    color: var(--ls-suno-text);
+    background: var(--ls-suno-main);
+}
+
+.ls-my-library-toolbar {
+    display: grid;
+    grid-template-columns: minmax(280px, 1fr) auto auto;
+    gap: 12px;
+    align-items: center;
+    flex: 0 0 auto;
+}
+
+.ls-my-library-search,
+.ls-my-library-db-select,
+.ls-my-library-new-db {
+    border: 1px solid var(--ls-suno-line);
+    background: var(--ls-suno-control);
+    color: var(--ls-suno-text);
+}
+
+.ls-my-library-search {
+    width: 100%;
+    height: 46px;
+    border-radius: 14px;
+    padding: 0 16px;
+    font-size: 15px;
+    outline: none;
+}
+
+.ls-my-library-search:focus {
+    border-color: rgba(255,255,255,.28);
+}
+
+.ls-my-library-db-select,
+.ls-my-library-new-db {
+    height: 42px;
+    border-radius: 12px;
+    padding: 0 13px;
+    font-weight: 700;
+}
+
+.ls-my-library-new-db {
+    cursor: pointer;
+}
+
+.ls-my-library-view-toggle {
+    display: inline-flex;
+    width: max-content;
+    margin-top: 12px;
+    border: 1px solid var(--ls-suno-line);
+    border-radius: 22px;
+    overflow: hidden;
+    flex: 0 0 auto;
+}
+
+.ls-my-library-view-toggle button {
+    width: 48px;
+    height: 40px;
+    border: 0;
+    background: var(--ls-suno-control);
+    color: var(--ls-suno-muted);
+    cursor: pointer;
+    font-size: 18px;
+}
+
+.ls-my-library-view-toggle button.active {
+    background: var(--ls-suno-control-hover);
+    color: var(--ls-suno-text);
+}
+
+.ls-my-library-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    gap: 20px;
+    flex: 0 0 auto;
+    padding: 14px 2px 12px;
+}
+
+.ls-my-library-summary h1 {
+    margin: 0;
+    font-size: 24px;
+}
+
+.ls-my-library-count,
+.ls-my-library-view .root-line {
+    color: var(--ls-suno-muted);
+    font-size: 12px;
+}
+
+.ls-my-library-view .root-line {
+    max-width: 760px;
+    margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ls-my-library-scroll {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 2px 4px calc(var(--ls-global-player-reserved, 78px) + 28px) 0;
+    scrollbar-color: rgba(255,255,255,.42) #0E4F34;
+}
+
+.ls-my-library-view .view-panel {
+    display: block;
+}
+
+.ls-my-library-view .album-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 28px 22px;
+    align-items: start;
+}
+
+.ls-my-library-view .album-card {
+    display: block;
+    min-width: 0;
+    color: var(--ls-suno-text);
+    text-decoration: none;
+}
+
+.ls-my-library-view .album-cover {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    border-radius: 7px;
+    background: var(--ls-suno-control);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.05);
+}
+
+.ls-my-library-view .album-cover img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.ls-my-library-view .cover-empty {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    font-size: 54px;
+    color: rgba(255,255,255,.22);
+    background: linear-gradient(135deg, #173426, #071a11);
+}
+
+.ls-my-library-view .album-meta {
+    padding: 9px 3px 0;
+}
+
+.ls-my-library-view .album-artist {
+    color: #c8d2cc;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ls-my-library-view .album-title {
+    margin-top: 2px;
+    color: var(--ls-suno-text);
+    font-size: 15px;
+    font-weight: 750;
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ls-my-library-view .album-count {
+    margin-top: 5px;
+    color: #7fb2d8;
+    font-size: 12px;
+}
+
+.ls-my-library-view .empty-state {
+    max-width: 620px;
+    margin: 46px auto;
+    text-align: center;
+    color: var(--ls-suno-muted);
+}
+
+.ls-my-library-view .empty-state h2 {
+    color: var(--ls-suno-text);
+}
+
+.ls-my-library-view .empty-icon {
+    font-size: 64px;
+    color: rgba(255,255,255,.24);
+}
+
+.ls-my-library-view .primary,
+.ls-my-library-modal .primary {
+    border: 0;
+    border-radius: 20px;
+    background: #f0f3f1;
+    color: #0b1710;
+    padding: 10px 16px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.ls-my-library-view .home-playlists {
+    margin-top: 38px;
+    padding-top: 22px;
+    border-top: 1px solid var(--ls-suno-line);
+}
+
+.ls-my-library-view .home-section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 10px;
+}
+
+.ls-my-library-view .home-section-head h2 {
+    margin: 0;
+    font-size: 20px;
+}
+
+.ls-my-library-view .home-section-head a {
+    color: #b5c0ba;
+    text-decoration: none;
+    font-size: 13px;
+}
+
+.ls-my-library-view .home-playlist-list {
+    overflow: hidden;
+    border: 1px solid var(--ls-suno-line);
+    border-radius: 12px;
+    background: rgba(0,0,0,.08);
+}
+
+.ls-my-library-view .home-playlist-row {
+    display: grid;
+    grid-template-columns: 38px minmax(0,1fr) 24px;
+    gap: 10px;
+    align-items: center;
+    padding: 11px 13px;
+    color: var(--ls-suno-text);
+    text-decoration: none;
+    border-bottom: 1px solid var(--ls-suno-line);
+}
+
+.ls-my-library-view .home-playlist-row:last-child {
+    border-bottom: 0;
+}
+
+.ls-my-library-view .home-playlist-row:hover {
+    background: rgba(255,255,255,.05);
+}
+
+.ls-my-library-view .home-playlist-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    background: var(--ls-suno-control-hover);
+    color: #b8c5be;
+}
+
+.ls-my-library-view .home-playlist-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ls-my-library-view .home-playlist-copy strong {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ls-my-library-view .home-playlist-copy span,
+.ls-my-library-view .home-playlist-empty {
+    color: var(--ls-suno-muted);
+    font-size: 12px;
+}
+
+.ls-my-library-view .home-playlist-arrow {
+    color: var(--ls-suno-muted);
+    font-size: 22px;
+    text-align: right;
+}
+
+.ls-my-library-view .home-playlist-empty {
+    padding: 22px;
+    text-align: center;
+}
+
+.ls-my-library-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(0,0,0,.68);
+}
+
+.ls-my-library-modal.open {
+    display: flex;
+}
+
+.ls-my-library-modal .modal-card {
+    width: min(620px, 96vw);
+    padding: 22px;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 16px;
+    background: #10271c;
+    box-shadow: 0 24px 70px rgba(0,0,0,.55);
+}
+
+.ls-my-library-modal .modal-head,
+.ls-my-library-modal .folder-row,
+.ls-my-library-modal .modal-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.ls-my-library-modal .modal-head {
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.ls-my-library-modal .modal-head h2 {
+    margin: 0;
+}
+
+.ls-my-library-modal .modal-close {
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--ls-suno-control-hover);
+    color: var(--ls-suno-text);
+    cursor: pointer;
+}
+
+.ls-my-library-modal .field {
+    margin: 13px 0;
+}
+
+.ls-my-library-modal .field label {
+    display: block;
+    margin-bottom: 6px;
+    color: #c5d1ca;
+    font-size: 12px;
+}
+
+.ls-my-library-modal .field input {
+    width: 100%;
+    height: 42px;
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 10px;
+    background: #071b12;
+    color: var(--ls-suno-text);
+    padding: 0 11px;
+}
+
+.ls-my-library-modal .folder-row input {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.ls-my-library-modal .folder-row button,
+.ls-my-library-modal .secondary {
+    height: 42px;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 10px;
+    background: var(--ls-suno-control);
+    color: var(--ls-suno-text);
+    padding: 0 13px;
+    cursor: pointer;
+}
+
+.ls-my-library-modal .modal-actions {
+    justify-content: flex-end;
+    margin-top: 18px;
+}
+
+.ls-my-library-modal .status {
+    min-height: 20px;
+    margin-top: 8px;
+    color: var(--ls-suno-muted);
+    font-size: 12px;
+}
+
+.ls-my-library-modal .status.ok { color: #8fe0a4; }
+.ls-my-library-modal .status.error { color: #ff9898; }
+
+@media (max-width: 1100px) {
+    .ls-my-library-toolbar {
+        grid-template-columns: minmax(220px,1fr) auto;
+    }
+    .ls-my-library-db-select {
+        grid-column: 1;
+    }
+    .ls-my-library-new-db {
+        grid-column: 2;
+        grid-row: 2;
+    }
+    .ls-my-library-view .album-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+}
