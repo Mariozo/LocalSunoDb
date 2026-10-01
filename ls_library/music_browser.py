@@ -66,7 +66,7 @@ def _sidebar():
     """ % _esc(APP_VERSION)
 
 
-def render_music_database_page(name="", query="", view="grid", album="", artist="", year="", open_new=False):
+def render_music_database_page(name="", query="", view="grid", album="", artist="", year="", open_new=False, embedded=False):
     catalog = list_music_databases().get("databases") or []
     usable = [item for item in catalog if not item.get("error")]
     requested = str(name or "").strip()
@@ -306,6 +306,9 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
     )
     modal_open = " open" if open_new else ""
 
+    sidebar_markup = "" if embedded else _sidebar()
+    player_markup = "" if embedded else f"""{player_markup}"""
+
     document = f"""<!doctype html>
 <html lang="lv">
 <head>
@@ -354,7 +357,7 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
 </style>
 </head>
 <body id="ls-my-library">
-{_sidebar()}
+{sidebar_markup}
 <main class="main">
   <form class="top" method="get" action="/my-library" id="search-form">
     <input type="hidden" name="db" value="{_esc(selected_name)}">
@@ -602,7 +605,7 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
   const waveformCache = new Map();
 
   const getZoomWindow = () => {{
-    const duration = Number(playerAudio.duration) || Number(waveformAnalysis?.duration) || 0;
+    const duration = Number(playerAudio?.duration) || Number(waveformAnalysis?.duration) || 0;
     if (!(duration > 0)) return {{start:0,end:0,span:0,duration:0}};
     const start = Math.max(0, Math.min(duration, Number(zoomStart) || 0));
     const rawEnd = zoomEnd === null ? duration : Number(zoomEnd);
@@ -636,7 +639,7 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
   const applyZoomFactor = (factor, mode='') => {{
     const z = getZoomWindow();
     if (!(z.duration > 0) || !(z.span > 0)) return;
-    const centerCandidate = Number(playerAudio.currentTime);
+    const centerCandidate = Number(playerAudio?.currentTime);
     const center = Number.isFinite(centerCandidate) && centerCandidate >= z.start && centerCandidate <= z.end
       ? centerCandidate
       : z.start + z.span / 2;
@@ -687,7 +690,7 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
     const mid = cssHeight / 2;
     const analysis = waveformAnalysis;
     const peaks = Array.isArray(analysis?.peaks) ? analysis.peaks : null;
-    const duration = Number(analysis?.duration) || Number(playerAudio.duration) || 0;
+    const duration = Number(analysis?.duration) || Number(playerAudio?.duration) || 0;
     const z = getZoomWindow();
 
     ctx.strokeStyle = 'rgba(169,190,205,.13)';
@@ -941,7 +944,7 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
   }};
   const hasAB = () => Number.isFinite(abStart) && Number.isFinite(abEnd) && abEnd > abStart;
   const syncAB = () => {{
-    const duration = Number(playerAudio.duration) || Number(waveformAnalysis?.duration) || 0;
+    const duration = Number(playerAudio?.duration) || Number(waveformAnalysis?.duration) || 0;
     const z = getZoomWindow();
     playerSetA?.classList.toggle('active', Number.isFinite(abStart));
     playerSetB?.classList.toggle('active', Number.isFinite(abEnd));
@@ -979,8 +982,8 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
     if (playerLoop) {{ playerLoop.setAttribute('aria-pressed', active ? 'true' : 'false'); playerLoop.title = active ? 'Loop ON — whole track or A/B section' : 'Loop whole track or A/B section'; }}
   }};
   const syncProgress = () => {{
-    const duration = Number(playerAudio.duration) || Number(waveformAnalysis?.duration) || 0;
-    const current = Number(playerAudio.currentTime) || 0;
+    const duration = Number(playerAudio?.duration) || Number(waveformAnalysis?.duration) || 0;
+    const current = Number(playerAudio?.currentTime) || 0;
     const z = getZoomWindow();
     const rawPct = z.span > 0 ? (current - z.start) / z.span * 100 : 0;
     const progressPct = Math.max(0, Math.min(100, rawPct));
@@ -991,12 +994,12 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
     }}
     if (playerPlayedRegion) playerPlayedRegion.style.width = progressPct + '%';
     if (playerTime) playerTime.textContent = `${{formatTime(current)}} / ${{formatTime(duration)}}`;
-    if (playerAudio && !playerAudio.paused && playerLoop?.classList.contains('active') && hasAB() && current >= abEnd - 0.035) {{
+    if (playerAudio && playerAudio && !playerAudio.paused && playerLoop?.classList.contains('active') && hasAB() && current >= abEnd - 0.035) {{
       playerAudio.currentTime = abStart;
     }}
   }};
   const syncPlayState = () => {{
-    const playing = currentIndex >= 0 && !playerAudio.paused;
+    const playing = currentIndex >= 0 && playerAudio && !playerAudio.paused;
     if (playerPlay) playerPlay.textContent = playing ? '❚❚' : '▶';
     playerRows.forEach((row, index) => {{
       row.classList.toggle('is-playing', index === currentIndex && playing);
@@ -1022,6 +1025,7 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
     const cover = String(row.dataset.playerCover || '');
     postSharedSelection(row);
     if (usesSharedShellPlayer && playSharedTrack(index)) return;
+    if (!playerAudio) return;
     playerTitle.textContent = title;
     playerSource.textContent = [artist, album].filter(Boolean).join(' · ') || 'My Library';
     if (cover) {{ playerCover.src = cover; playerCover.style.display = 'block'; playerCoverPlaceholder.style.display = 'none'; }} else {{ playerCover.removeAttribute('src'); playerCover.style.display = 'none'; playerCoverPlaceholder.style.display = 'inline'; }}
@@ -1041,7 +1045,7 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
         playSharedTrack(index);
         return;
       }}
-      if (currentIndex === index && !playerAudio.paused) playerAudio.pause();
+      if (currentIndex === index && playerAudio && !playerAudio.paused) playerAudio.pause();
       else if (currentIndex === index && playerAudio.src) playerAudio.play().catch(() => {{}});
       else loadTrack(index, true);
     }});
@@ -1081,9 +1085,9 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
   }});
   playerNext?.addEventListener('click', () => {{ if (playerRows.length) loadTrack((currentIndex + 1) % playerRows.length, true); }});
   playerLoop?.addEventListener('click', () => {{ playerLoop.classList.toggle('active'); syncLoop(); }});
-  playerSetA?.addEventListener('click', () => {{ abStart = Number(playerAudio.currentTime) || 0; if (Number.isFinite(abEnd) && abEnd <= abStart) abEnd = null; syncAB(); syncLoop(); }});
+  playerSetA?.addEventListener('click', () => {{ abStart = Number(playerAudio?.currentTime) || 0; if (Number.isFinite(abEnd) && abEnd <= abStart) abEnd = null; syncAB(); syncLoop(); }});
   playerSetB?.addEventListener('click', () => {{
-    const value = Math.max(0, Number(playerAudio.currentTime) || 0);
+    const value = Math.max(0, Number(playerAudio?.currentTime) || 0);
     abEnd = value;
     if (Number.isFinite(abStart) && abEnd <= abStart) {{ const oldA = abStart; abStart = abEnd; abEnd = oldA; }}
     syncAB(); syncLoop();
@@ -1093,7 +1097,7 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
     if (!node) return;
     let activePointer = null;
     const valueFromPointer = event => {{
-      const duration = Number(playerAudio.duration) || 0;
+      const duration = Number(playerAudio?.duration) || 0;
       const rect = playerProgressShell?.getBoundingClientRect();
       if (!(duration > 0) || !rect || rect.width <= 0) return null;
       const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
@@ -1104,11 +1108,11 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
       const value = valueFromPointer(event);
       if (!Number.isFinite(value)) return;
       if (marker === 'a') {{
-        const upper = Number.isFinite(abEnd) ? Math.max(0, abEnd - 0.05) : Number(playerAudio.duration) || value;
+        const upper = Number.isFinite(abEnd) ? Math.max(0, abEnd - 0.05) : Number(playerAudio?.duration) || value;
         abStart = Math.max(0, Math.min(value, upper));
       }} else {{
-        const lower = Number.isFinite(abStart) ? Math.min(Number(playerAudio.duration) || value, abStart + 0.05) : 0;
-        abEnd = Math.max(lower, Math.min(value, Number(playerAudio.duration) || value));
+        const lower = Number.isFinite(abStart) ? Math.min(Number(playerAudio?.duration) || value, abStart + 0.05) : 0;
+        abEnd = Math.max(lower, Math.min(value, Number(playerAudio?.duration) || value));
       }}
       syncAB(); syncLoop();
       event.preventDefault();
@@ -1137,7 +1141,7 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
   dragMarker(playerMarkerB, 'b');
   playerProgress?.addEventListener('input', () => {{ const z = getZoomWindow(); if (z.span > 0) playerAudio.currentTime = zoomPercentToTime(Number(playerProgress.value || 0) / 1000); }});
   playerProgressShell?.addEventListener('wheel', event => {{
-    const duration = Number(playerAudio.duration) || Number(waveformAnalysis?.duration) || 0;
+    const duration = Number(playerAudio?.duration) || Number(waveformAnalysis?.duration) || 0;
     if (!(duration > 0) || !event.ctrlKey) return;
     event.preventDefault();
     event.stopPropagation();
@@ -1174,13 +1178,13 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
     updateWaveformStatus();
     syncZoomControl('reset');
   }});
-  playerAudio.addEventListener('play', syncPlayState);
-  playerAudio.addEventListener('pause', syncPlayState);
-  playerAudio.addEventListener('loadedmetadata', () => {{ if (zoomEnd !== null && zoomEnd > playerAudio.duration) resetZoom(); drawWaveform(); syncProgress(); syncAB(); updateWaveformStatus(); }});
-  playerAudio.addEventListener('durationchange', () => {{ drawWaveform(); syncProgress(); syncAB(); updateWaveformStatus(); }});
-  playerAudio.addEventListener('timeupdate', syncProgress);
-  playerAudio.addEventListener('seeking', syncProgress);
-  playerAudio.addEventListener('ended', () => {{
+  playerAudio?.addEventListener('play', syncPlayState);
+  playerAudio?.addEventListener('pause', syncPlayState);
+  playerAudio?.addEventListener('loadedmetadata', () => {{ if (zoomEnd !== null && zoomEnd > playerAudio.duration) resetZoom(); drawWaveform(); syncProgress(); syncAB(); updateWaveformStatus(); }});
+  playerAudio?.addEventListener('durationchange', () => {{ drawWaveform(); syncProgress(); syncAB(); updateWaveformStatus(); }});
+  playerAudio?.addEventListener('timeupdate', syncProgress);
+  playerAudio?.addEventListener('seeking', syncProgress);
+  playerAudio?.addEventListener('ended', () => {{
     if (playerLoop?.classList.contains('active') && hasAB()) {{ playerAudio.currentTime = abStart; playerAudio.play().catch(() => {{}}); return; }}
     if (!playerLoop?.classList.contains('active') && currentIndex >= 0 && currentIndex + 1 < playerRows.length) loadTrack(currentIndex + 1, true);
     else syncPlayState();
