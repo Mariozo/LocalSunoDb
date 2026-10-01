@@ -117,8 +117,11 @@ class LocalSunoDbHandler(LibraryControllerMixin, DownloaderControllerMixin, Medi
             artist = params.get("artist", [""])[0]
             year = params.get("year", [""])[0]
             open_new = params.get("new", [""])[0] == "1"
+            fragment = params.get("ls_fragment", [""])[0] == "1"
             save_last_view_url(self.path)
-            self.send_html(render_music_database_page(db_name, query, view, album, artist, year, open_new))
+            self.send_html(render_music_database_page(
+                db_name, query, view, album, artist, year, open_new, fragment
+            ))
             return
 
         if path == "/music-db-cover":
