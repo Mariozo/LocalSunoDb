@@ -272,6 +272,7 @@
         document.body.appendChild(host);
 
         const frames = new Map();
+        const selectedTrackByFrame = new WeakMap();
         let activeTarget = "";
         let viewTitle = libraryTitle;
         let currentPlayback = null;
@@ -348,6 +349,71 @@
                 link?.classList.add("is-audio-playing");
             }
             refreshWindowTitle();
+        }
+
+        function setSharedPanelExternal(payload) {
+            const panel = document.getElementById("selected-track-panel");
+            if (!panel) return;
+            const data = payload && typeof payload === "object" ? payload : {};
+            const title = String(data.title || "Select a track").trim();
+            const artist = String(data.artist || "").trim();
+            const album = String(data.album || "").trim();
+            const year = String(data.year || "").trim();
+            const genre = String(data.genre || "").trim();
+            const format = String(data.format || "").trim();
+            const duration = String(data.duration || "").trim();
+            const coverUrl = String(data.cover || "").trim();
+
+            panel.classList.add("is-external-track");
+            const titleNode = document.getElementById("selected-track-panel-title");
+            const metaNode = document.getElementById("selected-track-panel-meta");
+            const cover = document.getElementById("selected-track-panel-cover");
+            const placeholder = document.getElementById("selected-track-panel-cover-placeholder");
+            const localStatus = document.getElementById("selected-track-local-status");
+            const stemsStatus = document.getElementById("selected-track-stems-status");
+            const actions = document.getElementById("ls-external-track-actions");
+            const googleTrack = document.getElementById("ls-external-google-track");
+            const googleAlbum = document.getElementById("ls-external-google-album");
+
+            if (titleNode) titleNode.textContent = title || "Select a track";
+            if (metaNode) metaNode.textContent = [artist, album, year, genre].filter(Boolean).join(" · ");
+            if (localStatus) localStatus.textContent = [format, duration].filter(Boolean).join(" · ") || "Local";
+            if (stemsStatus) stemsStatus.style.display = "none";
+            if (actions) actions.hidden = false;
+
+            if (cover && placeholder) {
+                if (coverUrl) {
+                    cover.src = coverUrl;
+                    cover.style.display = "block";
+                    placeholder.style.display = "none";
+                } else {
+                    cover.removeAttribute("src");
+                    cover.style.display = "none";
+                    placeholder.style.display = "flex";
+                }
+            }
+
+            const trackQuery = [artist, title, "song"].filter(Boolean).join(" ");
+            const albumQuery = [artist, album, "album"].filter(Boolean).join(" ");
+            if (googleTrack) googleTrack.href = "https://www.google.com/search?q=" + encodeURIComponent(trackQuery || title);
+            if (googleAlbum) googleAlbum.href = "https://www.google.com/search?q=" + encodeURIComponent(albumQuery || album || artist);
+        }
+
+        function restoreSharedSunoPanel() {
+            const panel = document.getElementById("selected-track-panel");
+            if (!panel) return;
+            panel.classList.remove("is-external-track");
+            const stemsStatus = document.getElementById("selected-track-stems-status");
+            const actions = document.getElementById("ls-external-track-actions");
+            if (stemsStatus) stemsStatus.style.display = "";
+            if (actions) actions.hidden = true;
+        }
+
+        function activeFrameForWindow(sourceWindow) {
+            for (const frame of frames.values()) {
+                if (frame.contentWindow === sourceWindow) return frame;
+            }
+            return null;
         }
 
         ensureSidebarAudioIndicators();
@@ -440,6 +506,7 @@
             document.body.classList.remove("ls-shell-secondary-active");
             setFrameActive(null);
             updateSidebar("suno");
+            restoreSharedSunoPanel();
             setViewTitle(libraryTitle);
             setHistory(libraryUrl, mode);
         }
@@ -461,6 +528,8 @@
             document.documentElement.classList.add("ls-shell-secondary-active");
             document.body.classList.add("ls-shell-secondary-active");
             updateSidebar(sectionFor(target));
+            const rememberedSelection = selectedTrackByFrame.get(frame);
+            if (rememberedSelection) setSharedPanelExternal(rememberedSelection);
             setHistory(target, mode);
             try {
                 const title = frame.contentDocument?.title;
@@ -507,7 +576,7 @@
             pauseFramesExcept(null);
             setPlaybackState({
                 playing: true,
-                section: "suno",
+                section: String(event.target.dataset.lsSection || "suno"),
                 metadata: mediaPlaybackMetadata(event.target),
                 source: window,
             });
@@ -542,6 +611,34 @@
                     metadata: event.data.metadata || {},
                     source,
                 });
+                return;
+            }
+            if (event.data.type === "LS_SHELL_SELECTED_TRACK") {
+                const sourceFrame = activeFrameForWindow(event.source || null);
+                const payload = event.data.track && typeof event.data.track === "object"
+                    ? event.data.track : {};
+                if (sourceFrame) selectedTrackByFrame.set(sourceFrame, payload);
+                if (sourceFrame?.classList.contains("is-active")) {
+                    setSharedPanelExternal(payload);
+                }
+                return;
+            }
+            if (event.data.type === "LS_SHELL_EXTERNAL_PLAY") {
+                const player = window.LS && window.LS.player ? window.LS.player : null;
+                const items = Array.isArray(event.data.items) ? event.data.items : [];
+                const index = Number(event.data.index || 0);
+                if (player && typeof player.loadExternalQueue === "function" && items.length) {
+                    pauseFramesExcept(null);
+                    const item = items[Math.max(0, Math.min(items.length - 1, index))] || {};
+                    const sourceFrame = activeFrameForWindow(event.source || null);
+                    if (sourceFrame) {
+                        selectedTrackByFrame.set(sourceFrame, item);
+                        if (sourceFrame.classList.contains("is-active")) {
+                            setSharedPanelExternal(item);
+                        }
+                    }
+                    player.loadExternalQueue(items, index, true);
+                }
                 return;
             }
             if (event.data.type === "LS_SHELL_RESTART_BACKEND") {
