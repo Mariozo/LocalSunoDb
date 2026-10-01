@@ -117,7 +117,9 @@ class LocalSunoDbHandler(LibraryControllerMixin, DownloaderControllerMixin, Medi
             artist = params.get("artist", [""])[0]
             year = params.get("year", [""])[0]
             open_new = params.get("new", [""])[0] == "1"
-            save_last_view_url(self.path)
+            embedded = str(params.get("ls_embedded", [""])[0]).strip() == "1"
+            if not embedded:
+                save_last_view_url(self.path)
             self.send_html(render_music_database_page(db_name, query, view, album, artist, year, open_new))
             return
 
@@ -140,7 +142,9 @@ class LocalSunoDbHandler(LibraryControllerMixin, DownloaderControllerMixin, Medi
         if path == "/playlists":
             playlist_id = params.get("id", [""])[0]
             add_track_id = params.get("add_track", [""])[0]
-            save_last_view_url(self.path)
+            embedded = str(params.get("ls_embedded", [""])[0]).strip() == "1"
+            if not embedded:
+                save_last_view_url(self.path)
             self.send_html(render_playlists_page(playlist_id, add_track_id))
             return
 
@@ -282,7 +286,7 @@ class LocalSunoDbHandler(LibraryControllerMixin, DownloaderControllerMixin, Medi
             embedded_imports = str(params.get("ls_embedded", [""])[0]).strip() == "1"
             if not embedded_imports:
                 save_last_view_url("/downloader")
-            self.send_html(render_downloader_page())
+            self.send_html(render_downloader_page(embedded=embedded_imports))
             return
 
         return False
