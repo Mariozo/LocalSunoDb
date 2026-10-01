@@ -300,6 +300,10 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
         </section>"""
 
     root_line = f'<div class="root-line" title="{_esc(root_folder)}">{_esc(root_folder)}</div>' if root_folder else ""
+    library_head = "" if album else (
+        f'<div class="library-head"><div><h1>{_esc(heading)}</h1>{root_line}</div>'
+        f'<div class="count">{total_tracks if selected_name else 0} dziesmas</div></div>'
+    )
     modal_open = " open" if open_new else ""
 
     document = f"""<!doctype html>
@@ -362,7 +366,7 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
       <button type="button" id="list-view" class="{'active' if view == 'list' else ''}" title="Saraksta skats">☷</button>
     </div>
   </form>
-  <div class="library-head"><div><h1>{_esc(heading)}</h1>{root_line}</div><div class="count">{total_tracks if selected_name else 0} dziesmas</div></div>
+  {library_head}
   {detail_block if album else grid_block + list_block + playlists_block}
 </main>
 <div class="modal{modal_open}" id="new-db-modal" aria-hidden="{'false' if open_new else 'true'}">
