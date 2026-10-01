@@ -419,3 +419,277 @@
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     }
 }
+
+
+.ls-preview-build {
+    display: inline-flex;
+    margin-left: 8px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: #f0d95c;
+    color: #152117;
+    font-size: 9px;
+    font-weight: 900;
+    vertical-align: middle;
+    letter-spacing: .02em;
+}
+
+.ls-my-library-preview-id {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 5;
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: rgba(240,217,92,.92);
+    color: #142018;
+    font-size: 9px;
+    font-weight: 900;
+    pointer-events: none;
+}
+
+.ls-my-library-view {
+    position: relative;
+}
+
+.selected-track-panel.ls-my-library-track-context .selected-track-block,
+.selected-track-panel.ls-my-library-track-context .ls-flags-tags-dock-slot {
+    display: none !important;
+}
+
+.selected-track-panel.ls-my-library-track-context .ls-my-library-panel-actions {
+    display: grid;
+}
+
+.ls-my-library-album-view {
+    gap: 0;
+}
+
+.ls-my-library-album-hero {
+    position: relative;
+    min-height: 250px;
+    display: grid;
+    grid-template-columns: 210px minmax(0, 1fr);
+    align-items: end;
+    gap: 24px;
+    padding: 34px 28px 24px;
+    overflow: hidden;
+    border-radius: 12px 12px 0 0;
+    background:
+        linear-gradient(180deg, rgba(255,255,255,.12), rgba(0,0,0,.34)),
+        linear-gradient(135deg, #6c756f, #28342d);
+}
+
+.ls-my-library-album-hero::after {
+    content: "";
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 44%;
+    background: linear-gradient(to bottom, transparent, rgba(6,31,20,.34));
+    pointer-events: none;
+}
+
+.ls-my-library-back {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    z-index: 3;
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: rgba(20,25,22,.58);
+    color: #fff;
+    text-decoration: none;
+    font-size: 18px;
+    backdrop-filter: blur(8px);
+}
+
+.ls-my-library-album-cover {
+    position: relative;
+    z-index: 2;
+    width: 210px;
+    aspect-ratio: 1 / 1;
+    border-radius: 7px;
+    overflow: hidden;
+    background: #18231d;
+    box-shadow: 0 12px 34px rgba(0,0,0,.30);
+}
+
+.ls-my-library-album-cover img,
+.ls-my-library-album-cover .cover-empty {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.ls-my-library-album-copy {
+    position: relative;
+    z-index: 2;
+    min-width: 0;
+    padding-bottom: 4px;
+}
+
+.ls-my-library-album-kind {
+    margin-bottom: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(255,255,255,.92);
+}
+
+.ls-my-library-album-copy h1 {
+    margin: 0;
+    max-width: 100%;
+    color: #fff;
+    font-size: clamp(34px, 4.4vw, 74px);
+    line-height: .98;
+    letter-spacing: -.035em;
+    overflow-wrap: anywhere;
+}
+
+.ls-my-library-album-meta {
+    margin-top: 14px;
+    color: rgba(255,255,255,.88);
+    font-size: 13px;
+}
+
+.ls-my-library-album-controls {
+    display: grid;
+    grid-template-columns: auto minmax(220px, 340px);
+    justify-content: space-between;
+    align-items: center;
+    gap: 18px;
+    padding: 18px 18px 10px;
+    background: var(--ls-suno-main);
+}
+
+.ls-my-library-play-all {
+    width: 54px;
+    height: 54px;
+    border: 0;
+    border-radius: 50%;
+    background: #16d96f;
+    color: #062314;
+    font-size: 22px;
+    cursor: pointer;
+}
+
+.ls-my-library-play-all:hover {
+    background: #22e87c;
+}
+
+.ls-my-library-album-search {
+    width: 100%;
+    height: 38px;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 20px;
+    background: rgba(11,61,40,.48);
+    color: var(--ls-suno-text);
+    padding: 0 14px;
+    outline: none;
+}
+
+.ls-my-library-album-scroll {
+    padding: 0 12px calc(var(--ls-global-player-reserved, 78px) + 24px) 12px;
+}
+
+.ls-my-library-view .track-table-wrap {
+    overflow: auto;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.ls-my-library-view .track-table {
+    width: 100%;
+    min-width: 860px;
+    border-collapse: separate;
+    border-spacing: 0 4px;
+    background: transparent;
+}
+
+.ls-my-library-view .track-table th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    padding: 8px 10px;
+    text-align: left;
+    color: var(--ls-suno-muted);
+    background: var(--ls-suno-main);
+    border-bottom: 1px solid var(--ls-suno-line);
+    font-size: 11px;
+}
+
+.ls-my-library-view .track-table td {
+    padding: 8px 10px;
+    background: transparent;
+    color: var(--ls-suno-text);
+    border-top: 1px solid transparent;
+    border-bottom: 1px solid transparent;
+    font-size: 12px;
+}
+
+.ls-my-library-view .music-track-row:hover td {
+    background: rgba(11,61,40,.54);
+}
+
+.ls-my-library-view .music-track-row.selected-track-current td,
+.ls-my-library-view .music-track-row.player-open td {
+    background: var(--ls-suno-active) !important;
+}
+
+.ls-my-library-view .music-track-row td:first-child {
+    border-radius: 12px 0 0 12px;
+}
+
+.ls-my-library-view .music-track-row td:last-child {
+    border-radius: 0 12px 12px 0;
+}
+
+.ls-my-library-view .track-number-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 68px;
+}
+
+.ls-my-library-view .music-row-play {
+    width: 28px;
+    height: 28px;
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 28px;
+    border-radius: 50%;
+    background: #222826;
+    color: #f1f3f2;
+    border: 1px solid rgba(255,255,255,.08);
+    cursor: pointer;
+}
+
+.ls-my-library-view .music-track-row.player-open .music-row-play {
+    background: #f1f3f2;
+    color: #111;
+}
+
+.ls-my-library-view .path-line {
+    max-width: 430px;
+    margin-top: 3px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    color: #718078;
+    font-size: 10px;
+}
+
+@media (max-width: 980px) {
+    .ls-my-library-album-hero {
+        grid-template-columns: 155px minmax(0,1fr);
+        min-height: 210px;
+        padding: 30px 20px 20px;
+        gap: 18px;
+    }
+    .ls-my-library-album-cover {
+        width: 155px;
+    }
+}
