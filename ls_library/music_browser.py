@@ -28,6 +28,22 @@ def _duration(value):
     return f"{seconds // 60}:{seconds % 60:02d}"
 
 
+def _duration_summary(value):
+    try:
+        seconds = int(round(float(value or 0)))
+    except Exception:
+        return ""
+    if seconds <= 0:
+        return ""
+    if seconds < 60:
+        return f"{seconds} s"
+    minutes, remain = divmod(seconds, 60)
+    if minutes < 60:
+        return f"{minutes} min" + (f" {remain} s" if remain else "")
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours} h" + (f" {minutes} min" if minutes else "")
+
+
 def _sidebar():
     return """
     <aside class="side">
@@ -113,6 +129,8 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
         </a>""")
 
     row_html = []
+    album_row_html = []
+    album_artist_key = artist.casefold()
     for index, row in enumerate(tracks):
         track_no = row.get("track_no")
         disc_no = row.get("disc_no")
@@ -152,12 +170,58 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
             <td>{_esc(_duration(row.get('duration_seconds')))}</td>
           </tr>""")
 
+        detail_artist = ""
+        if play_artist and play_artist.casefold() != album_artist_key:
+            detail_artist = f'<span>{_esc(play_artist)}</span>'
+        cover_cell = (
+            f'<img src="{_esc(play_cover)}" alt="">'
+            if play_cover else '<span class="album-track-cover-empty">♪</span>'
+        )
+        album_row_html.append(f"""
+          <div class="album-track-row music-track-row"
+              data-player-index="{index}"
+              data-player-path="{_esc(play_path)}"
+              data-player-title="{_esc(play_title)}"
+              data-player-artist="{_esc(play_artist)}"
+              data-player-album="{_esc(play_album)}"
+              data-player-cover="{_esc(play_cover)}"
+              data-track-year="{_esc(row.get('year'))}"
+              data-track-genre="{_esc(row.get('genre'))}"
+              data-track-format="{_esc(str(row.get('format') or '').upper())}"
+              data-track-duration="{_esc(_duration(row.get('duration_seconds')))}">
+            <span class="album-track-number">{_esc(num or index + 1)}</span>
+            <button type="button" class="music-row-play album-row-play" aria-label="Atskaņot {_esc(play_title)}" title="Atskaņot">▶</button>
+            <span class="album-track-cover">{cover_cell}</span>
+            <span class="album-track-copy"><strong>{_esc(play_title)}</strong>{detail_artist}</span>
+            <span class="album-track-duration">{_esc(_duration(row.get('duration_seconds')))}</span>
+          </div>""")
+
     if album:
-        heading = f"{artist}{' · ' + year if year else ''} — {album}"
+        heading = album
         back_url = _url(db=selected_name, q=query)
     else:
         heading = selected_name or "My Library"
         back_url = ""
+
+    album_total_seconds = sum(
+        float(row.get("duration_seconds") or 0)
+        for row in tracks
+        if row.get("duration_seconds")
+    )
+    album_total_duration = _duration_summary(album_total_seconds)
+    album_cover_sha = next(
+        (str(row.get("cover_sha1") or "") for row in tracks if row.get("cover_sha1")),
+        "",
+    )
+    album_cover_url = (
+        f"/music-db-cover?name={urllib.parse.quote(selected_name)}&sha1={urllib.parse.quote(album_cover_sha)}"
+        if album_cover_sha and selected_name else ""
+    )
+    album_meta = " · ".join(part for part in [
+        year,
+        f"{len(tracks)} dziesmas",
+        album_total_duration,
+    ] if part)
 
     empty = ""
     if not usable:
@@ -173,13 +237,31 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
 
     detail_block = ""
     if album:
+        hero_cover = (
+            f'<img id="album-hero-cover" src="{_esc(album_cover_url)}" alt="">'
+            if album_cover_url else '<span class="album-hero-cover-empty">♪</span>'
+        )
         detail_block = f"""
-        <section class="album-detail">
-          <div class="detail-head"><a class="back" href="{_esc(back_url)}">← Albums</a><h1>{_esc(heading)}</h1><span>{len(tracks)} dziesmas</span></div>
-          <div class="track-table-wrap"><table class="track-table">
-            <thead><tr><th>#</th><th>Nosaukums</th><th>Autors</th><th>Albums</th><th>Gads</th><th>Žanrs</th><th>Tips</th><th>Ilgums</th></tr></thead>
-            <tbody>{''.join(row_html) if row_html else '<tr><td colspan="8" class="none">Nav ierakstu.</td></tr>'}</tbody>
-          </table></div>
+        <section class="album-detail-v2">
+          <div class="album-hero-v2" id="album-hero-v2">
+            <a class="album-back-v2" href="{_esc(back_url)}" title="Atpakaļ uz albumiem">←</a>
+            <div class="album-hero-inner-v2">
+              <div class="album-hero-cover-v2">{hero_cover}</div>
+              <div class="album-hero-copy-v2">
+                <div class="album-kind-v2">Albums</div>
+                <h1>{_esc(album)}</h1>
+                <div class="album-meta-v2"><strong>{_esc(artist or "Unknown Artist")}</strong>{(" · " + _esc(album_meta)) if album_meta else ""}</div>
+              </div>
+            </div>
+          </div>
+          <div class="album-actions-v2">
+            <button type="button" class="album-play-v2" id="album-play-all" title="Atskaņot albumu" aria-label="Atskaņot albumu">▶</button>
+            <input type="search" class="album-search-v2" id="album-track-search" placeholder="Meklēt šajā albumā" autocomplete="off">
+          </div>
+          <div class="album-track-head-v2"><span>#</span><span>Nosaukums</span><span>◷</span></div>
+          <div class="album-track-list-v2" id="album-track-list">
+            {''.join(album_row_html) if album_row_html else '<div class="none">Nav ierakstu.</div>'}
+          </div>
         </section>"""
 
     list_block = ""
