@@ -141,6 +141,29 @@
         document.documentElement.classList.add("ls-shell-embedded");
         if (document.body) document.body.classList.add("ls-shell-embedded");
 
+        const sharedChromeStyle = document.createElement("style");
+        sharedChromeStyle.id = "ls-shell-embedded-shared-chrome";
+        sharedChromeStyle.textContent = `
+            html.ls-shell-embedded .my-music-player,
+            html.ls-shell-embedded .playlist-player,
+            html.ls-shell-embedded .album-inspector-v2 {
+                display: none !important;
+            }
+
+            html.ls-shell-embedded .album-detail-body-v2 {
+                grid-template-columns: minmax(0, 1fr) !important;
+            }
+
+            html.ls-shell-embedded .main {
+                padding-bottom: 32px !important;
+            }
+
+            html.ls-shell-embedded .playlist-shell {
+                padding-bottom: 24px !important;
+            }
+        `;
+        document.head.appendChild(sharedChromeStyle);
+
         window.LSShellNavigate = (rawUrl) => {
             const target = normalizeTarget(rawUrl);
             if (!target || !isShellRoute(target)) return false;
