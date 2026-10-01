@@ -414,3 +414,36 @@ def test_my_library_and_playlist_publish_now_playing_metadata():
     assert "playerAudio.dataset.lsArtist = artist" in browser
     assert "playerAudio.dataset.lsAlbum = album" in browser
     assert "audio.dataset.lsTitle = title" in playlists
+
+
+def test_secondary_screens_reuse_parent_suno_panel_and_player():
+    shell_js = Path("ls_web/static/persistent_shell.js").read_text(encoding="utf-8")
+    shell_css = Path("ls_web/static/persistent_shell.css").read_text(encoding="utf-8")
+    player_js = Path("ls_player/static/suno_global_player_script_assets.js").read_text(encoding="utf-8")
+    panel_css = Path("ls_library/static/suno_page_selected_track_shell_style_assets.css").read_text(encoding="utf-8")
+    template = Path("ls_library/templates/library.html").read_text(encoding="utf-8")
+
+    assert 'type === "LS_SHELL_SELECTED_TRACK"' in shell_js
+    assert 'type === "LS_SHELL_EXTERNAL_PLAY"' in shell_js
+    assert "setSharedPanelExternal" in shell_js
+    assert 'loadExternalQueue' in player_js
+    assert 'current.external' in player_js
+    assert 'right: var(--ls-selected-panel-width, 330px);' in shell_css
+    assert 'bottom: var(--ls-global-player-reserved, 78px);' in shell_css
+    assert 'html.ls-shell-embedded .my-music-player' in shell_css
+    assert 'html.ls-shell-embedded .playlist-player' in shell_css
+    assert '.selected-track-panel.is-external-track' in panel_css
+    assert 'id="ls-external-google-track"' in template
+    assert 'id="ls-external-google-album"' in template
+
+
+def test_my_library_and_playlists_route_embedded_playback_to_shared_shell():
+    browser = Path("ls_library/music_browser.py").read_text(encoding="utf-8")
+    playlists = Path("ls_library/playlists.py").read_text(encoding="utf-8")
+
+    assert "LS_SHELL_SELECTED_TRACK" in browser
+    assert "LS_SHELL_EXTERNAL_PLAY" in browser
+    assert "section: 'my-library'" in browser
+    assert "LS_SHELL_SELECTED_TRACK" in playlists
+    assert "LS_SHELL_EXTERNAL_PLAY" in playlists
+    assert 'section: "playlists"' in playlists
