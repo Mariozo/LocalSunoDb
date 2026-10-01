@@ -421,6 +421,64 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
     if (typeof window.LSShellNavigate === 'function' && window.LSShellNavigate(url)) return;
     location.href = url;
   }};
+
+  const heroCover = document.getElementById('album-hero-cover');
+  const applyAlbumTheme = () => {{
+    if (!heroCover || !heroCover.naturalWidth || !heroCover.naturalHeight) return;
+    try {{
+      const canvas = document.createElement('canvas');
+      canvas.width = 40;
+      canvas.height = 40;
+      const ctx = canvas.getContext('2d', {{willReadFrequently:true}});
+      ctx.drawImage(heroCover, 0, 0, 40, 40);
+      const pixels = ctx.getImageData(0, 0, 40, 40).data;
+      const buckets = new Map();
+      for (let i = 0; i < pixels.length; i += 4) {{
+        if (pixels[i + 3] < 180) continue;
+        const r0 = pixels[i], g0 = pixels[i + 1], b0 = pixels[i + 2];
+        const max = Math.max(r0,g0,b0), min = Math.min(r0,g0,b0);
+        const lum = .2126*r0 + .7152*g0 + .0722*b0;
+        if (lum < 24 || (min > 222 && max > 238)) continue;
+        const r = (r0 >> 4) * 16 + 8;
+        const g = (g0 >> 4) * 16 + 8;
+        const b = (b0 >> 4) * 16 + 8;
+        const key = r + ',' + g + ',' + b;
+        const saturation = (max - min) / Math.max(1,max);
+        const score = 1 + saturation * 1.8 + Math.min(lum,175) / 330;
+        buckets.set(key, (buckets.get(key) || 0) + score);
+      }}
+      let picked = [66,109,88], best = -1;
+      buckets.forEach((score,key) => {{
+        if (score > best) {{ best = score; picked = key.split(',').map(Number); }}
+      }});
+      const mix = (from,to,amount) => from.map((v,i) => Math.round(v*(1-amount)+to[i]*amount));
+      const luminance = .2126*picked[0] + .7152*picked[1] + .0722*picked[2];
+      const hero = mix(picked,[255,255,255],luminance < 80 ? .34 : luminance < 125 ? .24 : .16);
+      const dark = hero.map(v => Math.max(0,Math.round(v*.80)));
+      const wash = mix(dark,[6,31,20],.78);
+      const rgb = value => 'rgb(' + value.join(',') + ')';
+      const root = document.querySelector('.album-detail-v2');
+      if (root) {{
+        root.style.setProperty('--album-hero',rgb(hero));
+        root.style.setProperty('--album-hero-dark',rgb(dark));
+        root.style.setProperty('--album-wash',rgb(wash));
+      }}
+    }} catch (_) {{}}
+  }};
+  if (heroCover) {{
+    if (heroCover.complete) applyAlbumTheme();
+    else heroCover.addEventListener('load',applyAlbumTheme,{{once:true}});
+  }}
+
+  const albumSearch = document.getElementById('album-track-search');
+  albumSearch?.addEventListener('input', () => {{
+    const needle = String(albumSearch.value || '').trim().toLocaleLowerCase();
+    document.querySelectorAll('.album-track-row').forEach(row => {{
+      const hay = [row.dataset.playerTitle,row.dataset.playerArtist]
+        .filter(Boolean).join(' ').toLocaleLowerCase();
+      row.hidden = Boolean(needle && !hay.includes(needle));
+    }});
+  }});
   db?.addEventListener('change', () => {{
     const value = String(db.value || '').trim();
     const p = new URLSearchParams(); if (value) p.set('db', value); if (query) p.set('q', query);
@@ -992,6 +1050,13 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
         else loadTrack(index, true);
       }}
     }});
+  }});
+  document.getElementById('album-play-all')?.addEventListener('click', () => {{
+    const visibleIndex = playerRows.findIndex(row => row.classList.contains('album-track-row') && !row.hidden);
+    if (visibleIndex >= 0) {{
+      if (usesSharedShellPlayer) playSharedTrack(visibleIndex);
+      else loadTrack(visibleIndex, true);
+    }}
   }});
   playerPlay?.addEventListener('click', () => {{
     if (currentIndex < 0) {{ if (playerRows.length) loadTrack(0, true); return; }}
