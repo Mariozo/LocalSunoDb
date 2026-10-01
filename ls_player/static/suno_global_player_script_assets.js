@@ -46,6 +46,8 @@
             let currentPlayButton = null;
             let currentSource = "suno";
             let stemPlaybackActive = false;
+            let externalQueue = [];
+            let externalIndex = -1;
             const trackTable = document.getElementById("tracks-table");
             const trackListViewport = trackTable
                 ? (trackTable.closest(".table-wrap") || trackTable)
@@ -276,6 +278,18 @@
 
             function syncCompactTransportState() {
                 const enabled = Boolean(current && (current.localAudio || isValidSunoTrackId(current.trackId)));
+                if (current && current.external) {
+                    if (restartButton) { restartButton.disabled = !enabled; }
+                    if (previousButton) {
+                        previousButton.disabled = !enabled || externalIndex <= 0;
+                        previousButton.title = "Iepriekšējā dziesma";
+                    }
+                    if (nextButton) {
+                        nextButton.disabled = !enabled || externalIndex < 0 || externalIndex >= externalQueue.length - 1;
+                        nextButton.title = "Nākamā dziesma";
+                    }
+                    return;
+                }
                 const rows = compactNavigationRows();
                 const anchorRow = compactNavigationAnchorRow();
                 const index = anchorRow ? rows.indexOf(anchorRow) : -1;
@@ -583,7 +597,9 @@
             function syncSourceLabel() {
                 if (!stemPlaybackActive) {
                     sourceLabel.innerText = current
-                        ? (currentSource === "local" ? "Local WAV" : "Suno Web")
+                        ? (current.external
+                            ? (current.sourceLabel || "Local Suno")
+                            : (currentSource === "local" ? "Local WAV" : "Suno Web"))
                         : "Player inactive";
                 }
             }
@@ -639,6 +655,11 @@
                 currentPlayButton = null;
                 currentSource = "suno";
                 stemPlaybackActive = false;
+                externalQueue = [];
+                externalIndex = -1;
+                delete audio.dataset.lsTitle;
+                delete audio.dataset.lsArtist;
+                delete audio.dataset.lsAlbum;
                 root.classList.add("is-inactive");
                 setExpanded(false);
                 setControlsEnabled(false);
@@ -834,6 +855,90 @@
                 return await toggleStemSpacePause(stemPanel, sharedPosition);
             }
 
+            function normalizeExternalItem(item, index) {
+                const value = item && typeof item === "object" ? item : {};
+                const audioUrl = String(value.audioUrl || "").trim();
+                return {
+                    id: String(value.id || ("external-" + index)).trim(),
+                    title: String(value.title || "Track").trim(),
+                    artist: String(value.artist || "").trim(),
+                    album: String(value.album || "").trim(),
+                    cover: String(value.cover || "").trim(),
+                    coverFull: String(value.coverFull || value.cover || "").trim(),
+                    audioUrl,
+                    sourceLabel: String(value.sourceLabel || "").trim(),
+                };
+            }
+
+            function loadExternalQueue(items, index = 0, autoplay = true) {
+                const queue = Array.isArray(items)
+                    ? items.map(normalizeExternalItem).filter((item) => item.audioUrl)
+                    : [];
+                if (!queue.length) { return false; }
+                const nextIndex = Math.max(0, Math.min(queue.length - 1, Number(index) || 0));
+                const item = queue[nextIndex];
+
+                leaveHostedMode();
+                if (!audio.paused) { audio.pause(); }
+                pauseStemsForMainSource();
+                resetGlobalStemPanel();
+                resetRowState();
+
+                externalQueue = queue;
+                externalIndex = nextIndex;
+                current = {
+                    trackId: item.id,
+                    title: item.title,
+                    cover: item.cover,
+                    coverFull: item.coverFull,
+                    localAudio: item.audioUrl,
+                    localPath: "",
+                    bpm: 0,
+                    webAudio: "",
+                    hasStems: false,
+                    external: true,
+                    artist: item.artist,
+                    album: item.album,
+                    sourceLabel: item.sourceLabel,
+                };
+                currentTrackRow = null;
+                currentFragmentRow = null;
+                currentPlayButton = null;
+                currentSource = "local";
+                stemPlaybackActive = false;
+
+                root.classList.remove("is-inactive");
+                setExpanded(false);
+                setStemMode(false);
+                setControlsEnabled(true);
+                expandButton.disabled = true;
+                compareButton.disabled = true;
+                stemsButton.disabled = true;
+                editButton.disabled = true;
+
+                titleNode.innerText = item.title;
+                if (stemsMainTitle) { stemsMainTitle.innerText = item.title; }
+                updateCover(item.cover, item.coverFull);
+                audio.dataset.lsTitle = item.title;
+                audio.dataset.lsArtist = item.artist;
+                audio.dataset.lsAlbum = item.album;
+                audio.src = item.audioUrl;
+                audio.load();
+                audio.loop = false;
+                syncLoopControls();
+                syncSourceLabel();
+                syncCompactProgress();
+                syncCompactTransportState();
+                if (autoplay) {
+                    audio.play().catch(() => {
+                        sourceLabel.innerText = "Atskaņošanu neizdevās sākt";
+                        syncPlayState();
+                    });
+                }
+                syncPlayState();
+                return true;
+            }
+
             function loadFromButton(button, autoplay = true) {
                 if (!button) { return false; }
                 const trackRow = button.closest("tr.track-row");
@@ -868,6 +973,8 @@
                 const defaultPlayback = selectDefaultPlaybackSource(
                     button.dataset.localAudio || ""
                 );
+                externalQueue = [];
+                externalIndex = -1;
                 current = {
                     trackId: trackId,
                     title: button.dataset.title || "[No title]",
@@ -953,6 +1060,14 @@
             }
 
             async function loadAdjacentTrack(direction) {
+                if (current && current.external) {
+                    const targetIndex = externalIndex + (direction < 0 ? -1 : 1);
+                    if (targetIndex < 0 || targetIndex >= externalQueue.length) {
+                        syncCompactTransportState();
+                        return false;
+                    }
+                    return loadExternalQueue(externalQueue, targetIndex, true);
+                }
                 const rows = compactNavigationRows();
                 const anchorRow = compactNavigationAnchorRow();
                 if (!anchorRow) { return false; }
@@ -1146,6 +1261,7 @@
             deactivate();
             return {
                 loadFromButton: loadFromButton,
+                loadExternalQueue: loadExternalQueue,
                 loadFromStemButton: loadFromStemButton,
                 openStems: openStems,
                 toggleStems: toggleStems,
