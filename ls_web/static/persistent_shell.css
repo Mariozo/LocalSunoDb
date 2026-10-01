@@ -4,10 +4,10 @@
 #ls-shell-screen-host {
     position: fixed;
     top: 0;
-    right: 0;
-    bottom: 0;
+    right: var(--ls-selected-panel-width, 330px);
+    bottom: var(--ls-global-player-reserved, 78px);
     left: var(--ls-suno-sidebar-width, 260px);
-    z-index: 1285;
+    z-index: 1100;
     overflow: hidden;
     visibility: hidden;
     pointer-events: none;
@@ -69,12 +69,21 @@ html.ls-shell-embedded body#ls-downloader > main {
 
 html.ls-shell-embedded .my-music-player,
 html.ls-shell-embedded .playlist-player {
-    left: 0 !important;
+    display: none !important;
+}
+
+html.ls-shell-embedded .album-inspector-v2 {
+    display: none !important;
+}
+
+html.ls-shell-embedded .album-layout-v3 {
+    grid-template-columns: minmax(0, 1fr) !important;
 }
 
 @media (max-width: 900px) {
     #ls-shell-screen-host {
         left: var(--ls-suno-sidebar-width, 72px);
+        right: var(--ls-selected-panel-width, 330px);
     }
 }
 
