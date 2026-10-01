@@ -660,6 +660,7 @@
                 delete audio.dataset.lsTitle;
                 delete audio.dataset.lsArtist;
                 delete audio.dataset.lsAlbum;
+                delete audio.dataset.lsSection;
                 root.classList.add("is-inactive");
                 setExpanded(false);
                 setControlsEnabled(false);
@@ -867,6 +868,7 @@
                     coverFull: String(value.coverFull || value.cover || "").trim(),
                     audioUrl,
                     sourceLabel: String(value.sourceLabel || "").trim(),
+                    section: String(value.section || "my-library").trim() || "my-library",
                 };
             }
 
@@ -900,6 +902,7 @@
                     artist: item.artist,
                     album: item.album,
                     sourceLabel: item.sourceLabel,
+                    section: item.section,
                 };
                 currentTrackRow = null;
                 currentFragmentRow = null;
@@ -922,6 +925,7 @@
                 audio.dataset.lsTitle = item.title;
                 audio.dataset.lsArtist = item.artist;
                 audio.dataset.lsAlbum = item.album;
+                audio.dataset.lsSection = item.section;
                 audio.src = item.audioUrl;
                 audio.load();
                 audio.loop = false;
@@ -994,6 +998,7 @@
                 currentPlayButton = button;
                 currentSource = defaultPlayback.source;
                 stemPlaybackActive = false;
+                audio.dataset.lsSection = "suno";
 
                 root.classList.remove("is-inactive");
                 setControlsEnabled(Boolean(current.localAudio || isValidSunoTrackId(current.trackId)));
