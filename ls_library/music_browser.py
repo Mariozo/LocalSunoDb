@@ -50,7 +50,7 @@ def _sidebar():
     """ % _esc(APP_VERSION)
 
 
-def render_music_database_page(name="", query="", view="grid", album="", artist="", year="", open_new=False):
+def render_music_database_page(name="", query="", view="grid", album="", artist="", year="", open_new=False, fragment=False):
     catalog = list_music_databases().get("databases") or []
     usable = [item for item in catalog if not item.get("error")]
     requested = str(name or "").strip()
@@ -215,6 +215,50 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
 
     root_line = f'<div class="root-line" title="{_esc(root_folder)}">{_esc(root_folder)}</div>' if root_folder else ""
     modal_open = " open" if open_new else ""
+
+    if fragment and not album and view == "grid":
+        fragment_html = f"""
+        <section
+          class="ls-my-library-view"
+          id="ls-my-library-view"
+          data-ls-view-title="LocalSunoDb - My Library · LS {_esc(APP_VERSION)}"
+          data-selected-db="{_esc(selected_name)}"
+          data-query="{_esc(query)}"
+        >
+          <form class="ls-my-library-toolbar" method="get" action="/my-library" id="my-library-search-form">
+            <input type="hidden" name="db" value="{_esc(selected_name)}">
+            <input type="search" class="ls-my-library-search" name="q" value="{_esc(query)}" placeholder="Search albums, artists or songs" autocomplete="off">
+            <select class="ls-my-library-db-select" id="db-select" aria-label="Mūzikas DB">{''.join(db_options)}</select>
+            <button type="button" class="ls-my-library-new-db" id="new-db">＋ Jauna DB</button>
+          </form>
+          <div class="ls-my-library-view-toggle" aria-label="Skata veids">
+            <button type="button" id="grid-view" class="active" title="Albumu skats">▦</button>
+            <button type="button" id="list-view" title="Saraksta skats">☷</button>
+          </div>
+          <div class="ls-my-library-summary">
+            <div>
+              <h1>{_esc(heading)}</h1>
+              {root_line}
+            </div>
+            <div class="ls-my-library-count">{total_tracks if selected_name else 0} dziesmas</div>
+          </div>
+          <div class="ls-my-library-scroll">
+            {grid_block}
+            {playlists_block}
+          </div>
+        </section>
+        <div class="ls-my-library-modal modal{modal_open}" id="new-db-modal" aria-hidden="{'false' if open_new else 'true'}">
+          <div class="modal-card">
+            <div class="modal-head"><h2>Jauna / atjaunot mūzikas DB</h2><button type="button" class="modal-close" id="modal-close">×</button></div>
+            <div class="field"><label>DB nosaukums</label><input id="music-db-name" placeholder="Piemēram: Jazz, R&B & Soul"></div>
+            <div class="field"><label>Mūzikas mape</label><div class="folder-row"><input id="music-db-root" placeholder="D:\\Music\\Jazz"><button type="button" id="choose-root">Izvēlēties…</button></div></div>
+            <div class="field"><label>Noklusējuma žanrs (neobligāti)</label><input id="music-db-genre" placeholder="Jazz"></div>
+            <div class="status" id="music-db-status"></div>
+            <div class="modal-actions"><button type="button" class="secondary" id="modal-cancel">Atcelt</button><button type="button" class="primary" id="music-db-import">Izveidot / skenēt</button></div>
+          </div>
+        </div>
+        """
+        return fragment_html.encode("utf-8")
 
     document = f"""<!doctype html>
 <html lang="lv">
