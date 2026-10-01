@@ -96,6 +96,7 @@ def test_my_library_embedded_view_has_content_but_no_private_chrome(monkeypatch)
 
 
 def test_playlists_embedded_view_has_content_but_no_private_chrome(monkeypatch):
+    monkeypatch.setattr(playlists, "esc", lambda value: str(value), raising=False)
     playlist = {
         "id": "p1",
         "name": "Test Playlist",
