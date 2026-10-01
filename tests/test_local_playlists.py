@@ -391,3 +391,26 @@ def test_main_sidebar_has_no_stems_choice():
     template = Path("ls_library/templates/library.html").read_text(encoding="utf-8")
     assert 'id="ls-sidebar-stems-btn"' not in template
     assert '<span class="ls-sidebar-label">Stems</span>' not in template
+
+
+def test_persistent_shell_has_global_now_playing_indicator_and_alt_tab_title():
+    script = Path("ls_web/static/persistent_shell.js").read_text(encoding="utf-8")
+    style = Path("ls_web/static/persistent_shell.css").read_text(encoding="utf-8")
+
+    assert "LS_SHELL_AUDIO_STATE" in script
+    assert "ls-sidebar-audio-indicator" in script
+    assert "is-audio-playing" in script
+    assert "playbackWindowTitle" in script
+    assert "▶ " in script
+    assert "mediaPlaybackMetadata" in script
+    assert ".ls-sidebar-audio-indicator" in style
+
+
+def test_my_library_and_playlist_publish_now_playing_metadata():
+    browser = Path("ls_library/music_browser.py").read_text(encoding="utf-8")
+    playlists = Path("ls_library/playlists.py").read_text(encoding="utf-8")
+
+    assert "playerAudio.dataset.lsTitle = title" in browser
+    assert "playerAudio.dataset.lsArtist = artist" in browser
+    assert "playerAudio.dataset.lsAlbum = album" in browser
+    assert "audio.dataset.lsTitle = title" in playlists
