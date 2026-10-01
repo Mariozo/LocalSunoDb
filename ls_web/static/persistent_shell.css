@@ -4,14 +4,14 @@
 #ls-shell-screen-host {
     position: fixed;
     top: 0;
-    right: 0;
-    bottom: 0;
+    right: var(--ls-selected-panel-width, 330px);
+    bottom: var(--ls-global-player-reserved, 78px);
     left: var(--ls-suno-sidebar-width, 260px);
-    z-index: 1285;
+    z-index: 1100;
     overflow: hidden;
     visibility: hidden;
     pointer-events: none;
-    background: #061F14;
+    background: var(--ls-suno-main, #061F14);
 }
 
 html.ls-shell-secondary-active #ls-shell-screen-host {
@@ -68,12 +68,61 @@ html.ls-shell-embedded body#ls-downloader > main {
 }
 
 html.ls-shell-embedded .my-music-player,
-html.ls-shell-embedded .playlist-player {
-    left: 0 !important;
+html.ls-shell-embedded .playlist-player,
+html.ls-shell-embedded .downloader-elza-panel,
+html.ls-shell-embedded .downloader-elza-resizer {
+    display: none !important;
+}
+
+html.ls-shell-embedded {
+    --bg: var(--ls-suno-main, #061F14);
+    --panel: var(--ls-suno-active, #0B3D28);
+    --line: var(--ls-suno-line, rgba(255,255,255,.09));
+    --muted: var(--ls-suno-muted, #8D9992);
+    --text: var(--ls-suno-text, #F1F3F2);
+}
+
+html.ls-shell-embedded,
+html.ls-shell-embedded body,
+html.ls-shell-embedded body#ls-my-library,
+html.ls-shell-embedded body#ls-playlists,
+html.ls-shell-embedded body#ls-downloader {
+    background: var(--ls-suno-main, #061F14) !important;
+    color: var(--ls-suno-text, #F1F3F2) !important;
+}
+
+html.ls-shell-embedded .main,
+html.ls-shell-embedded .playlist-main,
+html.ls-shell-embedded body#ls-downloader > main {
+    box-sizing: border-box;
+    background: var(--ls-suno-main, #061F14) !important;
+}
+
+html.ls-shell-embedded .main {
+    padding-bottom: 28px !important;
+}
+
+html.ls-shell-embedded .playlist-shell {
+    min-height: 100% !important;
+    padding-bottom: 0 !important;
+    background: var(--ls-suno-main, #061F14) !important;
+}
+
+html.ls-shell-embedded .playlist-main {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 22px 24px 28px !important;
+}
+
+html.ls-shell-embedded body#ls-downloader > main {
+    height: 100% !important;
+    margin-right: 0 !important;
+    padding-bottom: 28px !important;
 }
 
 @media (max-width: 900px) {
     #ls-shell-screen-host {
         left: var(--ls-suno-sidebar-width, 72px);
+        right: var(--ls-selected-panel-width, 300px);
     }
 }
