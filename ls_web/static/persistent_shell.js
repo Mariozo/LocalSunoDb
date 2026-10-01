@@ -395,6 +395,7 @@
 
         function showLibrary(mode = "push") {
             activeTarget = "";
+            window.LSMyLibrarySelectionView?.leave?.();
             document.documentElement.classList.remove("ls-shell-secondary-active");
             document.body.classList.remove("ls-shell-secondary-active");
             setFrameActive(null);
@@ -406,6 +407,7 @@
         }
 
         function showFrameScreen(target, mode = "push") {
+            window.LSMyLibrarySelectionView?.leave?.();
             setContentMainVisible(false);
             setPrimaryMainVisible(true);
             const frame = ensureFrame(target);
