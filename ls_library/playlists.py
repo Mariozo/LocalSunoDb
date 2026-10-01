@@ -407,6 +407,7 @@ def _playlist_page_script(active_playlist_id="", pending_track_id=""):
     (() => {{
       const activePlaylistId = {active_json};
       const pendingTrackId = {pending_json};
+      const usesSharedShellPlayer = window.self !== window.top && document.documentElement.classList.contains("ls-shell-embedded");
       const shellNavigate = (url) => {{
         if (typeof window.LSShellNavigate === "function" && window.LSShellNavigate(url)) return;
         window.location.href = url;
@@ -475,6 +476,54 @@ def _playlist_page_script(active_playlist_id="", pending_track_id=""):
       }});
 
       const rowsBox = document.getElementById("playlist-tracks");
+      const playlistRowToSharedTrack = (row) => {{
+        const trackId = String(row?.dataset?.trackId || "").trim();
+        const title = String(row?.querySelector(".playlist-track-copy strong")?.textContent || trackId || "Track").trim();
+        const subtitle = String(row?.querySelector(".playlist-track-copy span")?.textContent || "").replace("Missing", "").trim();
+        const duration = String(row?.querySelector(".playlist-track-duration")?.textContent || "").trim();
+        const source = String(row?.dataset?.playSource || "suno").trim() || "suno";
+        const cover = String(row?.querySelector(".playlist-track-cover")?.getAttribute("src") || "").trim();
+        return {{
+          id: "playlist:" + trackId,
+          title,
+          artist: subtitle,
+          album: String(document.getElementById("playlist-title")?.textContent || "Playlist").trim(),
+          cover,
+          coverFull: cover,
+          year: "",
+          genre: "",
+          format: source === "local" ? "LOCAL" : "SUNO",
+          duration,
+          audioUrl: trackId ? "/playback-media?track_id=" + encodeURIComponent(trackId) + "&source=" + encodeURIComponent(source) : "",
+          sourceLabel: [subtitle, "Playlist"].filter(Boolean).join(" · "),
+          section: "playlists",
+        }};
+      }};
+      const postSharedPlaylistSelection = (row) => {{
+        if (!usesSharedShellPlayer || !row) return;
+        try {{
+          window.parent.postMessage(
+            {{type:"LS_SHELL_SELECTED_TRACK", track:playlistRowToSharedTrack(row)}},
+            window.location.origin
+          );
+        }} catch (_) {{}}
+      }};
+      const playSharedPlaylistTrack = (rows, index) => {{
+        if (!usesSharedShellPlayer || index < 0 || index >= rows.length) return false;
+        const items = rows.map(playlistRowToSharedTrack).filter((item) => item.audioUrl);
+        const selected = playlistRowToSharedTrack(rows[index]);
+        const queueIndex = items.findIndex((item) => item.id === selected.id);
+        if (queueIndex < 0) return false;
+        try {{
+          window.parent.postMessage(
+            {{type:"LS_SHELL_EXTERNAL_PLAY", items, index:queueIndex}},
+            window.location.origin
+          );
+          return true;
+        }} catch (_) {{
+          return false;
+        }}
+      }};
       const renumber = () => {{
         if (!rowsBox) return;
         rowsBox.querySelectorAll(".playlist-track-row").forEach((row, index) => {{
@@ -530,7 +579,15 @@ def _playlist_page_script(active_playlist_id="", pending_track_id=""):
             return;
           }}
           const play = event.target.closest(".playlist-track-play");
-          if (play) playTrack(play.dataset.trackId, true);
+          if (play) {{
+            playTrack(play.dataset.trackId, true);
+            return;
+          }}
+          const selectedRow = event.target.closest(".playlist-track-row");
+          if (selectedRow && !event.target.closest("button, input, a")) {{
+            setCurrentRow(selectedRow);
+            postSharedPlaylistSelection(selectedRow);
+          }}
         }});
       }}
 
@@ -578,9 +635,14 @@ def _playlist_page_script(active_playlist_id="", pending_track_id=""):
         const source = String(row.dataset.playSource || "suno");
         const subtitle = row.querySelector(".playlist-track-copy span")?.textContent || "";
         if (nowTitle) nowTitle.textContent = title;
+        postSharedPlaylistSelection(row);
+        if (usesSharedShellPlayer && playSharedPlaylistTrack(rows, index)) {{
+          return;
+        }}
         audio.dataset.lsTitle = title;
         audio.dataset.lsArtist = String(subtitle || "").trim();
         audio.dataset.lsAlbum = "";
+        audio.dataset.lsSection = "playlists";
         audio.src = "/playback-media?track_id=" + encodeURIComponent(trackId) + "&source=" + encodeURIComponent(source);
         if (autoplay) audio.play().catch(() => {{}});
       }};
