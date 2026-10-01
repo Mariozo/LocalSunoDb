@@ -419,44 +419,7 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
     <div class="modal-actions"><button type="button" class="secondary" id="modal-cancel">Atcelt</button><button type="button" class="primary" id="music-db-import">Izveidot / skenēt</button></div>
   </div>
 </div>
-<section class="my-music-player is-idle" id="my-music-player" aria-label="My Library audio player">
-  <div class="my-player-middle">
-    <div class="my-player-progress-wrap">
-      <div class="my-player-progress-shell" title="Ctrl + mouse wheel: zoom · double click: reset zoom">
-        <canvas class="my-player-waveform" id="my-player-waveform" aria-hidden="true"></canvas>
-        <div class="my-player-waveform-status" id="my-player-waveform-status"></div>
-        <div class="my-player-played-region" id="my-player-played-region"></div>
-        <div class="my-player-ab-region" id="my-player-ab-region"></div>
-        <div class="my-player-playhead" id="my-player-playhead"></div>
-        <input type="range" class="my-player-progress" id="my-player-progress" min="0" max="1000" step="1" value="0" disabled aria-label="Playback position">
-        <div class="my-player-marker my-player-marker-a" id="my-player-marker-a"></div><div class="my-player-marker my-player-marker-b" id="my-player-marker-b"></div>
-      </div>
-      <span class="my-player-time" id="my-player-time">0:00 / 0:00</span>
-    </div>
-  </div>
-  <div class="my-player-track">
-    <div class="my-player-cover-wrap"><img class="my-player-cover" id="my-player-cover" alt=""><span class="my-player-cover-placeholder" id="my-player-cover-placeholder">♪</span></div>
-    <div class="my-player-copy"><div class="my-player-title" id="my-player-title">No track selected</div><div class="my-player-source" id="my-player-source">My Library</div></div>
-  </div>
-  <div class="my-player-transport">
-    <button type="button" id="my-player-restart" disabled title="Uz dziesmas sākumu">↤</button>
-    <button type="button" id="my-player-previous" disabled title="Iepriekšējā dziesma">⏮</button>
-    <div class="my-player-zoom-wrap" id="my-player-zoom-wrap">
-      <button type="button" class="my-player-zoom-toggle" id="my-player-zoom-toggle" data-zoom-state="in" disabled title="Zoom + · Ctrl+rullītis zoom · dubultklikšķis reset">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15.2 15.2 21 21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        <span class="zoom-symbol" id="my-player-zoom-symbol">+</span>
-      </button>
-    </div>
-    <button type="button" class="my-player-play" id="my-player-play" disabled title="Play / Pause">▶</button>
-    <button type="button" id="my-player-next" disabled title="Nākamā dziesma">⏭</button>
-    <button type="button" class="my-player-loop" id="my-player-loop" disabled title="Loop whole track or A/B section" aria-pressed="false">↻</button>
-    <button type="button" id="my-player-set-a" disabled>Set A</button>
-    <button type="button" id="my-player-set-b" disabled>Set B</button>
-    <button type="button" id="my-player-clear-ab" disabled title="Notīrīt A/B robežas">Clear AB</button>
-    <span class="my-player-ab-readout" id="my-player-ab-readout"></span>
-  </div>
-  <audio id="my-player-audio" preload="metadata"></audio>
-</section>
+{player_markup}
 <script>
 (() => {{
   const db = document.getElementById('db-select');
