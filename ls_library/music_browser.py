@@ -137,7 +137,11 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
               data-player-title="{_esc(play_title)}"
               data-player-artist="{_esc(play_artist)}"
               data-player-album="{_esc(play_album)}"
-              data-player-cover="{_esc(play_cover)}">
+              data-player-cover="{_esc(play_cover)}"
+              data-track-year="{_esc(row.get('year'))}"
+              data-track-genre="{_esc(row.get('genre'))}"
+              data-track-format="{_esc(str(row.get('format') or '').upper())}"
+              data-track-duration="{_esc(_duration(row.get('duration_seconds')))}">
             <td class="track-number-cell"><button type="button" class="music-row-play" aria-label="Atskaņot {_esc(play_title)}" title="Atskaņot">▶</button><span>{_esc(num)}</span></td>
             <td><strong>{_esc(play_title)}</strong><div class="path-line">{_esc(play_path)}</div></td>
             <td>{_esc(play_artist)}</td>
@@ -358,6 +362,55 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
   const playerRoot = document.getElementById('my-music-player');
   const playerAudio = document.getElementById('my-player-audio');
   const playerRows = Array.from(document.querySelectorAll('.music-track-row'));
+  const usesSharedShellPlayer = window.self !== window.top && document.documentElement.classList.contains('ls-shell-embedded');
+  const rowToSharedTrack = row => {{
+    const path = String(row?.dataset?.playerPath || '').trim();
+    const title = String(row?.dataset?.playerTitle || 'Track').trim();
+    const artist = String(row?.dataset?.playerArtist || '').trim();
+    const album = String(row?.dataset?.playerAlbum || '').trim();
+    const cover = String(row?.dataset?.playerCover || '').trim();
+    return {{
+      id: path || title,
+      title,
+      artist,
+      album,
+      cover,
+      coverFull: cover,
+      year: String(row?.dataset?.trackYear || '').trim(),
+      genre: String(row?.dataset?.trackGenre || '').trim(),
+      format: String(row?.dataset?.trackFormat || '').trim(),
+      duration: String(row?.dataset?.trackDuration || '').trim(),
+      audioUrl: path ? '/local-audio?path=' + encodeURIComponent(path) : '',
+      localPath: path,
+      sourceLabel: [artist, album].filter(Boolean).join(' · ') || 'My Library',
+      section: 'my-library',
+    }};
+  }};
+  const postSharedSelection = row => {{
+    if (!usesSharedShellPlayer || !row) return;
+    try {{
+      window.parent.postMessage(
+        {{type:'LS_SHELL_SELECTED_TRACK', track:rowToSharedTrack(row)}},
+        window.location.origin
+      );
+    }} catch (_) {{}}
+  }};
+  const playSharedTrack = index => {{
+    if (!usesSharedShellPlayer || index < 0 || index >= playerRows.length) return false;
+    const items = playerRows.map(rowToSharedTrack).filter(item => item.audioUrl);
+    const selected = rowToSharedTrack(playerRows[index]);
+    const queueIndex = items.findIndex(item => item.id === selected.id);
+    if (queueIndex < 0) return false;
+    try {{
+      window.parent.postMessage(
+        {{type:'LS_SHELL_EXTERNAL_PLAY', items, index:queueIndex}},
+        window.location.origin
+      );
+      return true;
+    }} catch (_) {{
+      return false;
+    }}
+  }};
   const playerPlay = document.getElementById('my-player-play');
   const playerPrevious = document.getElementById('my-player-previous');
   const playerNext = document.getElementById('my-player-next');
@@ -813,6 +866,8 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
     const artist = String(row.dataset.playerArtist || '');
     const album = String(row.dataset.playerAlbum || '');
     const cover = String(row.dataset.playerCover || '');
+    postSharedSelection(row);
+    if (usesSharedShellPlayer && playSharedTrack(index)) return;
     playerTitle.textContent = title;
     playerSource.textContent = [artist, album].filter(Boolean).join(' · ') || 'My Library';
     if (cover) {{ playerCover.src = cover; playerCover.style.display = 'block'; playerCoverPlaceholder.style.display = 'none'; }} else {{ playerCover.removeAttribute('src'); playerCover.style.display = 'none'; playerCoverPlaceholder.style.display = 'inline'; }}
@@ -827,11 +882,24 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
   playerRows.forEach((row, index) => {{
     row.querySelector('.music-row-play')?.addEventListener('click', event => {{
       event.preventDefault(); event.stopPropagation();
+      if (usesSharedShellPlayer) {{
+        postSharedSelection(row);
+        playSharedTrack(index);
+        return;
+      }}
       if (currentIndex === index && !playerAudio.paused) playerAudio.pause();
       else if (currentIndex === index && playerAudio.src) playerAudio.play().catch(() => {{}});
       else loadTrack(index, true);
     }});
-    row.addEventListener('dblclick', event => {{ if (!event.target.closest('button')) loadTrack(index, true); }});
+    row.addEventListener('click', event => {{
+      if (!event.target.closest('button')) postSharedSelection(row);
+    }});
+    row.addEventListener('dblclick', event => {{
+      if (!event.target.closest('button')) {{
+        if (usesSharedShellPlayer) playSharedTrack(index);
+        else loadTrack(index, true);
+      }}
+    }});
   }});
   playerPlay?.addEventListener('click', () => {{
     if (currentIndex < 0) {{ if (playerRows.length) loadTrack(0, true); return; }}
