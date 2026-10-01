@@ -261,8 +261,9 @@
             });
 
             function visibleTrackRows() {
-                return Array.from(table.querySelectorAll("tr.track-row")).filter(
-                    (row) => !row.classList.contains("row-hidden")
+                const sourceTable = currentTrackRow?.closest("table") || table;
+                return Array.from(sourceTable.querySelectorAll("tr.track-row")).filter(
+                    (row) => !row.classList.contains("row-hidden") && !row.hidden
                 );
             }
 
@@ -271,7 +272,8 @@
             }
 
             function compactNavigationAnchorRow() {
-                return table.querySelector("tr.track-row.selected-track-current") || currentTrackRow;
+                const sourceTable = currentTrackRow?.closest("table") || table;
+                return sourceTable.querySelector("tr.track-row.selected-track-current") || currentTrackRow;
             }
 
             function syncCompactTransportState() {
@@ -741,7 +743,9 @@
 
             function syncGlobalPlayerTrackContext() {
                 if (!currentTrackRow || !current) { return; }
+                const externalSource = String(currentTrackRow.dataset.lsSource || "").trim();
                 if (
+                    !externalSource &&
                     typeof selectTrackRow === "function" &&
                     (
                         typeof selectedTrackRow === "undefined" ||
@@ -755,7 +759,12 @@
                 }
                 document.dispatchEvent(new CustomEvent(
                     "ls-track-playback-started",
-                    { detail: { trackId: current.trackId || "" } }
+                    {
+                        detail: {
+                            trackId: current.trackId || "",
+                            source: externalSource || "suno"
+                        }
+                    }
                 ));
             }
 
@@ -887,14 +896,19 @@
                 currentPlayButton = button;
                 currentSource = defaultPlayback.source;
                 stemPlaybackActive = false;
+                const externalSource = String(button.dataset.lsSource || "").trim();
 
                 root.classList.remove("is-inactive");
                 setControlsEnabled(Boolean(current.localAudio || isValidSunoTrackId(current.trackId)));
                 expandButton.disabled = false;
                 if (closeButton) { closeButton.disabled = false; }
-                editButton.disabled = false;
-                syncCompareSelectionState();
-                stemsButton.disabled = !current.hasStems;
+                editButton.disabled = Boolean(externalSource);
+                if (externalSource) {
+                    compareButton.disabled = true;
+                } else {
+                    syncCompareSelectionState();
+                }
+                stemsButton.disabled = Boolean(externalSource) || !current.hasStems;
                 if (sidebarStemsButton) {
                     sidebarStemsButton.disabled = !current.hasStems;
                     sidebarStemsButton.classList.remove("active");

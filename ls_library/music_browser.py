@@ -50,7 +50,7 @@ def _sidebar():
     """ % _esc(APP_VERSION)
 
 
-def render_music_database_page(name="", query="", view="grid", album="", artist="", year="", open_new=False):
+def render_music_database_page(name="", query="", view="grid", album="", artist="", year="", open_new=False, fragment=False):
     catalog = list_music_databases().get("databases") or []
     usable = [item for item in catalog if not item.get("error")]
     requested = str(name or "").strip()
@@ -113,6 +113,9 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
         </a>""")
 
     row_html = []
+    album_cover_url = ""
+    album_total_duration = 0.0
+    album_genre = ""
     for index, row in enumerate(tracks):
         track_no = row.get("track_no")
         disc_no = row.get("disc_no")
@@ -130,15 +133,47 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
             f"/music-db-cover?name={urllib.parse.quote(selected_name)}&sha1={urllib.parse.quote(cover_sha)}"
             if cover_sha and selected_name else ""
         )
+        if play_cover and not album_cover_url:
+            album_cover_url = play_cover
+        try:
+            album_total_duration += float(row.get("duration_seconds") or 0)
+        except Exception:
+            pass
+        if not album_genre:
+            album_genre = str(row.get("genre") or "")
+        local_track_id = "my:" + selected_name + ":" + str(row.get("id") or play_path or index)
+        local_audio_url = "/local-audio?path=" + urllib.parse.quote(play_path)
         row_html.append(f"""
-          <tr class="music-track-row"
+          <tr class="music-track-row track-row"
+              data-ls-source="my-library"
+              data-track-id="{_esc(local_track_id)}"
+              data-title="{_esc(play_title)}"
               data-player-index="{index}"
               data-player-path="{_esc(play_path)}"
               data-player-title="{_esc(play_title)}"
               data-player-artist="{_esc(play_artist)}"
               data-player-album="{_esc(play_album)}"
-              data-player-cover="{_esc(play_cover)}">
-            <td class="track-number-cell"><button type="button" class="music-row-play" aria-label="Atskaņot {_esc(play_title)}" title="Atskaņot">▶</button><span>{_esc(num)}</span></td>
+              data-player-cover="{_esc(play_cover)}"
+              data-artist="{_esc(play_artist)}"
+              data-album="{_esc(play_album)}"
+              data-year="{_esc(row.get('year'))}"
+              data-genre="{_esc(row.get('genre'))}"
+              data-format="{_esc(str(row.get('format') or '').upper())}"
+              data-duration="{_esc(_duration(row.get('duration_seconds')))}">
+            <td class="track-number-cell"><button
+                type="button"
+                class="music-row-play play-btn ls-cover-play-btn"
+                data-ls-source="my-library"
+                data-track-id="{_esc(local_track_id)}"
+                data-title="{_esc(play_title)}"
+                data-local-audio="{_esc(local_audio_url)}"
+                data-local-path="{_esc(play_path)}"
+                data-cover="{_esc(play_cover)}"
+                data-cover-full="{_esc(play_cover)}"
+                data-has-local-audio="true"
+                data-has-stems="false"
+                aria-label="Atskaņot {_esc(play_title)}"
+                title="Atskaņot">▶</button><span>{_esc(num)}</span></td>
             <td><strong>{_esc(play_title)}</strong><div class="path-line">{_esc(play_path)}</div></td>
             <td>{_esc(play_artist)}</td>
             <td>{_esc(play_album)}</td>
@@ -215,6 +250,96 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
 
     root_line = f'<div class="root-line" title="{_esc(root_folder)}">{_esc(root_folder)}</div>' if root_folder else ""
     modal_open = " open" if open_new else ""
+
+    if fragment and album:
+        total_label = _duration(album_total_duration)
+        hero_cover = (
+            f'<img src="{_esc(album_cover_url)}" alt="">'
+            if album_cover_url else '<div class="cover-empty">♪</div>'
+        )
+        fragment_html = f"""
+        <section
+          class="ls-my-library-view ls-my-library-album-view"
+          id="ls-my-library-view"
+          data-ls-view-title="LocalSunoDb - My Library Album · LS {_esc(APP_VERSION)}"
+          data-selected-db="{_esc(selected_name)}"
+          data-query="{_esc(query)}"
+        >
+          <div class="ls-my-library-preview-id" aria-label="Test preview">P58-S1.2</div>
+          <section class="ls-my-library-album-hero" data-cover-url="{_esc(album_cover_url)}">
+            <a class="ls-my-library-back" href="{_esc(back_url)}" title="Atpakaļ uz albumiem">←</a>
+            <div class="ls-my-library-album-cover">{hero_cover}</div>
+            <div class="ls-my-library-album-copy">
+              <div class="ls-my-library-album-kind">Albums</div>
+              <h1>{_esc(album)}</h1>
+              <div class="ls-my-library-album-meta">
+                <strong>{_esc(artist or 'Unknown Artist')}</strong>
+                {(' · ' + _esc(year)) if year else ''}
+                · {len(tracks)} dziesmas
+                {(' · ' + _esc(total_label)) if total_label else ''}
+              </div>
+            </div>
+          </section>
+          <div class="ls-my-library-album-controls">
+            <button type="button" class="ls-my-library-play-all" id="my-library-play-all" title="Atskaņot albumu">▶</button>
+            <input type="search" class="ls-my-library-album-search" id="my-library-album-search" placeholder="Meklēt šajā albumā" autocomplete="off">
+          </div>
+          <div class="ls-my-library-scroll ls-my-library-album-scroll">
+            <div class="track-table-wrap">
+              <table class="track-table ls-my-library-track-table" id="my-library-track-table">
+                <thead><tr><th>#</th><th>Nosaukums</th><th>Autors</th><th>Albums</th><th>Gads</th><th>Žanrs</th><th>Tips</th><th>Ilgums</th></tr></thead>
+                <tbody>{''.join(row_html) if row_html else '<tr><td colspan="8" class="none">Nav ierakstu.</td></tr>'}</tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+        """
+        return fragment_html.encode("utf-8")
+
+    if fragment and not album and view == "grid":
+        fragment_html = f"""
+        <section
+          class="ls-my-library-view"
+          id="ls-my-library-view"
+          data-ls-view-title="LocalSunoDb - My Library · LS {_esc(APP_VERSION)}"
+          data-selected-db="{_esc(selected_name)}"
+          data-query="{_esc(query)}"
+        >
+          <div class="ls-my-library-preview-id" aria-label="Test preview">P58-S1.2</div>
+          <form class="ls-my-library-toolbar" method="get" action="/my-library" id="my-library-search-form">
+            <input type="hidden" name="db" value="{_esc(selected_name)}">
+            <input type="search" class="ls-my-library-search" name="q" value="{_esc(query)}" placeholder="Search albums, artists or songs" autocomplete="off">
+            <select class="ls-my-library-db-select" id="db-select" aria-label="Mūzikas DB">{''.join(db_options)}</select>
+            <button type="button" class="ls-my-library-new-db" id="new-db">＋ Jauna DB</button>
+          </form>
+          <div class="ls-my-library-view-toggle" aria-label="Skata veids">
+            <button type="button" id="grid-view" class="active" title="Albumu skats">▦</button>
+            <button type="button" id="list-view" title="Saraksta skats">☷</button>
+          </div>
+          <div class="ls-my-library-summary">
+            <div>
+              <h1>{_esc(heading)}</h1>
+              {root_line}
+            </div>
+            <div class="ls-my-library-count">{total_tracks if selected_name else 0} dziesmas</div>
+          </div>
+          <div class="ls-my-library-scroll">
+            {grid_block}
+            {playlists_block}
+          </div>
+        </section>
+        <div class="ls-my-library-modal modal{modal_open}" id="new-db-modal" aria-hidden="{'false' if open_new else 'true'}">
+          <div class="modal-card">
+            <div class="modal-head"><h2>Jauna / atjaunot mūzikas DB</h2><button type="button" class="modal-close" id="modal-close">×</button></div>
+            <div class="field"><label>DB nosaukums</label><input id="music-db-name" placeholder="Piemēram: Jazz, R&B & Soul"></div>
+            <div class="field"><label>Mūzikas mape</label><div class="folder-row"><input id="music-db-root" placeholder="D:\\Music\\Jazz"><button type="button" id="choose-root">Izvēlēties…</button></div></div>
+            <div class="field"><label>Noklusējuma žanrs (neobligāti)</label><input id="music-db-genre" placeholder="Jazz"></div>
+            <div class="status" id="music-db-status"></div>
+            <div class="modal-actions"><button type="button" class="secondary" id="modal-cancel">Atcelt</button><button type="button" class="primary" id="music-db-import">Izveidot / skenēt</button></div>
+          </div>
+        </div>
+        """
+        return fragment_html.encode("utf-8")
 
     document = f"""<!doctype html>
 <html lang="lv">

@@ -13,6 +13,7 @@
     const ROOT_PATH = "/";
     const SHELL_OPEN_PARAM = "ls_open";
     const EMBEDDED_PARAM = "ls_embedded";
+    const FRAGMENT_PARAM = "ls_fragment";
 
     function normalizeTarget(rawUrl) {
         let url;
@@ -25,6 +26,7 @@
         if (url.pathname === "/music-db") url.pathname = "/my-library";
         url.searchParams.delete(EMBEDDED_PARAM);
         url.searchParams.delete(SHELL_OPEN_PARAM);
+        url.searchParams.delete(FRAGMENT_PARAM);
         return url.pathname + (url.search ? url.search : "") + (url.hash || "");
     }
 
@@ -58,6 +60,28 @@
         const url = new URL(rawUrl || ROOT_PATH, ORIGIN);
         url.searchParams.set(EMBEDDED_PARAM, "1");
         return url.pathname + url.search + (url.hash || "");
+    }
+
+    function isMyLibraryContentTarget(rawUrl) {
+        let url;
+        try {
+            url = new URL(rawUrl || ROOT_PATH, ORIGIN);
+        } catch (_) {
+            return false;
+        }
+        if (url.pathname !== "/my-library" && url.pathname !== "/music-db") {
+            return false;
+        }
+        return String(url.searchParams.get("view") || "grid").toLowerCase() !== "list";
+    }
+
+    function fragmentUrl(rawUrl) {
+        const url = new URL(rawUrl || "/my-library", ORIGIN);
+        if (url.pathname === "/music-db") url.pathname = "/my-library";
+        url.searchParams.delete(EMBEDDED_PARAM);
+        url.searchParams.delete(SHELL_OPEN_PARAM);
+        url.searchParams.set(FRAGMENT_PARAM, "1");
+        return url.pathname + url.search;
     }
 
     function isPlainPrimaryClick(event) {
@@ -221,8 +245,30 @@
         host.setAttribute("aria-live", "off");
         document.body.appendChild(host);
 
+        const libraryMain = document.querySelector("body > main") || document.querySelector("main");
+        const contentMain = document.createElement("main");
+        contentMain.id = "ls-shell-content-main";
+        contentMain.hidden = true;
+        contentMain.setAttribute("aria-live", "polite");
+        if (libraryMain) {
+            libraryMain.insertAdjacentElement("afterend", contentMain);
+        }
+
         const frames = new Map();
         let activeTarget = "";
+        let myLibraryAssetsPromise = null;
+
+        function ensurePreviewMarker() {
+            const title = document.querySelector(".ls-sidebar-title-full");
+            if (!title || title.querySelector(".ls-preview-build")) return;
+            const marker = document.createElement("span");
+            marker.className = "ls-preview-build";
+            marker.textContent = "P58-S1.2";
+            marker.title = "My Library shared-shell preview";
+            title.appendChild(marker);
+        }
+
+        ensurePreviewMarker();
 
         function updateSidebar(section) {
             document.querySelectorAll(
@@ -236,6 +282,47 @@
                     (section === "downloader" && linkSection === "downloader");
                 link.classList.toggle("active", shouldBeActive);
             });
+        }
+
+        function ensureMyLibraryAssets() {
+            if (myLibraryAssetsPromise) return myLibraryAssetsPromise;
+            myLibraryAssetsPromise = new Promise((resolve, reject) => {
+                if (!document.getElementById("ls-my-library-shared-style")) {
+                    const link = document.createElement("link");
+                    link.id = "ls-my-library-shared-style";
+                    link.rel = "stylesheet";
+                    link.href = "/ls-static/ls_library/static/my_library_shared_view.css";
+                    document.head.appendChild(link);
+                }
+
+                if (window.LSMyLibrarySelectionView) {
+                    resolve();
+                    return;
+                }
+                const existing = document.getElementById("ls-my-library-shared-script");
+                if (existing) {
+                    existing.addEventListener("load", () => resolve(), { once: true });
+                    existing.addEventListener("error", () => reject(new Error("My Library view script failed to load.")), { once: true });
+                    return;
+                }
+                const script = document.createElement("script");
+                script.id = "ls-my-library-shared-script";
+                script.src = "/ls-static/ls_library/static/my_library_shared_view.js";
+                script.onload = () => resolve();
+                script.onerror = () => reject(new Error("My Library view script failed to load."));
+                document.head.appendChild(script);
+            });
+            return myLibraryAssetsPromise;
+        }
+
+        function setPrimaryMainVisible(visible) {
+            if (libraryMain) libraryMain.hidden = !visible;
+        }
+
+        function setContentMainVisible(visible) {
+            contentMain.hidden = !visible;
+            document.documentElement.classList.toggle("ls-shell-content-active", visible);
+            document.body.classList.toggle("ls-shell-content-active", visible);
         }
 
         function pauseFramesExcept(sourceWindow) {
@@ -308,25 +395,21 @@
 
         function showLibrary(mode = "push") {
             activeTarget = "";
+            window.LSMyLibrarySelectionView?.leave?.();
             document.documentElement.classList.remove("ls-shell-secondary-active");
             document.body.classList.remove("ls-shell-secondary-active");
             setFrameActive(null);
+            setContentMainVisible(false);
+            setPrimaryMainVisible(true);
             updateSidebar("suno");
             document.title = libraryTitle;
             setHistory(libraryUrl, mode);
         }
 
-        function showScreen(rawTarget, mode = "push") {
-            const target = normalizeTarget(rawTarget);
-            if (!target || !isShellRoute(target)) {
-                window.location.href = rawTarget;
-                return false;
-            }
-            if (routePath(target) === ROOT_PATH) {
-                showLibrary(mode);
-                return true;
-            }
-
+        function showFrameScreen(target, mode = "push") {
+            window.LSMyLibrarySelectionView?.leave?.();
+            setContentMainVisible(false);
+            setPrimaryMainVisible(true);
             const frame = ensureFrame(target);
             activeTarget = target;
             setFrameActive(frame);
@@ -339,6 +422,57 @@
                 if (title) document.title = title;
             } catch (_) {}
             return true;
+        }
+
+        async function showMyLibraryContent(target, mode = "push") {
+            activeTarget = target;
+            setFrameActive(null);
+            document.documentElement.classList.remove("ls-shell-secondary-active");
+            document.body.classList.remove("ls-shell-secondary-active");
+            setPrimaryMainVisible(false);
+            setContentMainVisible(true);
+            updateSidebar("my-library");
+            setHistory(target, mode);
+            contentMain.innerHTML = '<div class="ls-shell-content-loading">Loading My Library…</div>';
+
+            try {
+                await ensureMyLibraryAssets();
+                const response = await fetch(fragmentUrl(target), {
+                    cache: "no-store",
+                    headers: { "X-LS-View": "fragment" },
+                });
+                if (!response.ok) {
+                    throw new Error("My Library fragment HTTP " + response.status);
+                }
+                const html = await response.text();
+                if (activeTarget !== target) return;
+                contentMain.innerHTML = html;
+                const view = contentMain.querySelector("#ls-my-library-view");
+                const nextTitle = String(view?.dataset?.lsViewTitle || "").trim();
+                document.title = (nextTitle || "LocalSunoDb - My Library") + " · P58-S1.2";
+                window.LSMyLibrarySelectionView?.init(contentMain);
+            } catch (error) {
+                if (activeTarget !== target) return;
+                contentMain.innerHTML = "";
+                showFrameScreen(target, "replace");
+            }
+        }
+
+        function showScreen(rawTarget, mode = "push") {
+            const target = normalizeTarget(rawTarget);
+            if (!target || !isShellRoute(target)) {
+                window.location.href = rawTarget;
+                return false;
+            }
+            if (routePath(target) === ROOT_PATH) {
+                showLibrary(mode);
+                return true;
+            }
+            if (isMyLibraryContentTarget(target)) {
+                showMyLibraryContent(target, mode);
+                return true;
+            }
+            return showFrameScreen(target, mode);
         }
 
         window.LSShellNavigate = (rawUrl) => showScreen(rawUrl, "push");
