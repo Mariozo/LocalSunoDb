@@ -1047,6 +1047,9 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
     selectAlbumRow(row);
     playerTitle.textContent = title;
     playerSource.textContent = [artist, album].filter(Boolean).join(' · ') || 'My Library';
+    playerAudio.dataset.lsTitle = title;
+    playerAudio.dataset.lsArtist = artist;
+    playerAudio.dataset.lsAlbum = album;
     if (cover) {{ playerCover.src = cover; playerCover.style.display = 'block'; playerCoverPlaceholder.style.display = 'none'; }} else {{ playerCover.removeAttribute('src'); playerCover.style.display = 'none'; playerCoverPlaceholder.style.display = 'inline'; }}
     playerAudio.src = '/local-audio?path=' + encodeURIComponent(path);
     playerAudio.load();
