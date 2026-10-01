@@ -98,6 +98,45 @@
         });
     }
 
+    function mediaPlaybackMetadata(media) {
+        const dataset = media?.dataset || {};
+        let title = String(dataset.lsTitle || "").trim();
+        let artist = String(dataset.lsArtist || "").trim();
+        let album = String(dataset.lsAlbum || "").trim();
+
+        if (!title) {
+            title = String(
+                document.getElementById("my-player-title")?.textContent ||
+                document.getElementById("playlist-player-title")?.textContent ||
+                document.getElementById("selected-track-panel-title")?.textContent ||
+                ""
+            ).trim();
+        }
+        if (!artist) {
+            artist = String(
+                document.getElementById("my-player-source")?.textContent ||
+                ""
+            ).trim();
+            if (album && artist.endsWith(" · " + album)) {
+                artist = artist.slice(0, -(album.length + 3)).trim();
+            }
+        }
+        return { title, artist, album };
+    }
+
+    function postEmbeddedAudioState(media, playing) {
+        try {
+            window.parent.postMessage(
+                {
+                    type: "LS_SHELL_AUDIO_STATE",
+                    playing: Boolean(playing),
+                    metadata: mediaPlaybackMetadata(media),
+                },
+                ORIGIN
+            );
+        } catch (_) {}
+    }
+
     function installEmbeddedShell() {
         document.documentElement.classList.add("ls-shell-embedded");
         if (document.body) document.body.classList.add("ls-shell-embedded");
@@ -175,6 +214,17 @@
             try {
                 window.parent.postMessage({ type: "LS_SHELL_AUDIO_PLAY" }, ORIGIN);
             } catch (_) {}
+            postEmbeddedAudioState(event.target, true);
+        }, true);
+
+        document.addEventListener("pause", (event) => {
+            if (!(event.target instanceof HTMLMediaElement)) return;
+            postEmbeddedAudioState(event.target, false);
+        }, true);
+
+        document.addEventListener("ended", (event) => {
+            if (!(event.target instanceof HTMLMediaElement)) return;
+            postEmbeddedAudioState(event.target, false);
         }, true);
 
         window.addEventListener("message", (event) => {
@@ -223,6 +273,84 @@
 
         const frames = new Map();
         let activeTarget = "";
+        let viewTitle = libraryTitle;
+        let currentPlayback = null;
+
+        function ensureSidebarAudioIndicators() {
+            document.querySelectorAll("header .header-tabs a.header-tab[href]").forEach((link) => {
+                const section = sectionFor(link.href);
+                if (!["suno", "my-library", "playlists"].includes(section)) return;
+                link.dataset.lsShellSection = section;
+                if (link.querySelector(".ls-sidebar-audio-indicator")) return;
+                const indicator = document.createElement("span");
+                indicator.className = "ls-sidebar-audio-indicator";
+                indicator.setAttribute("aria-label", "Šeit pašlaik skan audio");
+                indicator.setAttribute("title", "Šeit pašlaik skan audio");
+                indicator.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 10v4h4l5 4V6L9 10H5Z" fill="currentColor"/><path d="M17 9.3c1.2 1.5 1.2 4 0 5.4M19.3 7c2.5 2.7 2.5 7.3 0 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+                link.appendChild(indicator);
+            });
+        }
+
+        function sourceSection(sourceWindow) {
+            for (const frame of frames.values()) {
+                if (frame.contentWindow === sourceWindow) {
+                    return sectionFor(frame.dataset.shellUrl || "");
+                }
+            }
+            return "suno";
+        }
+
+        function playbackWindowTitle(playback) {
+            const title = String(playback?.metadata?.title || "").trim();
+            const artist = String(playback?.metadata?.artist || "").trim();
+            if (title && artist) return `▶ ${artist} — ${title} · LS`;
+            if (title) return `▶ ${title} · LS`;
+            const labels = {
+                suno: "Suno Library",
+                "my-library": "My Library",
+                playlists: "Playlists",
+            };
+            return `▶ ${labels[playback?.section] || "Local Suno"} · LS`;
+        }
+
+        function refreshWindowTitle() {
+            document.title = currentPlayback
+                ? playbackWindowTitle(currentPlayback)
+                : (viewTitle || libraryTitle);
+        }
+
+        function setViewTitle(title) {
+            if (String(title || "").trim()) viewTitle = String(title).trim();
+            refreshWindowTitle();
+        }
+
+        function setPlaybackState({ playing, section, metadata, source }) {
+            if (playing) {
+                currentPlayback = {
+                    section: section || "suno",
+                    metadata: metadata || {},
+                    source: source || window,
+                };
+            } else if (
+                currentPlayback &&
+                (!source || currentPlayback.source === source)
+            ) {
+                currentPlayback = null;
+            }
+
+            document.querySelectorAll(
+                "header .header-tabs a.header-tab.is-audio-playing"
+            ).forEach((link) => link.classList.remove("is-audio-playing"));
+            if (currentPlayback) {
+                const link = document.querySelector(
+                    `header .header-tabs a.header-tab[data-ls-shell-section="${currentPlayback.section}"]`
+                );
+                link?.classList.add("is-audio-playing");
+            }
+            refreshWindowTitle();
+        }
+
+        ensureSidebarAudioIndicators();
 
         function updateSidebar(section) {
             document.querySelectorAll(
@@ -272,7 +400,7 @@
                 if (frame.classList.contains("is-active")) {
                     try {
                         const title = frame.contentDocument?.title;
-                        if (title) document.title = title;
+                        if (title) setViewTitle(title);
                     } catch (_) {}
                 }
             });
@@ -312,7 +440,7 @@
             document.body.classList.remove("ls-shell-secondary-active");
             setFrameActive(null);
             updateSidebar("suno");
-            document.title = libraryTitle;
+            setViewTitle(libraryTitle);
             setHistory(libraryUrl, mode);
         }
 
@@ -336,7 +464,7 @@
             setHistory(target, mode);
             try {
                 const title = frame.contentDocument?.title;
-                if (title) document.title = title;
+                if (title) setViewTitle(title);
             } catch (_) {}
             return true;
         }
@@ -377,6 +505,22 @@
         document.addEventListener("play", (event) => {
             if (!(event.target instanceof HTMLMediaElement)) return;
             pauseFramesExcept(null);
+            setPlaybackState({
+                playing: true,
+                section: "suno",
+                metadata: mediaPlaybackMetadata(event.target),
+                source: window,
+            });
+        }, true);
+
+        document.addEventListener("pause", (event) => {
+            if (!(event.target instanceof HTMLMediaElement)) return;
+            setPlaybackState({ playing: false, source: window });
+        }, true);
+
+        document.addEventListener("ended", (event) => {
+            if (!(event.target instanceof HTMLMediaElement)) return;
+            setPlaybackState({ playing: false, source: window });
         }, true);
 
         window.addEventListener("message", (event) => {
@@ -388,6 +532,16 @@
             if (event.data.type === "LS_SHELL_AUDIO_PLAY") {
                 pauseParentAudio();
                 pauseFramesExcept(event.source || null);
+                return;
+            }
+            if (event.data.type === "LS_SHELL_AUDIO_STATE") {
+                const source = event.source || null;
+                setPlaybackState({
+                    playing: Boolean(event.data.playing),
+                    section: sourceSection(source),
+                    metadata: event.data.metadata || {},
+                    source,
+                });
                 return;
             }
             if (event.data.type === "LS_SHELL_RESTART_BACKEND") {
