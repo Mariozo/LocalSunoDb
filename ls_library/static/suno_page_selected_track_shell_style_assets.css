@@ -298,3 +298,14 @@
         }
 
 
+
+
+        .selected-track-panel.is-external-track .selected-track-block,
+        .selected-track-panel.is-external-track .ls-flags-tags-dock-slot,
+        .selected-track-panel.is-external-track .ls-elza-dock-slot {
+            display: none !important;
+        }
+
+        .selected-track-panel.is-external-track .ls-external-track-actions {
+            display: grid !important;
+        }
