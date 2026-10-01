@@ -155,3 +155,106 @@ header .header-tabs .ls-sidebar-audio-indicator svg {
 header .header-tabs a.header-tab.is-audio-playing .ls-sidebar-audio-indicator {
     display: inline-flex;
 }
+
+
+/* Secondary content views inherit the Suno Library visual language. */
+html.ls-shell-embedded body#ls-my-library .top,
+html.ls-shell-embedded body#ls-playlists .playlist-topbar {
+    background: linear-gradient(
+        var(--ls-suno-main, #061F14) 76%,
+        rgba(6,31,20,0)
+    ) !important;
+}
+
+html.ls-shell-embedded body#ls-my-library .search,
+html.ls-shell-embedded body#ls-my-library .db-select,
+html.ls-shell-embedded body#ls-my-library .new-db,
+html.ls-shell-embedded body#ls-my-library .view-toggle,
+html.ls-shell-embedded body#ls-playlists .playlist-search,
+html.ls-shell-embedded body#ls-playlists .playlist-detail-search {
+    background: var(--ls-suno-control, #191A1B) !important;
+    color: var(--ls-suno-text, #F1F3F2) !important;
+    border-color: var(--ls-suno-line, rgba(255,255,255,.09)) !important;
+}
+
+html.ls-shell-embedded body#ls-my-library .view-toggle button {
+    background: transparent !important;
+    color: var(--ls-suno-muted, #8D9992) !important;
+}
+
+html.ls-shell-embedded body#ls-my-library .view-toggle button.active {
+    background: var(--ls-suno-control-hover, #26292A) !important;
+    color: var(--ls-suno-text, #F1F3F2) !important;
+}
+
+html.ls-shell-embedded body#ls-my-library .track-table-wrap {
+    background: transparent !important;
+    border-color: var(--ls-suno-line, rgba(255,255,255,.09)) !important;
+}
+
+html.ls-shell-embedded body#ls-my-library .track-table th {
+    background: rgba(6,31,20,.97) !important;
+    color: var(--ls-suno-muted, #8D9992) !important;
+    border-bottom-color: var(--ls-suno-line, rgba(255,255,255,.09)) !important;
+}
+
+html.ls-shell-embedded body#ls-my-library .track-table td {
+    border-bottom-color: var(--ls-suno-line, rgba(255,255,255,.09)) !important;
+}
+
+html.ls-shell-embedded body#ls-my-library .track-table tr:hover td,
+html.ls-shell-embedded body#ls-my-library .music-track-row.is-playing td {
+    background: var(--ls-suno-active, #0B3D28) !important;
+}
+
+html.ls-shell-embedded body#ls-my-library .music-row-play,
+html.ls-shell-embedded body#ls-playlists .playlist-track-play,
+html.ls-shell-embedded body#ls-playlists .playlist-drag-handle,
+html.ls-shell-embedded body#ls-playlists .playlist-track-remove {
+    color: var(--ls-suno-text, #F1F3F2) !important;
+}
+
+html.ls-shell-embedded body#ls-my-library .album-cover,
+html.ls-shell-embedded body#ls-my-library .home-playlist-list,
+html.ls-shell-embedded body#ls-my-library .home-playlist-icon {
+    background: var(--ls-suno-control, #191A1B) !important;
+    border-color: var(--ls-suno-line, rgba(255,255,255,.09)) !important;
+}
+
+html.ls-shell-embedded body#ls-my-library .home-playlist-row:hover {
+    background: var(--ls-suno-active, #0B3D28) !important;
+}
+
+html.ls-shell-embedded body#ls-playlists .playlist-new-card,
+html.ls-shell-embedded body#ls-playlists .playlist-secondary {
+    background: var(--ls-suno-control, #191A1B) !important;
+    border-color: var(--ls-suno-line, rgba(255,255,255,.09)) !important;
+    color: var(--ls-suno-text, #F1F3F2) !important;
+}
+
+html.ls-shell-embedded body#ls-playlists .playlist-primary {
+    background: #F1F3F2 !important;
+    color: #111514 !important;
+}
+
+html.ls-shell-embedded body#ls-playlists .playlist-track-row:hover {
+    background: var(--ls-suno-active, #0B3D28) !important;
+}
+
+html.ls-shell-embedded body#ls-playlists .playlist-track-row.is-current,
+html.ls-shell-embedded body#ls-playlists .playlist-track-row.is-playing {
+    background: var(--ls-suno-playing, #10593B) !important;
+    box-shadow: inset 3px 0 0 #24D37A !important;
+}
+
+html.ls-shell-embedded body#ls-playlists .playlist-card span,
+html.ls-shell-embedded body#ls-playlists .playlist-track-copy span,
+html.ls-shell-embedded body#ls-playlists .playlist-track-duration {
+    color: var(--ls-suno-muted, #8D9992) !important;
+}
+
+html.ls-shell-embedded body#ls-downloader .downloader-card,
+html.ls-shell-embedded body#ls-downloader .downloader-panel,
+html.ls-shell-embedded body#ls-downloader section {
+    border-color: var(--ls-suno-line, rgba(255,255,255,.09));
+}
