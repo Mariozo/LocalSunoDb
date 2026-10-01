@@ -77,3 +77,33 @@ html.ls-shell-embedded .playlist-player {
         left: var(--ls-suno-sidebar-width, 72px);
     }
 }
+
+
+/* Global now-playing marker on the persistent left navigation. */
+header .header-tabs a.header-tab {
+    position: relative;
+}
+
+header .header-tabs .ls-sidebar-audio-indicator {
+    display: none;
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    margin-left: auto;
+    border-radius: 50%;
+    align-items: center;
+    justify-content: center;
+    background: #D9DEDB;
+    color: #425047;
+    box-shadow: 0 0 0 1px rgba(0,0,0,.10);
+}
+
+header .header-tabs .ls-sidebar-audio-indicator svg {
+    width: 17px;
+    height: 17px;
+    display: block;
+}
+
+header .header-tabs a.header-tab.is-audio-playing .ls-sidebar-audio-indicator {
+    display: inline-flex;
+}
