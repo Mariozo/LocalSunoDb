@@ -628,7 +628,7 @@ def _playlist_page_script(active_playlist_id="", pending_track_id=""):
       const playTrack = (trackId, autoplay=true) => {{
         const rows = orderedRows();
         const index = rows.findIndex((row) => row.dataset.trackId === trackId);
-        if (index < 0 || !audio) return;
+        if (index < 0) return;
         currentIndex = index;
         const row = rows[index];
         setCurrentRow(row);
@@ -640,6 +640,7 @@ def _playlist_page_script(active_playlist_id="", pending_track_id=""):
         if (usesSharedShellPlayer && playSharedPlaylistTrack(rows, index)) {{
           return;
         }}
+        if (!audio) return;
         audio.dataset.lsTitle = title;
         audio.dataset.lsArtist = String(row.querySelector(".playlist-track-copy span")?.textContent || "").trim();
         audio.dataset.lsAlbum = String(document.getElementById("playlist-title")?.textContent || "Playlist").trim();
@@ -668,7 +669,7 @@ def _playlist_page_script(active_playlist_id="", pending_track_id=""):
     """
 
 
-def render_playlists_page(playlist_id="", add_track_id=""):
+def render_playlists_page(playlist_id="", add_track_id="", embedded=False):
     playlists = get_local_playlists()
     pending_track_id = str(add_track_id or "").strip()
     active = None
@@ -712,6 +713,9 @@ def render_playlists_page(playlist_id="", add_track_id=""):
             <input id="playlist-detail-search" class="playlist-search playlist-detail-search" type="search" placeholder="Search in this playlist">
             <section class="playlist-tracks" id="playlist-tracks">{_playlist_detail_rows(active)}</section>
           </main>
+        """
+        if not embedded:
+            main += """
           <footer class="playlist-player">
             <div class="playlist-player-title" id="playlist-player-title">Playlist</div>
             <div class="playlist-player-controls">
@@ -721,7 +725,7 @@ def render_playlists_page(playlist_id="", add_track_id=""):
             </div>
             <div class="playlist-player-spacer"></div>
           </footer>
-        """
+            """
         active_id = active["id"]
 
     html_text = f"""<!doctype html>
@@ -737,13 +741,13 @@ def render_playlists_page(playlist_id="", add_track_id=""):
 </head>
 <body id="ls-playlists">
 <div class="playlist-shell">
-<header class="playlist-topbar">
+{"" if embedded else """<header class="playlist-topbar">
   <a class="playlist-brand" data-library-return href="/">LS</a>
   <nav class="playlist-nav">
     <a data-library-return href="/">Suno Library</a>
     <a class="active" href="/playlists">Playlists</a>
   </nav>
-</header>
+</header>"""}
 {main}
 </div>
 <script>{_playlist_page_script(active_id, pending_track_id if active is None else "")}</script>
