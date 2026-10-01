@@ -298,3 +298,55 @@
         }
 
 
+
+
+        .selected-track-external-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin: 0 0 14px;
+        }
+
+        .selected-track-external-actions[hidden] {
+            display: none !important;
+        }
+
+        .selected-track-external-actions a {
+            min-height: 36px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            padding: 7px 10px;
+            border-radius: 18px;
+            border: 1px solid rgba(255,255,255,0.10);
+            background: #123A28;
+            color: #FFFFFF;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .selected-track-external-actions a:hover {
+            background: #1B5037;
+        }
+
+        .selected-track-panel.is-external-context .selected-track-block,
+        .selected-track-panel.is-external-context .ls-flags-tags-dock-slot {
+            display: none !important;
+        }
+
+        .selected-track-panel.is-imports-context .selected-track-panel-cover-wrap,
+        .selected-track-panel.is-imports-context .selected-track-panel-title,
+        .selected-track-panel.is-imports-context .selected-track-panel-meta,
+        .selected-track-panel.is-imports-context .selected-track-status-row,
+        .selected-track-panel.is-imports-context .selected-track-external-actions,
+        .selected-track-panel.is-imports-context .selected-track-block,
+        .selected-track-panel.is-imports-context .ls-flags-tags-dock-slot {
+            display: none !important;
+        }
+
+        .selected-track-panel.is-imports-context .selected-track-panel-scroll {
+            padding-top: 12px;
+        }
