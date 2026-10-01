@@ -576,7 +576,11 @@ def _playlist_page_script(active_playlist_id="", pending_track_id=""):
         setPlayingState(false);
         const title = row.querySelector(".playlist-track-copy strong")?.textContent || trackId;
         const source = String(row.dataset.playSource || "suno");
+        const subtitle = row.querySelector(".playlist-track-copy span")?.textContent || "";
         if (nowTitle) nowTitle.textContent = title;
+        audio.dataset.lsTitle = title;
+        audio.dataset.lsArtist = String(subtitle || "").trim();
+        audio.dataset.lsAlbum = "";
         audio.src = "/playback-media?track_id=" + encodeURIComponent(trackId) + "&source=" + encodeURIComponent(source);
         if (autoplay) audio.play().catch(() => {{}});
       }};
