@@ -72,9 +72,6 @@
         if (url.pathname !== "/my-library" && url.pathname !== "/music-db") {
             return false;
         }
-        if (String(url.searchParams.get("album") || "").trim()) {
-            return false;
-        }
         return String(url.searchParams.get("view") || "grid").toLowerCase() !== "list";
     }
 
@@ -261,6 +258,18 @@
         let activeTarget = "";
         let myLibraryAssetsPromise = null;
 
+        function ensurePreviewMarker() {
+            const title = document.querySelector(".ls-sidebar-title-full");
+            if (!title || title.querySelector(".ls-preview-build")) return;
+            const marker = document.createElement("span");
+            marker.className = "ls-preview-build";
+            marker.textContent = "P58-S1.2";
+            marker.title = "My Library shared-shell preview";
+            title.appendChild(marker);
+        }
+
+        ensurePreviewMarker();
+
         function updateSidebar(section) {
             document.querySelectorAll(
                 "header .header-tabs a.header-tab[href]"
@@ -438,7 +447,7 @@
                 contentMain.innerHTML = html;
                 const view = contentMain.querySelector("#ls-my-library-view");
                 const nextTitle = String(view?.dataset?.lsViewTitle || "").trim();
-                if (nextTitle) document.title = nextTitle;
+                document.title = (nextTitle || "LocalSunoDb - My Library") + " · P58-S1.2";
                 window.LSMyLibrarySelectionView?.init(contentMain);
             } catch (error) {
                 if (activeTarget !== target) return;
