@@ -1,0 +1,602 @@
+/* Same-DOM secondary views: My Library + Playlists live inside the Suno shell. */
+
+#ls-shell-content-main[hidden] {
+    display: none !important;
+}
+
+#ls-shell-content-main {
+    overflow: auto;
+    padding-bottom: calc(var(--ls-global-player-reserved, 78px) + 26px);
+}
+
+html.ls-shell-content-active body > main:not(#ls-shell-content-main) {
+    display: none !important;
+}
+
+.ls-shared-view {
+    min-height: calc(100vh - var(--ls-global-player-reserved, 78px) - 50px);
+    color: var(--ls-suno-text);
+}
+
+.ls-shared-toolbar {
+    display: grid;
+    grid-template-columns: minmax(280px, 1fr) auto auto;
+    gap: 12px;
+    align-items: center;
+}
+
+.ls-shared-main-search,
+.ls-shared-db-select,
+.ls-shared-new-db,
+.ls-shared-search-in-list {
+    border: 1px solid var(--ls-suno-line);
+    background: var(--ls-suno-control);
+    color: var(--ls-suno-text);
+}
+
+.ls-shared-main-search {
+    width: 100%;
+    min-height: 46px;
+    border-radius: 16px;
+    padding: 0 16px;
+    font-size: 15px;
+    outline: none;
+}
+
+.ls-shared-db-select,
+.ls-shared-new-db {
+    min-height: 42px;
+    border-radius: 13px;
+    padding: 0 13px;
+    font-weight: 700;
+}
+
+.ls-shared-view-toggle {
+    display: inline-flex;
+    width: max-content;
+    margin: 12px 0 4px;
+    overflow: hidden;
+    border: 1px solid var(--ls-suno-line);
+    border-radius: 22px;
+}
+
+.ls-shared-view-toggle button {
+    width: 48px;
+    height: 40px;
+    border: 0;
+    border-radius: 0;
+    background: var(--ls-suno-control);
+    color: var(--ls-suno-muted);
+    cursor: pointer;
+    font-size: 18px;
+}
+
+.ls-shared-view-toggle button.active {
+    background: var(--ls-suno-control-hover);
+    color: var(--ls-suno-text);
+}
+
+.ls-shared-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    gap: 20px;
+    padding: 14px 2px 14px;
+}
+
+.ls-shared-summary h1 {
+    margin: 0;
+    font-size: 25px;
+}
+
+.ls-shared-count,
+.ls-shared-view .root-line {
+    color: var(--ls-suno-muted);
+    font-size: 12px;
+}
+
+.ls-shared-view .root-line {
+    max-width: 760px;
+    margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ls-shared-scroll {
+    min-height: 0;
+}
+
+.ls-shared-view .view-panel {
+    display: block !important;
+}
+
+.ls-shared-view .album-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 28px 22px;
+    align-items: start;
+}
+
+.ls-shared-view .album-card {
+    display: block;
+    min-width: 0;
+    color: var(--ls-suno-text);
+    text-decoration: none;
+}
+
+.ls-shared-view .album-cover {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    border-radius: 8px;
+    background: var(--ls-suno-control);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.05);
+}
+
+.ls-shared-view .album-cover img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.ls-shared-view .cover-empty {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    font-size: 54px;
+    color: rgba(255,255,255,.22);
+    background: linear-gradient(135deg, #173426, #071a11);
+}
+
+.ls-shared-view .album-meta {
+    padding: 9px 3px 0;
+}
+
+.ls-shared-view .album-artist {
+    color: #c8d2cc;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ls-shared-view .album-title {
+    margin-top: 2px;
+    font-size: 15px;
+    font-weight: 750;
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ls-shared-view .album-count {
+    margin-top: 5px;
+    color: #7fb2d8;
+    font-size: 12px;
+}
+
+/* Album detail — cover-derived header, but the right column remains the shared LS panel. */
+.ls-shared-album-hero {
+    --ls-album-hero: #587368;
+    --ls-album-hero-dark: #465c53;
+    position: relative;
+    min-height: 292px;
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 28px;
+    align-items: end;
+    margin: -22px -24px 0;
+    padding: 46px 34px 28px;
+    overflow: hidden;
+    background: linear-gradient(180deg, var(--ls-album-hero), var(--ls-album-hero-dark));
+}
+
+.ls-shared-back {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    z-index: 2;
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: rgba(0,0,0,.32);
+    color: #fff;
+    text-decoration: none;
+    font-size: 22px;
+}
+
+.ls-shared-album-cover {
+    width: 220px;
+    aspect-ratio: 1;
+    overflow: hidden;
+    border-radius: 7px;
+    background: #183426;
+    box-shadow: 0 12px 34px rgba(0,0,0,.34);
+}
+
+.ls-shared-album-cover img,
+.ls-shared-album-cover .cover-empty {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.ls-shared-album-copy {
+    min-width: 0;
+    padding-bottom: 4px;
+}
+
+.ls-shared-kind {
+    margin-bottom: 7px;
+    color: rgba(255,255,255,.92);
+    font-size: 13px;
+    font-weight: 750;
+}
+
+.ls-shared-album-copy h1,
+.ls-shared-playlist-hero h1 {
+    margin: 0;
+    color: #fff;
+    font-size: clamp(38px, 4.8vw, 76px);
+    line-height: .98;
+    letter-spacing: -.04em;
+    overflow-wrap: anywhere;
+}
+
+.ls-shared-album-meta {
+    margin-top: 14px;
+    color: rgba(255,255,255,.86);
+    font-size: 13px;
+}
+
+.ls-shared-album-controls {
+    display: grid;
+    grid-template-columns: auto minmax(220px, 340px);
+    justify-content: space-between;
+    align-items: center;
+    gap: 18px;
+    padding: 18px 6px 12px;
+}
+
+.ls-shared-play-all {
+    width: 54px;
+    height: 54px;
+    border: 0;
+    border-radius: 50%;
+    background: #18d76f;
+    color: #062314;
+    font-size: 22px;
+    cursor: pointer;
+}
+
+.ls-shared-search-in-list {
+    width: 100%;
+    height: 38px;
+    border-radius: 20px;
+    padding: 0 14px;
+    outline: none;
+}
+
+/* Shared list table. Only useful Spotify/Suno-style columns remain visible. */
+.ls-shared-view .track-table-wrap {
+    overflow: auto;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.ls-shared-view .track-table {
+    width: 100%;
+    min-width: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: transparent;
+}
+
+.ls-shared-view .track-table th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    padding: 9px 12px;
+    text-align: left;
+    color: var(--ls-suno-muted);
+    background: var(--ls-suno-main);
+    border-bottom: 1px solid var(--ls-suno-line);
+    font-size: 11px;
+}
+
+.ls-shared-view .track-table td {
+    padding: 11px 12px;
+    background: transparent;
+    border-bottom: 1px solid rgba(255,255,255,.055);
+    font-size: 12px;
+    vertical-align: middle;
+}
+
+.ls-shared-view .track-table th:nth-child(4),
+.ls-shared-view .track-table td:nth-child(4),
+.ls-shared-view .track-table th:nth-child(5),
+.ls-shared-view .track-table td:nth-child(5),
+.ls-shared-view .track-table th:nth-child(6),
+.ls-shared-view .track-table td:nth-child(6),
+.ls-shared-view .track-table th:nth-child(7),
+.ls-shared-view .track-table td:nth-child(7) {
+    display: none;
+}
+
+.ls-shared-view .track-table th:first-child,
+.ls-shared-view .track-table td:first-child {
+    width: 82px;
+}
+
+.ls-shared-view .track-table th:nth-child(3),
+.ls-shared-view .track-table td:nth-child(3) {
+    width: 28%;
+}
+
+.ls-shared-view .track-table th:last-child,
+.ls-shared-view .track-table td:last-child {
+    width: 82px;
+    text-align: right;
+}
+
+.ls-shared-view [data-ls-player-row]:hover > td,
+.ls-shared-view [data-ls-player-row].selected-track-current > td,
+.ls-shared-view [data-ls-player-row].player-open > td {
+    background: rgba(11,61,40,.62);
+}
+
+.ls-shared-view .path-line {
+    display: none;
+}
+
+.ls-shared-view .track-number-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ls-shared-view .music-row-play,
+.ls-shared-view .playlist-track-play {
+    border: 0;
+    background: transparent;
+    color: #f1f3f2;
+    cursor: pointer;
+}
+
+/* Playlists catalog/detail */
+.ls-shared-playlist-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+    gap: 26px 20px;
+    margin-top: 20px;
+}
+
+.ls-shared-view .playlist-card {
+    min-width: 0;
+    color: var(--ls-suno-text);
+    text-decoration: none;
+}
+
+.ls-shared-view .playlist-card-cover,
+.ls-shared-view .playlist-cover {
+    overflow: hidden;
+    border-radius: 8px;
+}
+
+.ls-shared-playlist-hero {
+    display: grid;
+    grid-template-columns: 220px minmax(0,1fr);
+    gap: 28px;
+    align-items: end;
+    margin-bottom: 24px;
+}
+
+.ls-shared-playlist-hero .playlist-cover {
+    width: 220px;
+    height: 220px;
+}
+
+.ls-shared-view .playlist-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.ls-shared-view .playlist-primary,
+.ls-shared-view .playlist-secondary {
+    min-height: 40px;
+    padding: 0 16px;
+    border-radius: 22px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+}
+
+.ls-shared-view .playlist-danger {
+    color: #ff8b82;
+}
+
+.ls-shared-view .playlist-detail-search {
+    margin-bottom: 14px;
+}
+
+.ls-shared-view .playlist-tracks {
+    display: flex;
+    flex-direction: column;
+}
+
+.ls-shared-view .playlist-track-row {
+    display: grid;
+    grid-template-columns: 28px 34px 48px 34px minmax(0,1fr) 64px 34px;
+    gap: 10px;
+    align-items: center;
+    min-height: 62px;
+    padding: 6px 8px;
+    border-bottom: 1px solid rgba(255,255,255,.055);
+    border-radius: 8px;
+}
+
+.ls-shared-view .playlist-track-row:hover,
+.ls-shared-view .playlist-track-row.selected-track-current,
+.ls-shared-view .playlist-track-row.player-open {
+    background: rgba(11,61,40,.62);
+}
+
+.ls-shared-view .playlist-track-cover {
+    width: 46px;
+    height: 46px;
+    border-radius: 6px;
+    object-fit: cover;
+}
+
+.ls-shared-view .playlist-track-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.ls-shared-view .playlist-track-copy strong {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ls-shared-view .playlist-track-copy span,
+.ls-shared-view .playlist-track-duration {
+    color: var(--ls-suno-muted);
+    font-size: 12px;
+}
+
+.ls-shared-view .playlist-track-remove,
+.ls-shared-view .playlist-drag-handle {
+    border: 0;
+    background: transparent;
+    color: var(--ls-suno-muted);
+    cursor: pointer;
+}
+
+/* Right panel for non-Suno shared rows: never show stale Suno-only content. */
+.selected-track-panel.is-shared-track .selected-track-block,
+.selected-track-panel.is-shared-track .ls-flags-tags-dock-slot,
+.selected-track-panel.is-shared-track .ls-elza-dock-slot {
+    display: none !important;
+}
+
+.selected-track-panel.is-shared-track .ls-shared-track-actions {
+    display: grid !important;
+}
+
+/* Modal */
+.ls-shared-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(0,0,0,.68);
+}
+
+.ls-shared-modal.open {
+    display: flex;
+}
+
+.ls-shared-modal .modal-card {
+    width: min(620px, 96vw);
+    padding: 22px;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 16px;
+    background: #10271c;
+    box-shadow: 0 24px 70px rgba(0,0,0,.55);
+}
+
+.ls-shared-modal .modal-head,
+.ls-shared-modal .folder-row,
+.ls-shared-modal .modal-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.ls-shared-modal .modal-head {
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.ls-shared-modal .modal-head h2 {
+    margin: 0;
+}
+
+.ls-shared-modal .modal-close {
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 50%;
+}
+
+.ls-shared-modal .field {
+    margin: 13px 0;
+}
+
+.ls-shared-modal .field label {
+    display: block;
+    margin-bottom: 6px;
+    color: #c5d1ca;
+    font-size: 12px;
+}
+
+.ls-shared-modal .field input {
+    width: 100%;
+    height: 42px;
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 10px;
+    background: #071b12;
+    color: var(--ls-suno-text);
+    padding: 0 11px;
+}
+
+.ls-shared-modal .folder-row input {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.ls-shared-modal .modal-actions {
+    justify-content: flex-end;
+    margin-top: 18px;
+}
+
+.ls-shared-modal .status {
+    min-height: 20px;
+    margin-top: 8px;
+    color: var(--ls-suno-muted);
+    font-size: 12px;
+}
+
+.ls-shared-modal .status.ok { color: #8fe0a4; }
+.ls-shared-modal .status.error { color: #ff9898; }
+
+@media (max-width: 1100px) {
+    .ls-shared-toolbar {
+        grid-template-columns: minmax(220px,1fr) auto;
+    }
+
+    .ls-shared-album-hero,
+    .ls-shared-playlist-hero {
+        grid-template-columns: 160px minmax(0,1fr);
+    }
+
+    .ls-shared-album-cover,
+    .ls-shared-playlist-hero .playlist-cover {
+        width: 160px;
+        height: 160px;
+    }
+}
