@@ -441,6 +441,22 @@
 
         ensureSidebarAudioIndicators();
 
+        window.addEventListener("ls-global-external-track", (event) => {
+            const item = event?.detail && typeof event.detail === "object" ? event.detail : null;
+            if (!item) return;
+            setSharedPanelExternal(item);
+            setPlaybackState({
+                playing: true,
+                section: String(item.section || "my-library"),
+                metadata: {
+                    title: String(item.title || ""),
+                    artist: String(item.artist || ""),
+                    album: String(item.album || ""),
+                },
+                source: window,
+            });
+        });
+
         function updateSidebar(section) {
             document.querySelectorAll(
                 "header .header-tabs a.header-tab[href]"
