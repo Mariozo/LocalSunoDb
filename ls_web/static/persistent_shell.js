@@ -458,9 +458,8 @@
 
             if (
                 routePath(target) === ROOT_PATH &&
-                !document.documentElement.classList.contains(
-                    "ls-shell-secondary-active"
-                )
+                !document.documentElement.classList.contains("ls-shell-secondary-active") &&
+                !document.documentElement.classList.contains("ls-shell-content-active")
             ) {
                 return;
             }
