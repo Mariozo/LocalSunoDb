@@ -1,7 +1,12 @@
 from ls_core.runtime import *
 from ls_data.repository import get_best_local_audio_path_for_track
 
+import html as _html
 import uuid as _uuid
+
+
+def esc(value):
+    return _html.escape(str(value or ""), quote=True)
 
 
 PLAYLISTS_PATH = DATA_DIR / "localsunodb_playlists.json"
