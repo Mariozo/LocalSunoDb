@@ -29,6 +29,10 @@ from pathlib import Path, PurePosixPath
 from ls_core.root_hygiene import organize_ls_root, resolve_host_root
 
 
+def esc(value):
+    return html.escape(str(value or ""), quote=True)
+
+
 LS_UPDATE_PROBE_MARKER = "LS_UPDATE_PROBE_OK"
 LS_UPDATE_PROBE_MODE = "--ls-update-probe" in sys.argv
 APP_VERSION = "v2.29.1"
