@@ -388,6 +388,7 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
   }};
   const postSharedSelectedTrack = row => {{
     if (!usesSharedShellPlayer || !row) return;
+    playerRows.forEach(item => item.classList.toggle('is-current', item === row));
     try {{
       window.parent.postMessage(
         {{type:'LS_SHELL_SELECTED_TRACK', track:rowToSharedTrack(row)}},
