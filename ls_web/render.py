@@ -9,6 +9,10 @@ from ls_core.runtime import *
 from ls_core.assets import asset_text, asset_url, render_template_tokens, stylesheet_asset
 
 
+def esc(value):
+    return html.escape(str(value or ""), quote=True)
+
+
 def render_ls_web_runtime_assets():
     return (
         '<link rel="stylesheet" href="' + asset_url('ls_web/static/common.css') + '">'
