@@ -19,6 +19,11 @@ html.ls-shell-secondary-active #ls-shell-screen-host {
     pointer-events: auto;
 }
 
+html.ls-shell-secondary-active body#ls-library > main {
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
 .ls-shell-screen-frame {
     position: absolute;
     inset: 0;
