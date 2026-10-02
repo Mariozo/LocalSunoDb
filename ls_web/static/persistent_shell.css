@@ -116,3 +116,190 @@ header .header-tabs .ls-sidebar-audio-indicator svg {
 header .header-tabs a.header-tab.is-audio-playing .ls-sidebar-audio-indicator {
     display: inline-flex;
 }
+
+
+/* P1 list-view treatment: keep the Suno shell, simplify only the embedded list surfaces. */
+html.ls-shell-embedded body#ls-my-library,
+html.ls-shell-embedded body#ls-playlists {
+    background: #101011 !important;
+    color: #f1f3f2 !important;
+}
+
+html.ls-shell-embedded body#ls-my-library .main,
+html.ls-shell-embedded body#ls-playlists .playlist-main {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 26px 30px 32px !important;
+    background: #101011 !important;
+}
+
+html.ls-shell-embedded body#ls-my-library .top {
+    position: relative !important;
+    top: auto !important;
+    padding-bottom: 18px !important;
+    background: #101011 !important;
+}
+
+html.ls-shell-embedded body#ls-my-library .library-head {
+    margin: 6px 4px 16px !important;
+}
+
+html.ls-shell-embedded body#ls-my-library .track-table-wrap {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    overflow-x: hidden !important;
+}
+
+html.ls-shell-embedded body#ls-my-library .track-table {
+    min-width: 0 !important;
+    table-layout: fixed;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    background: transparent !important;
+}
+
+html.ls-shell-embedded body#ls-my-library .track-table th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: 9px 12px !important;
+    color: #a8aaa9 !important;
+    background: #101011 !important;
+    border-bottom: 1px solid rgba(255,255,255,.12) !important;
+    font-size: 12px !important;
+    font-weight: 650 !important;
+}
+
+html.ls-shell-embedded body#ls-my-library .track-table td {
+    padding: 11px 12px !important;
+    border-bottom: 1px solid rgba(255,255,255,.07) !important;
+    background: transparent;
+    vertical-align: middle;
+}
+
+html.ls-shell-embedded body#ls-my-library .music-track-row:hover td {
+    background: rgba(255,255,255,.045) !important;
+}
+
+html.ls-shell-embedded body#ls-my-library .music-track-row.is-current td,
+html.ls-shell-embedded body#ls-my-library .music-track-row.is-playing td {
+    background: #173a2a !important;
+}
+
+html.ls-shell-embedded body#ls-my-library .path-line {
+    display: none !important;
+}
+
+html.ls-shell-embedded body#ls-my-library .track-table th:nth-child(4),
+html.ls-shell-embedded body#ls-my-library .track-table td:nth-child(4),
+html.ls-shell-embedded body#ls-my-library .track-table th:nth-child(5),
+html.ls-shell-embedded body#ls-my-library .track-table td:nth-child(5),
+html.ls-shell-embedded body#ls-my-library .track-table th:nth-child(6),
+html.ls-shell-embedded body#ls-my-library .track-table td:nth-child(6),
+html.ls-shell-embedded body#ls-my-library .track-table th:nth-child(7),
+html.ls-shell-embedded body#ls-my-library .track-table td:nth-child(7) {
+    display: none !important;
+}
+
+html.ls-shell-embedded body#ls-my-library .track-table th:first-child,
+html.ls-shell-embedded body#ls-my-library .track-table td:first-child {
+    width: 84px;
+}
+
+html.ls-shell-embedded body#ls-my-library .track-table th:nth-child(3),
+html.ls-shell-embedded body#ls-my-library .track-table td:nth-child(3) {
+    width: 26%;
+}
+
+html.ls-shell-embedded body#ls-my-library .track-table th:last-child,
+html.ls-shell-embedded body#ls-my-library .track-table td:last-child {
+    width: 82px;
+    text-align: right;
+}
+
+html.ls-shell-embedded body#ls-my-library .music-row-play {
+    width: 26px !important;
+    height: 26px !important;
+    min-width: 26px !important;
+    border: 0 !important;
+    background: transparent !important;
+    color: #f1f3f2 !important;
+}
+
+html.ls-shell-embedded body#ls-playlists .playlist-shell {
+    min-height: 100% !important;
+    padding-bottom: 0 !important;
+    background: #101011 !important;
+}
+
+html.ls-shell-embedded body#ls-playlists .playlist-main {
+    width: 100% !important;
+}
+
+html.ls-shell-embedded body#ls-playlists .playlist-search {
+    background: #191a1b !important;
+    border-color: rgba(255,255,255,.10) !important;
+}
+
+html.ls-shell-embedded body#ls-playlists .playlist-hero {
+    margin-bottom: 18px !important;
+    padding-bottom: 18px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+}
+
+html.ls-shell-embedded body#ls-playlists .playlist-hero .playlist-cover {
+    width: 180px !important;
+    height: 180px !important;
+    flex-basis: 180px !important;
+    border-radius: 8px !important;
+}
+
+html.ls-shell-embedded body#ls-playlists .playlist-hero-copy h1 {
+    font-size: 38px !important;
+}
+
+html.ls-shell-embedded body#ls-playlists .playlist-tracks {
+    gap: 0 !important;
+}
+
+html.ls-shell-embedded body#ls-playlists .playlist-track-row {
+    grid-template-columns: 28px 34px 48px 32px minmax(0,1fr) 64px 36px !important;
+    gap: 10px !important;
+    min-height: 62px;
+    padding: 6px 8px !important;
+    border-radius: 8px !important;
+    border-bottom: 1px solid rgba(255,255,255,.055);
+}
+
+html.ls-shell-embedded body#ls-playlists .playlist-track-row:hover {
+    background: rgba(255,255,255,.045) !important;
+}
+
+html.ls-shell-embedded body#ls-playlists .playlist-track-row.is-current,
+html.ls-shell-embedded body#ls-playlists .playlist-track-row.is-playing {
+    background: #173a2a !important;
+    box-shadow: inset 3px 0 0 #1ed760 !important;
+}
+
+html.ls-shell-embedded body#ls-playlists .playlist-track-cover {
+    width: 46px !important;
+    height: 46px !important;
+    border-radius: 6px !important;
+}
+
+html.ls-shell-embedded body#ls-playlists .playlist-track-play {
+    color: #f1f3f2 !important;
+}
+
+@media (max-width: 1080px) {
+    #ls-shell-screen-host {
+        right: var(--ls-selected-panel-width, 300px);
+    }
+
+    html.ls-shell-embedded body#ls-my-library .main,
+    html.ls-shell-embedded body#ls-playlists .playlist-main {
+        padding-left: 20px !important;
+        padding-right: 20px !important;
+    }
+}
