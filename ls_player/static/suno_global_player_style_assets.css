@@ -579,3 +579,15 @@
             }
             .ls-global-player-wave-meta { max-width: calc(100% - 168px); }
         }
+
+        .ls-global-player .waveform-box .ls-player-beat-grid {
+            position:absolute; inset:0; width:100%; height:100%; z-index:2; pointer-events:none;
+        }
+        .ls-global-player .waveform-box .waveform-image { z-index:1; }
+        .ls-global-player .waveform-box .ab-region { z-index:3; }
+        .ls-global-player .waveform-box .big-progress-fill { z-index:4; }
+        .ls-global-player .waveform-box .big-progress-knob { z-index:5; }
+        .ls-global-player .waveform-box .ab-marker { z-index:7; pointer-events:auto; cursor:ew-resize; width:16px; transform:translateX(-8px); background:transparent; }
+        .ls-global-player .waveform-box .ab-marker::before { content:''; position:absolute; left:7px; top:0; bottom:0; width:2px; background:currentColor; }
+        .ls-global-player .ls-global-player-zoom { position:relative; font-size:18px; line-height:1; }
+        .ls-global-player .ls-global-player-zoom-symbol { position:absolute; right:4px; bottom:3px; font-size:10px; font-weight:900; }

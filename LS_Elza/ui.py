@@ -650,6 +650,24 @@ def render_ls_elza_compose_mobile_style_assets():
             background: #5BB7D1;
             color: #000;
         }
+        .ls-elza-voice {
+            min-width: 72px;
+            min-height: 34px;
+            border: 1px solid #5f6b78;
+            border-radius: 10px;
+            background: #303844;
+            color: #fff;
+            font-weight: 800;
+        }
+        .ls-elza-voice:hover:not(:disabled) { background: #48505b; }
+        .ls-elza-voice.recording {
+            border-color: #b3261e;
+            background: #8f201a;
+        }
+        .ls-elza-voice:disabled {
+            cursor: default;
+            opacity: .55;
+        }
         .ls-elza-send {
             min-width: 88px;
             min-height: 34px;
@@ -711,7 +729,7 @@ def render_ls_elza_dialog_markup():
             <div class="ls-elza-head" id="ls-elza-drag-handle" title="Drag LS Elza">
                 <span class="ls-elza-dock-grip" aria-hidden="true">⠿</span>
                 <div class="ls-elza-title-box">
-                    <div class="ls-elza-title" id="ls-elza-title">Elza v2.25</div>
+                    <div class="ls-elza-title" id="ls-elza-title">Elza v2.32</div>
                     <div class="ls-elza-context-line" id="ls-elza-context-line"></div>
                 </div>
                 <div class="ls-elza-head-actions">
@@ -775,9 +793,17 @@ def render_ls_elza_dialog_markup():
                         aria-label="Use read-only code analysis mode"
                         aria-pressed="false"
                     >Code</button>
+                    <button
+                        type="button"
+                        class="ls-elza-voice"
+                        id="ls-elza-voice"
+                        title="Runā ar LS Elzu"
+                        aria-label="Runā ar LS Elzu"
+                        aria-pressed="false"
+                    >Runā</button>
                     <button type="button" class="ls-elza-send" id="ls-elza-send">Ask</button>
                 </div>
-                <div class="ls-elza-hint">Enter = send · Shift+Enter = new line · Ctrl+V / drop image · consultation-only</div>
+                <div class="ls-elza-hint">Runā → Stop → pārbaudi tekstu → Ask · Enter = send · Shift+Enter = new line · Ctrl+V / drop image</div>
             </div>
         </section>
     </div>
@@ -820,6 +846,7 @@ def render_ls_elza_script_state_bootstrap_assets():
         const historyBox = document.getElementById("ls-elza-history");
         const input = document.getElementById("ls-elza-input");
         const sendButton = document.getElementById("ls-elza-send");
+        const voiceButton = document.getElementById("ls-elza-voice");
         const statusLine = document.getElementById("ls-elza-status");
         const contextLine = document.getElementById("ls-elza-context-line");
         const dockToggleButton = document.getElementById("ls-elza-dock-toggle");
@@ -834,7 +861,10 @@ def render_ls_elza_script_state_bootstrap_assets():
             document.querySelectorAll("[data-ls-elza-mode]")
         );
 
-        if (!openButton || !modal || !dialog || !historyBox || !input || !sendButton) {
+        if (
+            !openButton || !modal || !dialog || !historyBox
+            || !input || !sendButton || !voiceButton
+        ) {
             return;
         }
 
@@ -848,6 +878,12 @@ def render_ls_elza_script_state_bootstrap_assets():
         let selectedMode = "";
         let clarifiedDraftActive = false;
         let uxCaptureStream = null;
+        let voiceRecorder = null;
+        let voiceStream = null;
+        let voiceChunks = [];
+        let voiceRecording = false;
+        let voiceTranscribing = false;
+        let voiceMimeType = "";
         try {
             chatId = localStorage.getItem(chatStorageKey) || "";
         } catch (error) {}
@@ -1233,7 +1269,8 @@ def render_ls_elza_script_window_state_assets():
 
         function setBusy(busy, label="") {
             requestActive = Boolean(busy);
-            sendButton.disabled = requestActive;
+            sendButton.disabled = requestActive || voiceRecording || voiceTranscribing;
+            voiceButton.disabled = requestActive || voiceTranscribing;
             newChatButton.disabled = requestActive;
             clearButton.disabled = requestActive;
             modeButtons.forEach((button) => {
@@ -2177,7 +2214,191 @@ def render_ls_elza_script_view_context_assets():
 
 def render_ls_elza_script_service_assets():
     """Return LS Elza service, chat-loading, and local-answer script."""
-    return r"""        async function callService(action, extra={}) {
+    return r"""        function preferredVoiceMimeType() {
+            if (typeof MediaRecorder === "undefined") { return ""; }
+            const candidates = [
+                "audio/webm;codecs=opus",
+                "audio/webm",
+                "audio/ogg;codecs=opus",
+            ];
+            for (const candidate of candidates) {
+                if (
+                    typeof MediaRecorder.isTypeSupported !== "function"
+                    || MediaRecorder.isTypeSupported(candidate)
+                ) {
+                    return candidate;
+                }
+            }
+            return "";
+        }
+
+        function releaseVoiceStream() {
+            if (!voiceStream) { return; }
+            voiceStream.getTracks().forEach((track) => track.stop());
+            voiceStream = null;
+        }
+
+        function refreshVoiceButton() {
+            voiceButton.textContent = voiceRecording ? "Stop" : "Runā";
+            voiceButton.classList.toggle("recording", voiceRecording);
+            voiceButton.setAttribute(
+                "aria-pressed",
+                voiceRecording ? "true" : "false"
+            );
+            voiceButton.setAttribute(
+                "aria-label",
+                voiceRecording ? "Apturēt balss ierakstu" : "Runā ar LS Elzu"
+            );
+            voiceButton.title = voiceRecording
+                ? "Apturēt balss ierakstu"
+                : "Runā ar LS Elzu";
+            voiceButton.disabled = requestActive || voiceTranscribing;
+        }
+
+        async function transcribeVoiceBlob(blob) {
+            if (!blob || !blob.size) {
+                throw new Error("Balss ieraksts ir tukšs.");
+            }
+            voiceTranscribing = true;
+            refreshVoiceButton();
+            sendButton.disabled = true;
+            setStatus("Pārvēršu runu tekstā...");
+            try {
+                const response = await fetch("/ls-elza-stt", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": blob.type || voiceMimeType || "audio/webm",
+                    },
+                    body: blob,
+                });
+                let data = null;
+                try {
+                    data = await response.json();
+                } catch (error) {
+                    throw new Error("STT atgrieza nelasāmu atbildi.");
+                }
+                if (!response.ok || !data || !data.ok) {
+                    throw new Error(
+                        (data && data.error) || "Neizdevās atpazīt runu."
+                    );
+                }
+                const transcript = String(data.text || "").trim();
+                if (!transcript) {
+                    throw new Error("Runātais teksts netika atpazīts.");
+                }
+                const existing = String(input.value || "").trim();
+                input.value = existing
+                    ? existing + " " + transcript
+                    : transcript;
+                clearClarifiedDraftState();
+                saveUnsentDraft(input.value);
+                setStatus(
+                    "Teksts atpazīts. Izlabo, ja vajag, un nospied Ask."
+                );
+                input.focus();
+                input.setSelectionRange(input.value.length, input.value.length);
+            } finally {
+                voiceTranscribing = false;
+                sendButton.disabled = requestActive;
+                refreshVoiceButton();
+            }
+        }
+
+        async function startVoiceRecording() {
+            if (requestActive || voiceRecording || voiceTranscribing) { return; }
+            if (
+                !navigator.mediaDevices
+                || typeof navigator.mediaDevices.getUserMedia !== "function"
+                || typeof MediaRecorder === "undefined"
+            ) {
+                throw new Error(
+                    "Šajā Chrome logā mikrofona ieraksts nav pieejams."
+                );
+            }
+
+            voiceStream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                },
+                video: false,
+            });
+            voiceMimeType = preferredVoiceMimeType();
+            const options = voiceMimeType ? {mimeType: voiceMimeType} : {};
+            voiceRecorder = new MediaRecorder(voiceStream, options);
+            voiceChunks = [];
+
+            voiceRecorder.addEventListener("dataavailable", (event) => {
+                if (event.data && event.data.size > 0) {
+                    voiceChunks.push(event.data);
+                }
+            });
+            voiceRecorder.addEventListener("error", (event) => {
+                voiceRecording = false;
+                releaseVoiceStream();
+                refreshVoiceButton();
+                setStatus(
+                    (event.error && event.error.message)
+                        || "Mikrofona ierakstā radās kļūda.",
+                    true
+                );
+            });
+            voiceRecorder.addEventListener("stop", async () => {
+                const blobType = voiceRecorder && voiceRecorder.mimeType
+                    ? voiceRecorder.mimeType
+                    : voiceMimeType || "audio/webm";
+                const blob = new Blob(voiceChunks, {type: blobType});
+                voiceChunks = [];
+                voiceRecording = false;
+                releaseVoiceStream();
+                refreshVoiceButton();
+                try {
+                    await transcribeVoiceBlob(blob);
+                } catch (error) {
+                    setStatus(
+                        error.message || "Neizdevās atpazīt runu.",
+                        true
+                    );
+                    input.focus();
+                }
+            }, {once: true});
+
+            voiceRecorder.start(250);
+            voiceRecording = true;
+            refreshVoiceButton();
+            setStatus("Klausos… Nospied Stop, kad pabeigts.");
+        }
+
+        function stopVoiceRecording() {
+            if (!voiceRecording || !voiceRecorder) { return; }
+            if (voiceRecorder.state !== "inactive") {
+                voiceRecorder.stop();
+            }
+        }
+
+        async function toggleVoiceRecording() {
+            if (voiceRecording) {
+                stopVoiceRecording();
+                return;
+            }
+            try {
+                await startVoiceRecording();
+            } catch (error) {
+                voiceRecording = false;
+                releaseVoiceStream();
+                refreshVoiceButton();
+                const message = (
+                    error && error.name === "NotAllowedError"
+                        ? "Mikrofona atļauja nav dota. Chrome adreses joslā atļauj mikrofonu šai LS lapai."
+                        : error.message || "Mikrofonu neizdevās ieslēgt."
+                );
+                setStatus(message, true);
+                input.focus();
+            }
+        }
+
+        async function callService(action, extra={}) {
             const payload = Object.assign({
                 action: action,
                 chat_id: chatId,
@@ -2465,6 +2686,15 @@ def render_ls_elza_script_chat_actions_assets():
     """Return LS Elza send, new-chat, and clear-chat actions."""
     return r"""        async function sendMessage() {
             if (requestActive) { return; }
+            if (voiceRecording || voiceTranscribing) {
+                setStatus(
+                    voiceRecording
+                        ? "Vispirms nospied Stop."
+                        : "Pagaidi, līdz runa ir pārvērsta tekstā.",
+                    true
+                );
+                return;
+            }
             let message = String(input.value || "").trim();
             const outgoingImages = pendingImages.map((item) => ({
                 name: item.name,
@@ -3037,7 +3267,13 @@ def render_ls_elza_script_drag_interaction_assets():
 
 def render_ls_elza_script_terminal_events_assets():
     """Return LS Elza input, document, resize, and startup events."""
-    return r"""        input.addEventListener("keydown", (event) => {
+    return r"""        voiceButton.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleVoiceRecording();
+        });
+
+        input.addEventListener("keydown", (event) => {
             if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
                 sendMessage();
@@ -3053,6 +3289,7 @@ def render_ls_elza_script_terminal_events_assets():
 
         window.addEventListener("beforeunload", () => {
             saveUnsentDraft(input.value);
+            releaseVoiceStream();
         });
 
         document.addEventListener("change", (event) => {
@@ -3138,4 +3375,6 @@ def render_ls_elza_assets(
     }
     for marker, value in replacements.items():
         template = template.replace(marker, value)
+    from LS_Elza.v230_ui_enhancer import enhance_rendered_assets_v230
+    template = enhance_rendered_assets_v230(template)
     return template

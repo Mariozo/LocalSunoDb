@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from LS_Elza import LS_ELZA_PACKAGE_VERSION, selection_intent, ui
 from ls_web import elza_adapter
 from ls_web import elza_selection_bridge
@@ -142,9 +144,9 @@ def test_local_wav_minus_upload_returns_precise_track_id_view(monkeypatch):
     assert "Bez Type: Upload" in response["answer"]
 
 
-def test_elza_v225_visible_identity_and_ask_router_contract():
-    assert LS_ELZA_PACKAGE_VERSION == "2.25"
-    assert "Elza v2.25" in ui.render_ls_elza_dialog_markup()
+def test_elza_visible_identity_and_ask_router_contract():
+    assert LS_ELZA_PACKAGE_VERSION == "2.32"
+    assert "Elza v2.32" in ui.render_ls_elza_dialog_markup()
     service_script = ui.render_ls_elza_script_service_assets()
     assert r"\bwav\b" in service_script
     assert "uplod" in service_script
@@ -334,3 +336,45 @@ def test_wav_anywhere_query_matches_name_id_lyrics_prompt_or_tags(monkeypatch):
     assert "wav-no-match" not in result["view_url"]
     assert "mp3-tag" not in result["view_url"]
     assert result["save_view_supported"] is False
+
+
+
+def test_elza_v232_voice_composer_contract():
+    assert LS_ELZA_PACKAGE_VERSION == "2.32"
+    assert "Elza v2.32" in ui.render_ls_elza_dialog_markup()
+
+    rendered = ui.render_ls_elza_assets(
+        "library",
+        view_context={},
+        docked=False,
+        local_family_title="",
+        app_version="v2.28",
+        opacity=50,
+    )
+
+    assert 'shell.setAttribute("data-elza-v232", "composer")' in rendered
+    assert "UX pārbaude" in rendered
+    assert "Testēt funkciju" in rendered
+    assert "Track analīze" in rendered
+    assert "Koda analīze" in rendered
+    assert "Balss" in rendered
+    assert "createAnalyser" in rendered
+    assert "getByteFrequencyData" in rendered
+
+    enhancer_source = Path("LS_Elza/v230_ui_enhancer.py").read_text(encoding="utf-8")
+    assert "@keyframes" not in enhancer_source
+
+
+def test_elza_v232_stt_source_contract():
+    service_source = Path("LS_Elza/service.py").read_text(encoding="utf-8")
+    controller_source = Path("ls_web/elza_controller.py").read_text(encoding="utf-8")
+
+    compile(service_source, "LS_Elza/service.py", "exec")
+    compile(controller_source, "ls_web/elza_controller.py", "exec")
+
+    assert 'DEFAULT_STT_MODEL = "gpt-4o-mini-transcribe"' in service_source
+    assert "def transcribe_ls_elza_audio" in service_source
+    assert 'language="lv"' in service_source
+    assert 'if path == "/ls-elza-stt":' in controller_source
+    assert "def ls_elza_stt" in controller_source
+    assert "transcribe_ls_elza_audio" in controller_source

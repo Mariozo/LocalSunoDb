@@ -1,0 +1,717 @@
+<!doctype html>
+<html lang="lv">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="LocalSunoDb — lokāla Chrome-native darba vide Suno mūzikas bibliotēkas kārtošanai, meklēšanai un pārvaldībai." />
+  <title>LocalSunoDb — Tava Suno bibliotēka. Lokāli. Ātri. Savā kontrolē.</title>
+  <link rel="alternate" hreflang="en" href="../" />
+  <link rel="alternate" hreflang="lv" href="./" />
+  <link rel="alternate" hreflang="x-default" href="../" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #061f14;
+      --ink-2: #0b3d28;
+      --ink-3: #123725;
+      --line: #1e4c38;
+      --green: #35af73;
+      --green-soft: #bdf5d3;
+      --paper: #f2f5f0;
+      --paper-2: #ffffff;
+      --text: #f7faf8;
+      --muted: #bdc8c1;
+      --dark-text: #0c1812;
+      --dark-muted: #5e6d64;
+      --max: 1200px;
+      --radius: 30px;
+      --shadow: 0 24px 70px rgba(0,0,0,.22);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--ink);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    a { color: inherit; }
+    .wrap { width: min(var(--max), calc(100% - 40px)); margin: 0 auto; }
+    .section { padding: 110px 0; }
+    .dark { background: var(--ink); color: var(--text); }
+    .light { background: var(--paper); color: var(--dark-text); }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: rgba(6,31,20,.86);
+      backdrop-filter: blur(18px);
+      border-bottom: 1px solid rgba(189,245,211,.10);
+    }
+
+    .nav-inner {
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .wordmark {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -.04em;
+      text-decoration: none;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 26px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      transition: color .2s ease;
+    }
+
+    .nav-links a:hover { color: white; }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 22px;
+    }
+
+    .lang-switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 9px;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .04em;
+    }
+
+    .lang-switch a {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .lang-switch a[aria-current="page"] { color: white; }
+    .lang-switch span { opacity: .45; }
+
+    .hero {
+      min-height: 760px;
+      display: grid;
+      align-items: center;
+      padding: 76px 0 100px;
+      background:
+        radial-gradient(circle at 80% 20%, rgba(53,175,115,.15), transparent 34%),
+        var(--ink);
+      overflow: hidden;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: .9fr 1.1fr;
+      gap: 72px;
+      align-items: center;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+      color: var(--green-soft);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .10em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 28px;
+      height: 2px;
+      border-radius: 999px;
+      background: var(--green);
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+    h1 {
+      margin-bottom: 24px;
+      font-size: clamp(58px, 7vw, 104px);
+      line-height: .91;
+      letter-spacing: -.075em;
+      font-weight: 800;
+      max-width: 720px;
+    }
+
+    .hero-copy {
+      max-width: 600px;
+      margin-bottom: 34px;
+      font-size: clamp(18px, 2vw, 22px);
+      line-height: 1.55;
+      color: var(--muted);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 50px;
+      padding: 0 22px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 14px;
+      text-decoration: none;
+      border: 1px solid transparent;
+      transition: transform .18s ease, background .18s ease, border-color .18s ease;
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary { background: white; color: var(--dark-text); }
+    .btn-secondary {
+      border-color: rgba(255,255,255,.18);
+      color: white;
+      background: rgba(255,255,255,.04);
+    }
+
+    .app-shell {
+      position: relative;
+      min-height: 560px;
+      border: 1px solid rgba(189,245,211,.15);
+      border-radius: 28px;
+      background: #071c13;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      transform: rotate(-1deg);
+    }
+
+    .app-top {
+      height: 54px;
+      padding: 0 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #163a2a;
+      background: #0a271a;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .dots { display: flex; gap: 7px; }
+    .dots i { width: 8px; height: 8px; border-radius: 50%; background: #345342; display: block; }
+
+    .app-body {
+      display: grid;
+      grid-template-columns: 164px 1fr;
+      min-height: 506px;
+    }
+
+    .sidebar {
+      padding: 18px 12px;
+      border-right: 1px solid #163a2a;
+      background: #082116;
+    }
+
+    .side-label {
+      margin: 18px 10px 8px;
+      color: #779084;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .side-item {
+      padding: 10px 11px;
+      border-radius: 10px;
+      color: #b9c9c0;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .side-item.active {
+      color: white;
+      background: #0b3d28;
+    }
+
+    .library {
+      padding: 20px;
+      min-width: 0;
+      background: #061f14;
+    }
+
+    .library-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: flex-end;
+      margin-bottom: 18px;
+    }
+
+    .library h3 { margin: 0; font-size: 21px; letter-spacing: -.035em; }
+    .search-pill {
+      width: 40%;
+      min-width: 150px;
+      height: 34px;
+      border-radius: 999px;
+      border: 1px solid #234a37;
+      background: #0a291b;
+    }
+
+    .track {
+      display: grid;
+      grid-template-columns: 34px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      min-height: 68px;
+      padding: 10px 12px;
+      border-top: 1px solid #173b2b;
+    }
+
+    .track:first-of-type { border-top: 0; }
+    .track.active { background: #0b3d28; border-radius: 12px; border-top-color: transparent; }
+
+    .play {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: rgba(255,255,255,.08);
+      color: white;
+      font-size: 10px;
+    }
+
+    .track-title { font-size: 13px; font-weight: 700; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .track-meta { margin-top: 5px; font-size: 10px; color: #91a69a; }
+    .bpm { font-size: 11px; color: var(--green-soft); font-weight: 700; }
+
+    .section-kicker {
+      margin-bottom: 14px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--green);
+    }
+
+    h2 {
+      max-width: 900px;
+      margin-bottom: 24px;
+      font-size: clamp(42px, 5.3vw, 78px);
+      line-height: .98;
+      letter-spacing: -.06em;
+      font-weight: 800;
+    }
+
+    .lead {
+      max-width: 760px;
+      margin-bottom: 0;
+      font-size: clamp(18px, 2.2vw, 26px);
+      line-height: 1.5;
+      color: var(--dark-muted);
+    }
+
+    .dark .lead { color: var(--muted); }
+
+    .feature-grid {
+      margin-top: 64px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .feature-card {
+      min-height: 240px;
+      padding: 28px;
+      border-radius: 24px;
+      background: var(--paper-2);
+      border: 1px solid #dfe7e1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .feature-no {
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .08em;
+    }
+
+    .feature-card h3 {
+      margin-bottom: 10px;
+      font-size: 22px;
+      letter-spacing: -.03em;
+    }
+
+    .feature-card p {
+      margin: 0;
+      color: var(--dark-muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .demo-frame {
+      margin-top: 56px;
+      border-radius: 30px;
+      border: 1px solid rgba(189,245,211,.15);
+      overflow: hidden;
+      background: #0a261a;
+      min-height: 420px;
+      display: grid;
+      place-items: center;
+      position: relative;
+    }
+
+    .demo-frame::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(135deg, rgba(53,175,115,.10), transparent 45%),
+        repeating-linear-gradient(90deg, transparent 0 54px, rgba(255,255,255,.018) 55px);
+    }
+
+    .demo-placeholder {
+      position: relative;
+      z-index: 2;
+      width: min(540px, calc(100% - 48px));
+      padding: 34px;
+      border-radius: 24px;
+      text-align: center;
+      background: rgba(6,31,20,.82);
+      border: 1px solid rgba(189,245,211,.16);
+      backdrop-filter: blur(10px);
+    }
+
+    .demo-play {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 20px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: var(--green);
+      color: #03140c;
+      font-weight: 900;
+      font-size: 20px;
+    }
+
+    .demo-placeholder h3 { margin-bottom: 8px; font-size: 22px; }
+    .demo-placeholder p { margin: 0; color: var(--muted); line-height: 1.5; }
+
+    .steps {
+      margin-top: 60px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border-top: 1px solid #d8e1db;
+    }
+
+    .step { padding: 28px 28px 0 0; }
+    .step span {
+      display: block;
+      margin-bottom: 40px;
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--green);
+    }
+
+    .step h3 { font-size: 24px; letter-spacing: -.035em; margin-bottom: 12px; }
+    .step p { color: var(--dark-muted); line-height: 1.6; font-size: 14px; }
+
+    .status-panel {
+      margin-top: 48px;
+      padding: 34px;
+      border-radius: 26px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 32px;
+      align-items: center;
+      background: #0b3d28;
+      border: 1px solid #1e4c38;
+    }
+
+    .status-panel strong { display: block; font-size: 28px; letter-spacing: -.04em; margin-bottom: 6px; }
+    .status-panel p { margin: 0; color: var(--muted); }
+
+    footer {
+      padding: 42px 0;
+      border-top: 1px solid rgba(189,245,211,.12);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .footer-inner {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .footer-inner a { color: white; text-decoration: none; font-weight: 700; }
+
+    @media (max-width: 900px) {
+      .hero { min-height: auto; }
+      .hero-grid { grid-template-columns: 1fr; gap: 52px; }
+      .app-shell { transform: none; min-height: 470px; }
+      .app-body { min-height: 416px; }
+      .feature-grid { grid-template-columns: 1fr 1fr; }
+      .steps { grid-template-columns: 1fr; }
+      .step { padding-bottom: 28px; border-bottom: 1px solid #d8e1db; }
+      .step span { margin-bottom: 14px; }
+    }
+
+    @media (max-width: 640px) {
+      .wrap { width: min(100% - 28px, var(--max)); }
+      .section { padding: 78px 0; }
+      .nav-links a:not(:last-child) { display: none; }
+      .nav-right { gap: 12px; }
+      .lang-switch { flex: 0 0 auto; }
+      .hero { padding: 52px 0 70px; }
+      h1 { font-size: clamp(52px, 16vw, 72px); }
+      .feature-grid { grid-template-columns: 1fr; }
+      .app-body { grid-template-columns: 110px 1fr; }
+      .sidebar { padding: 12px 8px; }
+      .side-item { font-size: 10px; padding: 9px 8px; }
+      .library { padding: 14px 10px; }
+      .search-pill { display: none; }
+      .track { grid-template-columns: 28px 1fr; }
+      .bpm { display: none; }
+      .status-panel { grid-template-columns: 1fr; }
+      .footer-inner { align-items: flex-start; flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="wrap nav-inner">
+      <a class="wordmark" href="#top">LocalSunoDb</a>
+      <div class="nav-right">
+        <div class="nav-links">
+          <a href="#overview">Pārskats</a>
+          <a href="#features">Iespējas</a>
+          <a href="#demo">Demo</a>
+        </div>
+        <div class="lang-switch" aria-label="Language">
+          <a href="../">EN</a><span>/</span><a href="./" aria-current="page">LV</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main id="top">
+    <section class="hero dark">
+      <div class="wrap hero-grid">
+        <div>
+          <div class="eyebrow">Chrome-native PWA pamata versija</div>
+          <h1>Tava Suno bibliotēka.<br>Lokāli. Ātri. Savā kontrolē.</h1>
+          <p class="hero-copy">Lokāla darba vide Tavas Suno mūzikas kārtošanai, meklēšanai un pārvaldībai — veidota ap Tavu bibliotēku un lokālajiem audio failiem.</p>
+          <div class="actions">
+            <a class="btn btn-primary" href="#features">Iepazīsti LocalSunoDb</a>
+          </div>
+        </div>
+
+        <div class="app-shell" aria-label="LocalSunoDb interface preview">
+          <div class="app-top">
+            <span>LocalSunoDb · Library</span>
+            <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          </div>
+          <div class="app-body">
+            <aside class="sidebar">
+              <div class="side-label">Workspace</div>
+              <div class="side-item active">Library</div>
+              <div class="side-item">Imports</div>
+              <div class="side-item">Playlists</div>
+              <div class="side-item">Stems</div>
+              <div class="side-label">Tools</div>
+              <div class="side-item">Search</div>
+              <div class="side-item">Flags & Tags</div>
+              <div class="side-item">LS Elza</div>
+            </aside>
+            <div class="library">
+              <div class="library-head">
+                <div>
+                  <div class="side-label" style="margin:0 0 7px">Library</div>
+                  <h3>All tracks</h3>
+                </div>
+                <div class="search-pill" aria-hidden="true"></div>
+              </div>
+
+              <div class="track">
+                <div class="play">▶</div>
+                <div>
+                  <div class="track-title">Electric Current</div>
+                  <div class="track-meta">Saved view · Local WAV</div>
+                </div>
+                <div class="bpm">— Bpm</div>
+              </div>
+              <div class="track">
+                <div class="play">▶</div>
+                <div>
+                  <div class="track-title">Banjo Blend</div>
+                  <div class="track-meta">Flagged · 2 variants</div>
+                </div>
+                <div class="bpm">— Bpm</div>
+              </div>
+              <div class="track active">
+                <div class="play">▶</div>
+                <div>
+                  <div class="track-title">Salsa Samba Mix</div>
+                  <div class="track-meta">Tag: Groove · WAV linked</div>
+                </div>
+                <div class="bpm">— Bpm</div>
+              </div>
+              <div class="track">
+                <div class="play">▶</div>
+                <div>
+                  <div class="track-title">Rhodes Groove</div>
+                  <div class="track-meta">Playlist · Stems ready</div>
+                </div>
+                <div class="bpm">— Bpm</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="overview" class="section light">
+      <div class="wrap">
+        <div class="section-kicker">Pārskats</div>
+        <h2>Mūzika ir tepat. Bibliotēka — Tavā kontrolē.</h2>
+        <p class="lead">LocalSunoDb apvieno Suno ierakstus, lokālo audio, metadatus un atskaņošanas rīkus vienā pārskatāmā darba vidē. Pārlūks ir interfeiss, bet centrā paliek Tava bibliotēka.</p>
+      </div>
+    </section>
+
+    <section id="features" class="section light" style="padding-top:0">
+      <div class="wrap">
+        <div class="feature-grid">
+          <article class="feature-card">
+            <div class="feature-no">01</div>
+            <div><h3>Meklēšana un filtri</h3><p>Ātri atrodi ierakstus, kārto bibliotēku un atgriezies pie noderīgiem saglabātajiem skatiem.</p></div>
+          </article>
+          <article class="feature-card">
+            <div class="feature-no">02</div>
+            <div><h3>Karodziņi, tagi un atskaņošanas saraksti</h3><p>Atzīmē, grupē un kārto mūziku, nezaudējot saikni ar sākotnējo ierakstu.</p></div>
+          </article>
+          <article class="feature-card">
+            <div class="feature-no">03</div>
+            <div><h3>Lokāla atskaņošana</h3><p>Atskaņo lokālo audio ar waveform, Loop un A/B Loop rīkiem tieši darba vidē.</p></div>
+          </article>
+          <article class="feature-card">
+            <div class="feature-no">04</div>
+            <div><h3>WAV varianti</h3><p>Salīdzini versijas, piesaisti lokālo audio Suno Track ID un vienmēr redzi pareizo failu.</p></div>
+          </article>
+          <article class="feature-card">
+            <div class="feature-no">05</div>
+            <div><h3>Stems</h3><p>Strādā ar atdalītajām partijām un saglabā ar stemiem saistīto materiālu sasaistītu ar bibliotēku.</p></div>
+          </article>
+          <article class="feature-card">
+            <div class="feature-no">06</div>
+            <div><h3>LS Elza</h3><p>Izmanto asistentu tieši Library un Imports darba vidē, nepārslēdzoties uz citu kontekstu.</p></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="demo" class="section dark">
+      <div class="wrap">
+        <div class="section-kicker">Demo</div>
+        <h2>Skaties darba procesu, nevis slaidrādi.</h2>
+        <p class="lead">Šeit būs īss reālas lietošanas video: atrodi ierakstu, apskati tā variantus, strādā ar lokālo audio un atgriezies bibliotēkā.</p>
+
+        <div class="demo-frame">
+          <div class="demo-placeholder">
+            <div class="demo-play" aria-hidden="true">▶</div>
+            <h3>LocalSunoDb demo video</h3>
+            <p>30–60 sekunžu produkta demonstrācijas vietturis pirmajai dizaina pārbaudei.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section light">
+      <div class="wrap">
+        <div class="section-kicker">Kā tas darbojas</div>
+        <h2>Viena lokāla darba vide. Trīs vienkārši soļi.</h2>
+
+        <div class="steps">
+          <article class="step">
+            <span>01</span>
+            <h3>Pievieno bibliotēku</h3>
+            <p>LocalSunoDb strādā ar Taviem Suno metadatiem un lokālo audio kolekciju.</p>
+          </article>
+          <article class="step">
+            <span>02</span>
+            <h3>Atrodi svarīgo</h3>
+            <p>Meklē, filtrē, pievieno tagus un karodziņus un kārto ierakstus tā, kā Tev ir ērti strādāt.</p>
+          </article>
+          <article class="step">
+            <span>03</span>
+            <h3>Strādā lokāli</h3>
+            <p>Atskaņo, salīdzini, pārbaudi un pārvaldi audio, nepārvēršot bibliotēku par vēl vienu mākoņpakalpojumu.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section dark">
+      <div class="wrap">
+        <div class="section-kicker">Projekta statuss</div>
+        <h2>LocalSunoDb v2.0</h2>
+        <p class="lead">Chrome-native PWA pamata versija. Publiskā lapa pašlaik tikai iepazīstina ar projektu — tā nepalaiž pašu lietotni.</p>
+
+        <div class="status-panel">
+          <div>
+            <strong>Priekšskatījuma vietne · v0.1</strong>
+            <p>Pirmā vizuālā versija apskatei, komentāriem un turpmākām izmaiņām.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="dark">
+    <div class="wrap footer-inner">
+      <span>LocalSunoDb · lokāla mūzikas bibliotēkas darba vide</span>
+    </div>
+  </footer>
+  <script
+    src="https://page-views-api.ratneshc.com/script"
+    data-site="mariozo.github.io"
+    data-path="/LocalSunoDb/lv/"
+    defer
+  ></script>
+</body>
+</html>

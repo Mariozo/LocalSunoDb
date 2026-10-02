@@ -1,4 +1,6 @@
 from ls_core.runtime import *
+from ls_data.music_library import create_or_update_music_database, list_music_databases
+from ls_data.repository import choose_folder_dialog
 
 
 _SAVED_VIEW_REUSABLE_PARAMS = {
@@ -41,6 +43,40 @@ def _saved_view_reusable_query(value):
 
 
 class LibraryControllerMixin:
+    def send_music_database_list(self):
+        try:
+            self.send_json_response(list_music_databases())
+        except Exception as exc:
+            self.send_json_response({"ok": False, "error": str(exc)}, status=500)
+
+    def choose_music_database_root(self, params):
+        try:
+            initial = str(params.get("initial", [""])[0] or "").strip()
+            selected = choose_folder_dialog(initial, "Izvēlies ne-Suno mūzikas mapi")
+            self.send_json_response({"ok": True, "path": selected})
+        except Exception as exc:
+            self.send_json_response({"ok": False, "error": str(exc)}, status=500)
+
+    def import_music_database_now(self):
+        try:
+            length = int(self.headers.get("Content-Length", "0") or "0")
+            raw_body = self.rfile.read(length).decode("utf-8", errors="replace")
+            params = urllib.parse.parse_qs(raw_body, keep_blank_values=True)
+            name = str(params.get("name", [""])[0] or "").strip()
+            root = str(params.get("root_folder", [""])[0] or "").strip()
+            genre = str(params.get("default_genre", [""])[0] or "").strip()
+            if not name:
+                self.send_json_response({"ok": False, "error": "Ievadi DB nosaukumu."}, status=400)
+                return
+            if not root:
+                self.send_json_response({"ok": False, "error": "Izvēlies mūzikas mapi."}, status=400)
+                return
+            self.send_json_response(create_or_update_music_database(name, root, genre))
+        except ValueError as exc:
+            self.send_json_response({"ok": False, "error": str(exc)}, status=400)
+        except Exception as exc:
+            self.send_json_response({"ok": False, "error": str(exc)}, status=500)
+
     def send_fresh_install_state(self):
         try:
             db_state = get_local_library_database_state()
@@ -179,6 +215,10 @@ class LibraryControllerMixin:
 
     def handle_library_post_request(self, path, parsed):
         """Handle saved views, track metadata, tags, and local-audio POST endpoints."""
+        if path == "/music-db-import":
+            self.import_music_database_now()
+            return
+
         if path == "/playlist-create":
             self.create_playlist()
             return

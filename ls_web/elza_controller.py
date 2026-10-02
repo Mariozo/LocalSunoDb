@@ -46,6 +46,10 @@ class ElzaControllerMixin:
             self.stop_ls_comparison()
             return
 
+        if path == "/ls-elza-stt":
+            self.ls_elza_stt()
+            return
+
         if path == "/ls-assistant-chat":
             self.ls_assistant_chat()
             return
@@ -55,6 +59,55 @@ class ElzaControllerMixin:
             return
 
         return False
+
+    def ls_elza_stt(self):
+        origin = str(self.headers.get("Origin") or "").strip().rstrip("/")
+        allowed_origins = {
+            f"http://{HOST}:{PORT}",
+            f"http://localhost:{PORT}",
+        }
+        if origin and origin not in allowed_origins:
+            self.send_json_response({
+                "ok": False,
+                "error": "LS Elza accepts microphone audio only from this local LocalSunoDb.",
+                "error_code": "origin_not_allowed",
+            }, status=403)
+            return
+
+        try:
+            length = int(self.headers.get("Content-Length", "0") or "0")
+        except ValueError:
+            length = 0
+        if length <= 0 or length > 12 * 1024 * 1024:
+            self.send_json_response({
+                "ok": False,
+                "error": "Invalid LS Elza voice recording size.",
+                "error_code": "invalid_stt_size",
+            }, status=413 if length > 12 * 1024 * 1024 else 400)
+            return
+
+        content_type = str(
+            self.headers.get("Content-Type") or "audio/webm"
+        ).strip()
+        audio_bytes = self.rfile.read(length)
+        try:
+            from LS_Elza.service import transcribe_ls_elza_audio
+            text = transcribe_ls_elza_audio(audio_bytes, content_type)
+            self.send_json_response({
+                "ok": True,
+                "text": text,
+            })
+        except Exception as error:
+            if ls_elza_error_payload is not None:
+                data, status = ls_elza_error_payload(error)
+            else:
+                data = {
+                    "ok": False,
+                    "error": "LS Elza speech recognition failed.",
+                    "error_code": "stt_failed",
+                }
+                status = 500
+            self.send_json_response(data, status=status)
 
     def ls_assistant_chat(self):
         origin = str(self.headers.get("Origin") or "").strip().rstrip("/")
