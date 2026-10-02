@@ -278,6 +278,7 @@ def _playlist_track_rows(track_ids):
             except Exception:
                 local_path = ""
             item["play_source"] = "local" if local_path else "suno"
+            item["local_path"] = local_path
             ordered.append(item)
     return ordered
 
@@ -341,15 +342,50 @@ def _playlist_detail_rows(playlist):
         duration = format_duration(row.get("duration") or "")
         missing = bool(row.get("missing"))
         play_source = str(row.get("play_source") or "")
+        local_path = str(row.get("local_path") or "")
         play_disabled = " disabled" if missing else ""
         missing_badge = '<span class="playlist-missing-badge">Missing</span>' if missing else ""
+        local_audio = (
+            f"/playback-media?track_id={urllib.parse.quote(track_id)}&source=local"
+            if play_source == "local" and not missing else ""
+        )
+        web_audio = (
+            f"/playback-media?track_id={urllib.parse.quote(track_id)}&source=suno"
+            if play_source != "local" and not missing else ""
+        )
+        cover_url = f"/suno-image?track_id={urllib.parse.quote(track_id)}"
         html_rows.append(f"""
             <div class="playlist-track-row{' is-missing' if missing else ''}"
-                 draggable="true" data-track-id="{esc(track_id)}" data-play-source="{esc(play_source)}">
+                 draggable="true"
+                 data-ls-player-row="1"
+                 data-ls-source="playlists"
+                 data-track-id="{esc(track_id)}"
+                 data-title="{esc(title)}"
+                 data-artist="{esc(workspace)}"
+                 data-album=""
+                 data-format="{esc('LOCAL' if play_source == 'local' else 'SUNO')}"
+                 data-duration="{esc(duration)}"
+                 data-cover="{esc(cover_url)}"
+                 data-local-path="{esc(local_path)}"
+                 data-play-source="{esc(play_source)}">
                 <button class="playlist-drag-handle" type="button" title="Velc, lai mainītu secību" aria-label="Velc, lai mainītu secību">⋮⋮</button>
                 <span class="playlist-track-number">{index}</span>
-                <img class="playlist-track-cover" src="/suno-image?track_id={urllib.parse.quote(track_id)}" alt="">
-                <button type="button" class="playlist-track-play" data-track-id="{esc(track_id)}" aria-label="Play"{play_disabled}><span class="playlist-track-play-icon" aria-hidden="true">▶</span><span class="playlist-track-eq" aria-hidden="true"><i></i><i></i><i></i></span></button>
+                <img class="playlist-track-cover" src="{esc(cover_url)}" alt="">
+                <button
+                    type="button"
+                    class="playlist-track-play play-btn ls-cover-play-btn"
+                    data-ls-source="playlists"
+                    data-track-id="{esc(track_id)}"
+                    data-title="{esc(title)}"
+                    data-artist="{esc(workspace)}"
+                    data-album=""
+                    data-local-audio="{esc(local_audio)}"
+                    data-local-path="{esc(local_path)}"
+                    data-audio="{esc(web_audio)}"
+                    data-cover="{esc(cover_url)}"
+                    data-cover-full="{esc(cover_url)}"
+                    data-has-stems="false"
+                    aria-label="Play"{play_disabled}><span class="playlist-track-play-icon" aria-hidden="true">▶</span><span class="playlist-track-eq" aria-hidden="true"><i></i><i></i><i></i></span></button>
                 <div class="playlist-track-copy">
                     <strong>{esc(title)}</strong>
                     <span>{esc(workspace)} {missing_badge}</span>
@@ -601,7 +637,7 @@ def _playlist_page_script(active_playlist_id="", pending_track_id=""):
     """
 
 
-def render_playlists_page(playlist_id="", add_track_id=""):
+def render_playlists_page(playlist_id="", add_track_id="", fragment=False):
     playlists = get_local_playlists()
     pending_track_id = str(add_track_id or "").strip()
     active = None
@@ -656,6 +692,42 @@ def render_playlists_page(playlist_id="", add_track_id=""):
           </footer>
         """
         active_id = active["id"]
+
+    if fragment:
+        if active is None:
+            fragment_html = f"""
+            <section class="ls-shared-view ls-playlists-view" id="ls-shared-view"
+                     data-section="playlists" data-view-title="Playlists · LS {esc(APP_VERSION)}"
+                     data-pending-track-id="{esc(pending_track_id)}">
+              <input id="ls-shared-playlist-search" class="ls-shared-main-search" type="search" placeholder="Search for a playlist">
+              <div class="playlist-grid ls-shared-playlist-grid">{_playlist_catalog_html(playlists, pending_track_id)}</div>
+            </section>
+            """
+        else:
+            cover = _playlist_cover_html(active["track_ids"], "playlist-cover")
+            fragment_html = f"""
+            <section class="ls-shared-view ls-playlists-view" id="ls-shared-view"
+                     data-section="playlists" data-view-title="{esc(active['name'])} · Playlists · LS {esc(APP_VERSION)}"
+                     data-playlist-id="{esc(active['id'])}">
+              <section class="playlist-hero ls-shared-playlist-hero">
+                {cover}
+                <div class="playlist-hero-copy">
+                  <div class="ls-shared-kind">Playlist</div>
+                  <h1 id="playlist-title">{esc(active["name"])}</h1>
+                  <p>{int(active["track_count"])} songs · manual order</p>
+                  <div class="playlist-actions">
+                    <button type="button" class="playlist-primary" id="playlist-play-all">▶ Play</button>
+                    <button type="button" class="playlist-secondary" id="playlist-rename">Edit playlist details</button>
+                    <a class="playlist-secondary" href="/my-library">＋ Add songs</a>
+                    <button type="button" class="playlist-secondary playlist-danger" id="playlist-delete">Delete playlist</button>
+                  </div>
+                </div>
+              </section>
+              <input id="ls-shared-playlist-detail-search" class="ls-shared-main-search playlist-detail-search" type="search" placeholder="Search in this playlist">
+              <section class="playlist-tracks" id="playlist-tracks" data-ls-player-list="1">{_playlist_detail_rows(active)}</section>
+            </section>
+            """
+        return fragment_html.encode("utf-8")
 
     html_text = f"""<!doctype html>
 <html lang="en">
