@@ -515,6 +515,12 @@ def _playlist_page_script(active_playlist_id="", pending_track_id=""):
         const queueIndex = items.findIndex((item) => item.id === selected.id);
         if (queueIndex < 0) return false;
         try {{
+          const parentPlayer = window.parent?.LS?.player;
+          if (parentPlayer && typeof parentPlayer.loadExternalQueue === "function") {{
+            return parentPlayer.loadExternalQueue(items, queueIndex, true) !== false;
+          }}
+        }} catch (_) {{}}
+        try {{
           window.parent.postMessage(
             {{type:"LS_SHELL_EXTERNAL_PLAY", items, index:queueIndex}},
             window.location.origin
