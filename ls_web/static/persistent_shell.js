@@ -98,9 +98,71 @@
         });
     }
 
+    function mediaPlaybackMetadata(media) {
+        const dataset = media?.dataset || {};
+        let title = String(dataset.lsTitle || "").trim();
+        let artist = String(dataset.lsArtist || "").trim();
+        let album = String(dataset.lsAlbum || "").trim();
+
+        if (!title) {
+            title = String(
+                document.getElementById("my-player-title")?.textContent ||
+                document.getElementById("playlist-player-title")?.textContent ||
+                document.getElementById("selected-track-panel-title")?.textContent ||
+                ""
+            ).trim();
+        }
+        if (!artist) {
+            artist = String(
+                document.getElementById("my-player-source")?.textContent ||
+                ""
+            ).trim();
+            if (album && artist.endsWith(" · " + album)) {
+                artist = artist.slice(0, -(album.length + 3)).trim();
+            }
+        }
+        return { title, artist, album };
+    }
+
+    function postEmbeddedAudioState(media, playing) {
+        try {
+            window.parent.postMessage(
+                {
+                    type: "LS_SHELL_AUDIO_STATE",
+                    playing: Boolean(playing),
+                    metadata: mediaPlaybackMetadata(media),
+                },
+                ORIGIN
+            );
+        } catch (_) {}
+    }
+
     function installEmbeddedShell() {
         document.documentElement.classList.add("ls-shell-embedded");
         if (document.body) document.body.classList.add("ls-shell-embedded");
+
+        const sharedChromeStyle = document.createElement("style");
+        sharedChromeStyle.id = "ls-shell-embedded-shared-chrome";
+        sharedChromeStyle.textContent = `
+            html.ls-shell-embedded .my-music-player,
+            html.ls-shell-embedded .playlist-player,
+            html.ls-shell-embedded .album-inspector-v2 {
+                display: none !important;
+            }
+
+            html.ls-shell-embedded .album-detail-body-v2 {
+                grid-template-columns: minmax(0, 1fr) !important;
+            }
+
+            html.ls-shell-embedded .main {
+                padding-bottom: 32px !important;
+            }
+
+            html.ls-shell-embedded .playlist-shell {
+                padding-bottom: 24px !important;
+            }
+        `;
+        document.head.appendChild(sharedChromeStyle);
 
         window.LSShellNavigate = (rawUrl) => {
             const target = normalizeTarget(rawUrl);
@@ -175,6 +237,17 @@
             try {
                 window.parent.postMessage({ type: "LS_SHELL_AUDIO_PLAY" }, ORIGIN);
             } catch (_) {}
+            postEmbeddedAudioState(event.target, true);
+        }, true);
+
+        document.addEventListener("pause", (event) => {
+            if (!(event.target instanceof HTMLMediaElement)) return;
+            postEmbeddedAudioState(event.target, false);
+        }, true);
+
+        document.addEventListener("ended", (event) => {
+            if (!(event.target instanceof HTMLMediaElement)) return;
+            postEmbeddedAudioState(event.target, false);
         }, true);
 
         window.addEventListener("message", (event) => {
@@ -222,7 +295,151 @@
         document.body.appendChild(host);
 
         const frames = new Map();
+        const selectedTrackByFrame = new WeakMap();
         let activeTarget = "";
+        let viewTitle = libraryTitle;
+        let currentPlayback = null;
+
+        function ensureSidebarAudioIndicators() {
+            document.querySelectorAll("header .header-tabs a.header-tab[href]").forEach((link) => {
+                const section = sectionFor(link.href);
+                if (!["suno", "my-library", "playlists"].includes(section)) return;
+                link.dataset.lsShellSection = section;
+                if (link.querySelector(".ls-sidebar-audio-indicator")) return;
+                const indicator = document.createElement("span");
+                indicator.className = "ls-sidebar-audio-indicator";
+                indicator.setAttribute("aria-label", "Šeit pašlaik skan audio");
+                indicator.setAttribute("title", "Šeit pašlaik skan audio");
+                indicator.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 10v4h4l5 4V6L9 10H5Z" fill="currentColor"/><path d="M17 9.3c1.2 1.5 1.2 4 0 5.4M19.3 7c2.5 2.7 2.5 7.3 0 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+                link.appendChild(indicator);
+            });
+        }
+
+        function sourceSection(sourceWindow) {
+            for (const frame of frames.values()) {
+                if (frame.contentWindow === sourceWindow) {
+                    return sectionFor(frame.dataset.shellUrl || "");
+                }
+            }
+            return "suno";
+        }
+
+        function playbackWindowTitle(playback) {
+            const title = String(playback?.metadata?.title || "").trim();
+            const artist = String(playback?.metadata?.artist || "").trim();
+            if (title && artist) return `▶ ${artist} — ${title} · LS`;
+            if (title) return `▶ ${title} · LS`;
+            const labels = {
+                suno: "Suno Library",
+                "my-library": "My Library",
+                playlists: "Playlists",
+            };
+            return `▶ ${labels[playback?.section] || "Local Suno"} · LS`;
+        }
+
+        function refreshWindowTitle() {
+            document.title = currentPlayback
+                ? playbackWindowTitle(currentPlayback)
+                : (viewTitle || libraryTitle);
+        }
+
+        function setViewTitle(title) {
+            if (String(title || "").trim()) viewTitle = String(title).trim();
+            refreshWindowTitle();
+        }
+
+        function setPlaybackState({ playing, section, metadata, source }) {
+            if (playing) {
+                currentPlayback = {
+                    section: section || "suno",
+                    metadata: metadata || {},
+                    source: source || window,
+                };
+            } else if (
+                currentPlayback &&
+                (!source || currentPlayback.source === source)
+            ) {
+                currentPlayback = null;
+            }
+
+            document.querySelectorAll(
+                "header .header-tabs a.header-tab.is-audio-playing"
+            ).forEach((link) => link.classList.remove("is-audio-playing"));
+            if (currentPlayback) {
+                const link = document.querySelector(
+                    `header .header-tabs a.header-tab[data-ls-shell-section="${currentPlayback.section}"]`
+                );
+                link?.classList.add("is-audio-playing");
+            }
+            refreshWindowTitle();
+        }
+
+        function setSharedPanelExternal(payload) {
+            const panel = document.getElementById("selected-track-panel");
+            if (!panel) return;
+            const data = payload && typeof payload === "object" ? payload : {};
+            const title = String(data.title || "Select a track").trim();
+            const artist = String(data.artist || "").trim();
+            const album = String(data.album || "").trim();
+            const year = String(data.year || "").trim();
+            const genre = String(data.genre || "").trim();
+            const format = String(data.format || "").trim();
+            const duration = String(data.duration || "").trim();
+            const coverUrl = String(data.cover || "").trim();
+
+            panel.classList.add("is-external-track");
+            const titleNode = document.getElementById("selected-track-panel-title");
+            const metaNode = document.getElementById("selected-track-panel-meta");
+            const cover = document.getElementById("selected-track-panel-cover");
+            const placeholder = document.getElementById("selected-track-panel-cover-placeholder");
+            const localStatus = document.getElementById("selected-track-local-status");
+            const stemsStatus = document.getElementById("selected-track-stems-status");
+            const actions = document.getElementById("ls-external-track-actions");
+            const googleTrack = document.getElementById("ls-external-google-track");
+            const googleAlbum = document.getElementById("ls-external-google-album");
+
+            if (titleNode) titleNode.textContent = title || "Select a track";
+            if (metaNode) metaNode.textContent = [artist, album, year, genre].filter(Boolean).join(" · ");
+            if (localStatus) localStatus.textContent = [format, duration].filter(Boolean).join(" · ") || "Local";
+            if (stemsStatus) stemsStatus.style.display = "none";
+            if (actions) actions.hidden = false;
+
+            if (cover && placeholder) {
+                if (coverUrl) {
+                    cover.src = coverUrl;
+                    cover.style.display = "block";
+                    placeholder.style.display = "none";
+                } else {
+                    cover.removeAttribute("src");
+                    cover.style.display = "none";
+                    placeholder.style.display = "flex";
+                }
+            }
+
+            const trackQuery = [artist, title, "song"].filter(Boolean).join(" ");
+            const albumQuery = [artist, album, "album"].filter(Boolean).join(" ");
+            if (googleTrack) googleTrack.href = "https://www.google.com/search?q=" + encodeURIComponent(trackQuery || title);
+            if (googleAlbum) googleAlbum.href = "https://www.google.com/search?q=" + encodeURIComponent(albumQuery || album || artist);
+        }
+
+        function restoreSharedSunoPanel() {
+            const panel = document.getElementById("selected-track-panel");
+            if (!panel) return;
+            panel.classList.remove("is-external-track");
+            const stemsStatus = document.getElementById("selected-track-stems-status");
+            const actions = document.getElementById("ls-external-track-actions");
+            if (stemsStatus) stemsStatus.style.display = "";
+            if (actions) actions.hidden = true;
+        }
+
+        function activeFrameForWindow(sourceWindow) {
+            for (const frame of frames.values()) {
+                if (frame.contentWindow === sourceWindow) return frame;
+            }
+            return null;
+        }
+
+        ensureSidebarAudioIndicators();
 
         function updateSidebar(section) {
             document.querySelectorAll(
@@ -272,7 +489,7 @@
                 if (frame.classList.contains("is-active")) {
                     try {
                         const title = frame.contentDocument?.title;
-                        if (title) document.title = title;
+                        if (title) setViewTitle(title);
                     } catch (_) {}
                 }
             });
@@ -312,7 +529,8 @@
             document.body.classList.remove("ls-shell-secondary-active");
             setFrameActive(null);
             updateSidebar("suno");
-            document.title = libraryTitle;
+            restoreSharedSunoPanel();
+            setViewTitle(libraryTitle);
             setHistory(libraryUrl, mode);
         }
 
@@ -332,11 +550,25 @@
             setFrameActive(frame);
             document.documentElement.classList.add("ls-shell-secondary-active");
             document.body.classList.add("ls-shell-secondary-active");
-            updateSidebar(sectionFor(target));
+            const section = sectionFor(target);
+            updateSidebar(section);
+            const rememberedSelection = selectedTrackByFrame.get(frame);
+            if (rememberedSelection) {
+                setSharedPanelExternal(rememberedSelection);
+            } else if (section === "my-library" || section === "playlists") {
+                setSharedPanelExternal({
+                    title: "Izvēlies dziesmu",
+                    artist: section === "my-library" ? "My Library" : "Playlists",
+                    album: "",
+                    cover: "",
+                    format: "",
+                    duration: "",
+                });
+            }
             setHistory(target, mode);
             try {
                 const title = frame.contentDocument?.title;
-                if (title) document.title = title;
+                if (title) setViewTitle(title);
             } catch (_) {}
             return true;
         }
@@ -377,6 +609,22 @@
         document.addEventListener("play", (event) => {
             if (!(event.target instanceof HTMLMediaElement)) return;
             pauseFramesExcept(null);
+            setPlaybackState({
+                playing: true,
+                section: String(event.target.dataset.lsSection || "suno"),
+                metadata: mediaPlaybackMetadata(event.target),
+                source: window,
+            });
+        }, true);
+
+        document.addEventListener("pause", (event) => {
+            if (!(event.target instanceof HTMLMediaElement)) return;
+            setPlaybackState({ playing: false, source: window });
+        }, true);
+
+        document.addEventListener("ended", (event) => {
+            if (!(event.target instanceof HTMLMediaElement)) return;
+            setPlaybackState({ playing: false, source: window });
         }, true);
 
         window.addEventListener("message", (event) => {
@@ -388,6 +636,44 @@
             if (event.data.type === "LS_SHELL_AUDIO_PLAY") {
                 pauseParentAudio();
                 pauseFramesExcept(event.source || null);
+                return;
+            }
+            if (event.data.type === "LS_SHELL_AUDIO_STATE") {
+                const source = event.source || null;
+                setPlaybackState({
+                    playing: Boolean(event.data.playing),
+                    section: sourceSection(source),
+                    metadata: event.data.metadata || {},
+                    source,
+                });
+                return;
+            }
+            if (event.data.type === "LS_SHELL_SELECTED_TRACK") {
+                const sourceFrame = activeFrameForWindow(event.source || null);
+                const payload = event.data.track && typeof event.data.track === "object"
+                    ? event.data.track : {};
+                if (sourceFrame) selectedTrackByFrame.set(sourceFrame, payload);
+                if (sourceFrame?.classList.contains("is-active")) {
+                    setSharedPanelExternal(payload);
+                }
+                return;
+            }
+            if (event.data.type === "LS_SHELL_EXTERNAL_PLAY") {
+                const player = window.LS && window.LS.player ? window.LS.player : null;
+                const items = Array.isArray(event.data.items) ? event.data.items : [];
+                const index = Number(event.data.index || 0);
+                if (player && typeof player.loadExternalQueue === "function" && items.length) {
+                    pauseFramesExcept(null);
+                    const item = items[Math.max(0, Math.min(items.length - 1, index))] || {};
+                    const sourceFrame = activeFrameForWindow(event.source || null);
+                    if (sourceFrame) {
+                        selectedTrackByFrame.set(sourceFrame, item);
+                        if (sourceFrame.classList.contains("is-active")) {
+                            setSharedPanelExternal(item);
+                        }
+                    }
+                    player.loadExternalQueue(items, index, true);
+                }
                 return;
             }
             if (event.data.type === "LS_SHELL_RESTART_BACKEND") {
