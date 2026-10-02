@@ -82,23 +82,6 @@
                     </span>
                     <span class="ls-sidebar-label">Playlists</span>
                 </a>
-                <button
-                    type="button"
-                    class="header-tab ls-sidebar-stems-tab"
-                    id="ls-sidebar-stems-btn"
-                    title="Izvēlētajai dziesmai nav piesaistītu Stems"
-                    aria-label="Stems"
-                    aria-pressed="false"
-                    disabled
-                >
-                    <span class="ls-sidebar-stems-branch" aria-hidden="true"></span>
-                    <span class="ls-sidebar-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none">
-                            <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                        </svg>
-                    </span>
-                    <span class="ls-sidebar-label">Stems</span>
-                </button>
                 <a class="header-tab" href="/downloader" title="Imports">
                     <span class="ls-sidebar-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none">
@@ -668,6 +651,11 @@
             <div class="selected-track-status-row">
                 <span class="selected-track-status-chip" id="selected-track-local-status">Local: —</span>
                 <span class="selected-track-status-chip" id="selected-track-stems-status">Stems: —</span>
+            </div>
+
+            <div class="selected-track-panel-actions ls-shared-track-actions" id="ls-shared-track-actions" hidden>
+                <a id="ls-shared-google-track" href="https://www.google.com/" target="_blank" rel="noopener noreferrer">Google: dziesma</a>
+                <a id="ls-shared-google-album" href="https://www.google.com/" target="_blank" rel="noopener noreferrer">Google: albums</a>
             </div>
 
             <section class="selected-track-block">
