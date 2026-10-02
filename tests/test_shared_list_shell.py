@@ -48,3 +48,33 @@ def test_shared_external_info_actions_exist():
     assert 'id="ls-external-google-track"' in template
     assert 'id="ls-external-google-album"' in template
     assert ".selected-track-panel.is-external-track" in panel_css
+
+
+def test_embedded_mode_is_available_before_deferred_shell_bootstrap():
+    browser = Path("ls_library/music_browser.py").read_text(encoding="utf-8")
+    playlists = Path("ls_library/playlists.py").read_text(encoding="utf-8")
+    css = Path("ls_web/static/persistent_shell.css").read_text(encoding="utf-8")
+
+    assert "ls_embedded" in browser
+    assert "ls_embedded" in playlists
+    assert "z-index: 1260;" in css
+
+
+def test_global_external_queue_keeps_right_panel_in_sync():
+    player = Path("ls_player/static/suno_global_player_script_assets.js").read_text(
+        encoding="utf-8"
+    )
+    shell = Path("ls_web/static/persistent_shell.js").read_text(encoding="utf-8")
+
+    assert 'CustomEvent("ls-global-external-track"' in player
+    assert 'addEventListener("ls-global-external-track"' in shell
+    assert "setSharedPanelExternal(item)" in shell
+
+
+def test_my_library_album_hero_is_present_without_duplicate_inspector():
+    browser = Path("ls_library/music_browser.py").read_text(encoding="utf-8")
+
+    assert 'class="album-hero-v2"' in browser
+    assert 'id="album-hero-cover"' in browser
+    assert "--album-hero" in browser
+    assert 'class="album-inspector-v2"' not in browser
