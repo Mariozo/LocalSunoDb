@@ -1,6 +1,11 @@
 import base64
 import html
 import json
+
+
+def esc(value):
+    return html.escape(str(value or ""), quote=True)
+
 import os
 import re
 import urllib.parse
