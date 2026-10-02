@@ -261,6 +261,14 @@
             });
 
             function visibleTrackRows() {
+                if (currentTrackRow) {
+                    const sharedList = currentTrackRow.closest("[data-ls-player-list]");
+                    if (sharedList) {
+                        return Array.from(
+                            sharedList.querySelectorAll("[data-ls-player-row]")
+                        ).filter((row) => !row.classList.contains("row-hidden") && !row.hidden);
+                    }
+                }
                 return Array.from(table.querySelectorAll("tr.track-row")).filter(
                     (row) => !row.classList.contains("row-hidden")
                 );
@@ -271,6 +279,12 @@
             }
 
             function compactNavigationAnchorRow() {
+                if (currentTrackRow) {
+                    const sharedList = currentTrackRow.closest("[data-ls-player-list]");
+                    if (sharedList) {
+                        return sharedList.querySelector(".selected-track-current") || currentTrackRow;
+                    }
+                }
                 return table.querySelector("tr.track-row.selected-track-current") || currentTrackRow;
             }
 
@@ -582,9 +596,17 @@
 
             function syncSourceLabel() {
                 if (!stemPlaybackActive) {
-                    sourceLabel.innerText = current
-                        ? (currentSource === "local" ? "Local WAV" : "Suno Web")
-                        : "Player inactive";
+                    if (!current) {
+                        sourceLabel.innerText = "Player inactive";
+                        return;
+                    }
+                    if (current.lsSource) {
+                        sourceLabel.innerText = [current.artist, current.album]
+                            .filter(Boolean)
+                            .join(" · ") || (currentSource === "local" ? "Local" : "Suno");
+                        return;
+                    }
+                    sourceLabel.innerText = currentSource === "local" ? "Local WAV" : "Suno Web";
                 }
             }
 
@@ -741,7 +763,9 @@
 
             function syncGlobalPlayerTrackContext() {
                 if (!currentTrackRow || !current) { return; }
+                const sharedSource = String(current.lsSource || "").trim();
                 if (
+                    !sharedSource &&
                     typeof selectTrackRow === "function" &&
                     (
                         typeof selectedTrackRow === "undefined" ||
@@ -755,7 +779,13 @@
                 }
                 document.dispatchEvent(new CustomEvent(
                     "ls-track-playback-started",
-                    { detail: { trackId: current.trackId || "" } }
+                    {
+                        detail: {
+                            trackId: current.trackId || "",
+                            source: sharedSource || "suno",
+                            row: currentTrackRow
+                        }
+                    }
                 ));
             }
 
@@ -836,8 +866,10 @@
 
             function loadFromButton(button, autoplay = true) {
                 if (!button) { return false; }
-                const trackRow = button.closest("tr.track-row");
-                const fragmentRow = trackRow ? getFragmentRow(trackRow) : null;
+                const trackRow = button.closest("tr.track-row, [data-ls-player-row]");
+                const fragmentRow = trackRow && trackRow.matches("tr.track-row")
+                    ? getFragmentRow(trackRow)
+                    : null;
                 const trackId = button.dataset.trackId || "";
                 if (!trackRow || !trackId) {
                     return false;
@@ -871,6 +903,9 @@
                 current = {
                     trackId: trackId,
                     title: button.dataset.title || "[No title]",
+                    artist: button.dataset.artist || "",
+                    album: button.dataset.album || "",
+                    lsSource: button.dataset.lsSource || "",
                     cover: button.dataset.cover || "",
                     coverFull: button.dataset.coverFull || button.dataset.cover || "",
                     localAudio: button.dataset.localAudio || "",
@@ -892,9 +927,14 @@
                 setControlsEnabled(Boolean(current.localAudio || isValidSunoTrackId(current.trackId)));
                 expandButton.disabled = false;
                 if (closeButton) { closeButton.disabled = false; }
-                editButton.disabled = false;
-                syncCompareSelectionState();
-                stemsButton.disabled = !current.hasStems;
+                const sharedSource = Boolean(current.lsSource);
+                editButton.disabled = sharedSource;
+                if (sharedSource) {
+                    compareButton.disabled = true;
+                } else {
+                    syncCompareSelectionState();
+                }
+                stemsButton.disabled = sharedSource || !current.hasStems;
                 if (sidebarStemsButton) {
                     sidebarStemsButton.disabled = !current.hasStems;
                     sidebarStemsButton.classList.remove("active");
