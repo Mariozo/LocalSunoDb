@@ -28,6 +28,20 @@ def _duration(value):
     return f"{seconds // 60}:{seconds % 60:02d}"
 
 
+def _duration_summary(value):
+    try:
+        seconds = int(round(float(value or 0)))
+    except Exception:
+        return ""
+    if seconds <= 0:
+        return ""
+    hours, rest = divmod(seconds, 3600)
+    minutes = rest // 60
+    if hours:
+        return f"{hours} h {minutes} min" if minutes else f"{hours} h"
+    return f"{minutes} min"
+
+
 def _sidebar():
     return """
     <aside class="side">
@@ -50,7 +64,7 @@ def _sidebar():
     """ % _esc(APP_VERSION)
 
 
-def render_music_database_page(name="", query="", view="grid", album="", artist="", year="", open_new=False):
+def render_music_database_page(name="", query="", view="grid", album="", artist="", year="", open_new=False, fragment=False):
     catalog = list_music_databases().get("databases") or []
     usable = [item for item in catalog if not item.get("error")]
     requested = str(name or "").strip()
@@ -113,6 +127,8 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
         </a>""")
 
     row_html = []
+    album_cover_url = ""
+    album_total_seconds = 0.0
     for index, row in enumerate(tracks):
         track_no = row.get("track_no")
         disc_no = row.get("disc_no")
@@ -130,22 +146,51 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
             f"/music-db-cover?name={urllib.parse.quote(selected_name)}&sha1={urllib.parse.quote(cover_sha)}"
             if cover_sha and selected_name else ""
         )
+        if play_cover and not album_cover_url:
+            album_cover_url = play_cover
+        try:
+            album_total_seconds += float(row.get("duration_seconds") or 0)
+        except Exception:
+            pass
+        local_track_id = "my:" + selected_name + ":" + str(row.get("id") or play_path or index)
+        local_audio_url = "/local-audio?path=" + urllib.parse.quote(play_path)
+        duration_text = _duration(row.get("duration_seconds"))
         row_html.append(f"""
-          <tr class="music-track-row"
-              data-player-index="{index}"
-              data-player-path="{_esc(play_path)}"
-              data-player-title="{_esc(play_title)}"
-              data-player-artist="{_esc(play_artist)}"
-              data-player-album="{_esc(play_album)}"
-              data-player-cover="{_esc(play_cover)}">
-            <td class="track-number-cell"><button type="button" class="music-row-play" aria-label="Atskaņot {_esc(play_title)}" title="Atskaņot">▶</button><span>{_esc(num)}</span></td>
+          <tr class="music-track-row track-row"
+              data-ls-player-row="1"
+              data-ls-source="my-library"
+              data-track-id="{_esc(local_track_id)}"
+              data-title="{_esc(play_title)}"
+              data-artist="{_esc(play_artist)}"
+              data-album="{_esc(play_album)}"
+              data-year="{_esc(row.get('year'))}"
+              data-genre="{_esc(row.get('genre'))}"
+              data-format="{_esc(str(row.get('format') or '').upper())}"
+              data-duration="{_esc(duration_text)}"
+              data-cover="{_esc(play_cover)}"
+              data-local-path="{_esc(play_path)}">
+            <td class="track-number-cell"><button
+                type="button"
+                class="music-row-play play-btn ls-cover-play-btn"
+                data-ls-source="my-library"
+                data-track-id="{_esc(local_track_id)}"
+                data-title="{_esc(play_title)}"
+                data-artist="{_esc(play_artist)}"
+                data-album="{_esc(play_album)}"
+                data-local-audio="{_esc(local_audio_url)}"
+                data-local-path="{_esc(play_path)}"
+                data-cover="{_esc(play_cover)}"
+                data-cover-full="{_esc(play_cover)}"
+                data-has-stems="false"
+                aria-label="Atskaņot {_esc(play_title)}"
+                title="Atskaņot">▶</button><span>{_esc(num)}</span></td>
             <td><strong>{_esc(play_title)}</strong><div class="path-line">{_esc(play_path)}</div></td>
             <td>{_esc(play_artist)}</td>
             <td>{_esc(play_album)}</td>
             <td>{_esc(row.get('year'))}</td>
             <td>{_esc(row.get('genre'))}</td>
             <td>{_esc(str(row.get('format') or '').upper())}</td>
-            <td>{_esc(_duration(row.get('duration_seconds')))}</td>
+            <td>{_esc(duration_text)}</td>
           </tr>""")
 
     if album:
@@ -215,6 +260,81 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
 
     root_line = f'<div class="root-line" title="{_esc(root_folder)}">{_esc(root_folder)}</div>' if root_folder else ""
     modal_open = " open" if open_new else ""
+
+    if fragment:
+        if album:
+            hero_cover = (
+                f'<img id="ls-shared-album-cover" src="{_esc(album_cover_url)}" alt="">'
+                if album_cover_url else '<div class="cover-empty">♪</div>'
+            )
+            total_label = _duration_summary(album_total_seconds)
+            fragment_html = f"""
+            <section class="ls-shared-view ls-my-library-album-view" id="ls-shared-view"
+                     data-section="my-library" data-view-title="My Library · {_esc(album)} · LS {_esc(APP_VERSION)}">
+              <section class="ls-shared-album-hero" id="ls-shared-album-hero">
+                <a class="ls-shared-back" href="{_esc(back_url)}" title="Atpakaļ uz albumiem">←</a>
+                <div class="ls-shared-album-cover">{hero_cover}</div>
+                <div class="ls-shared-album-copy">
+                  <div class="ls-shared-kind">Albums</div>
+                  <h1>{_esc(album)}</h1>
+                  <div class="ls-shared-album-meta"><strong>{_esc(artist or 'Unknown Artist')}</strong>
+                    {(' · ' + _esc(year)) if year else ''} · {len(tracks)} dziesmas
+                    {(' · ' + _esc(total_label)) if total_label else ''}
+                  </div>
+                </div>
+              </section>
+              <div class="ls-shared-album-controls">
+                <button type="button" class="ls-shared-play-all" id="ls-shared-play-all" title="Atskaņot albumu">▶</button>
+                <input type="search" class="ls-shared-search-in-list" id="ls-shared-search-in-list" placeholder="Meklēt šajā albumā" autocomplete="off">
+              </div>
+              <div class="ls-shared-scroll">
+                <div class="track-table-wrap">
+                  <table class="track-table ls-shared-track-table" data-ls-player-list="1">
+                    <thead><tr><th>#</th><th>Nosaukums</th><th>Autors</th><th>Albums</th><th>Gads</th><th>Žanrs</th><th>Tips</th><th>Ilgums</th></tr></thead>
+                    <tbody>{''.join(row_html) if row_html else '<tr><td colspan="8" class="none">Nav ierakstu.</td></tr>'}</tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+            """
+            return fragment_html.encode("utf-8")
+
+        visible_block = list_block if view == "list" else grid_block
+        fragment_html = f"""
+        <section class="ls-shared-view ls-my-library-view" id="ls-shared-view"
+                 data-section="my-library" data-view-title="My Library · LS {_esc(APP_VERSION)}"
+                 data-selected-db="{_esc(selected_name)}" data-query="{_esc(query)}" data-view="{_esc(view)}">
+          <form class="ls-shared-toolbar" method="get" action="/my-library" id="ls-shared-my-search-form">
+            <input type="hidden" name="db" value="{_esc(selected_name)}">
+            <input type="search" class="ls-shared-main-search" name="q" value="{_esc(query)}" placeholder="Search albums, artists or songs" autocomplete="off">
+            <select class="ls-shared-db-select" id="ls-shared-db-select" aria-label="Mūzikas DB">{''.join(db_options)}</select>
+            <button type="button" class="ls-shared-new-db" id="ls-shared-new-db">＋ Jauna DB</button>
+          </form>
+          <div class="ls-shared-view-toggle" aria-label="Skata veids">
+            <button type="button" id="ls-shared-grid-view" class="{'active' if view == 'grid' else ''}" title="Albumu skats">▦</button>
+            <button type="button" id="ls-shared-list-view" class="{'active' if view == 'list' else ''}" title="Saraksta skats">☷</button>
+          </div>
+          <div class="ls-shared-summary">
+            <div><h1>{_esc(heading)}</h1>{root_line}</div>
+            <div class="ls-shared-count">{total_tracks if selected_name else 0} dziesmas</div>
+          </div>
+          <div class="ls-shared-scroll">
+            {visible_block}
+            {playlists_block if view == 'grid' else ''}
+          </div>
+        </section>
+        <div class="ls-shared-modal modal{modal_open}" id="ls-shared-new-db-modal" aria-hidden="{'false' if open_new else 'true'}">
+          <div class="modal-card">
+            <div class="modal-head"><h2>Jauna / atjaunot mūzikas DB</h2><button type="button" class="modal-close" id="ls-shared-modal-close">×</button></div>
+            <div class="field"><label>DB nosaukums</label><input id="ls-shared-music-db-name" placeholder="Piemēram: Jazz, R&B & Soul"></div>
+            <div class="field"><label>Mūzikas mape</label><div class="folder-row"><input id="ls-shared-music-db-root" placeholder="D:\\Music\\Jazz"><button type="button" id="ls-shared-choose-root">Izvēlēties…</button></div></div>
+            <div class="field"><label>Noklusējuma žanrs (neobligāti)</label><input id="ls-shared-music-db-genre" placeholder="Jazz"></div>
+            <div class="status" id="ls-shared-music-db-status"></div>
+            <div class="modal-actions"><button type="button" class="secondary" id="ls-shared-modal-cancel">Atcelt</button><button type="button" class="primary" id="ls-shared-music-db-import">Izveidot / skenēt</button></div>
+          </div>
+        </div>
+        """
+        return fragment_html.encode("utf-8")
 
     document = f"""<!doctype html>
 <html lang="lv">
