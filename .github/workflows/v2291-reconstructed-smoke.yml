@@ -1,0 +1,83 @@
+name: v2.29.1 reconstructed baseline smoke
+
+on:
+  push:
+    branches:
+      - integration/v2291-reconstructed
+
+jobs:
+  focused-tests:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify syntax and identity
+        shell: bash
+        run: |
+          python -m py_compile LocalSunoDb.py ls_core/runtime.py ls_data/repository.py ls_data/local_suno_migration.py ls_library/music_browser.py ls_library/playlists.py
+          node --check ls_web/static/persistent_shell.js
+          python - <<'PY'
+          from pathlib import Path
+          entry = Path("LocalSunoDb.py").read_text(encoding="utf-8")
+          runtime = Path("ls_core/runtime.py").read_text(encoding="utf-8")
+          assert 'APP_VERSION = "v2.29.1"' in entry
+          assert 'APP_BASED_ON = "v2.29"' in entry
+          assert 'APP_VERSION = "v2.29.1"' in runtime
+          assert 'APP_BASED_ON = "v2.29"' in runtime
+          shell = Path("ls_web/static/persistent_shell.js").read_text(encoding="utf-8")
+          assert "Ctrl+Shift+Home" in shell or ("ctrlKey" in shell and "shiftKey" in shell and "Home" in shell)
+          PY
+      - name: Run canonical and accepted regressions
+        shell: bash
+        run: |
+          python -m pip install pytest
+          python -m pytest -q             tests/test_local_suno_runtime.py             tests/test_local_suno_migration.py             tests/test_direct_canonical_library.py             tests/test_local_playlists.py             tests/test_elza_selection_regression.py
+
+  windows-runtime:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Upgrade probe
+        shell: pwsh
+        run: |
+          python .\LocalSunoDb.py --ls-update-probe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Start backend and exercise key pages
+        shell: pwsh
+        run: |
+          $stdout = Join-Path $PWD "runtime.stdout.log"
+          $stderr = Join-Path $PWD "runtime.stderr.log"
+          $p = Start-Process -FilePath "python" -ArgumentList ".\LocalSunoDb.py" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          $ok = $false
+          for ($i = 0; $i -lt 50; $i++) {
+            Start-Sleep -Milliseconds 400
+            if ($p.HasExited) { break }
+            try {
+              $root = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:8765/" -TimeoutSec 2
+              if ($root.StatusCode -eq 200) { $ok = $true; break }
+            } catch {}
+          }
+          if (-not $ok) {
+            Write-Host "--- STDOUT ---"
+            if (Test-Path $stdout) { Get-Content $stdout }
+            Write-Host "--- STDERR ---"
+            if (Test-Path $stderr) { Get-Content $stderr }
+            if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
+            throw "Backend did not become reachable on 127.0.0.1:8765"
+          }
+          $root = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:8765/" -TimeoutSec 5
+          if ($root.Content -notmatch "v2\.29\.1") { throw "Visible v2.29.1 identity missing from Suno Library" }
+          if ($root.Content -notmatch "My Library") { throw "My Library navigation missing" }
+          $my = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:8765/my-library" -TimeoutSec 5
+          if ($my.StatusCode -ne 200) { throw "My Library did not return HTTP 200" }
+          Stop-Process -Id $p.Id -Force
