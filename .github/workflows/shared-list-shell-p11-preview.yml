@@ -184,11 +184,11 @@ jobs:
                   rows.nth(0).locator(".music-row-play").click()
                   page.wait_for_function(
                       "(title) => document.querySelector('#ls-global-player-title')?.textContent.trim() === title",
-                      first_title,
+                      arg=first_title,
                   )
                   page.wait_for_function(
                       "(title) => document.querySelector('#selected-track-panel-title')?.textContent.trim() === title",
-                      first_title,
+                      arg=first_title,
                   )
 
                   old_audio = frame.eval_on_selector(
@@ -210,11 +210,11 @@ jobs:
                   page.locator("#ls-global-player-next").click()
                   page.wait_for_function(
                       "(title) => document.querySelector('#ls-global-player-title')?.textContent.trim() === title",
-                      second_title,
+                      arg=second_title,
                   )
                   page.wait_for_function(
                       "(title) => document.querySelector('#selected-track-panel-title')?.textContent.trim() === title",
-                      second_title,
+                      arg=second_title,
                   )
 
                   # My Library album header is real and lives above the list.
