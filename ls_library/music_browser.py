@@ -363,7 +363,7 @@ def render_music_database_page(name="", query="", view="grid", album="", artist=
   const playerRoot = document.getElementById('my-music-player');
   const playerAudio = document.getElementById('my-player-audio');
   const playerRows = Array.from(document.querySelectorAll('.music-track-row'));
-  const usesSharedShellPlayer = window.self !== window.top && document.documentElement.classList.contains('ls-shell-embedded');
+  const usesSharedShellPlayer = window.self !== window.top && (new URLSearchParams(window.location.search).get('ls_embedded') === '1' || document.documentElement.classList.contains('ls-shell-embedded'));
   const rowToSharedTrack = row => {{
     const path = String(row?.dataset?.playerPath || '').trim();
     const title = String(row?.dataset?.playerTitle || 'Track').trim();
