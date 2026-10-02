@@ -128,6 +128,23 @@ jobs:
           conn.commit()
           conn.close()
 
+          playlist_id = "shell-playlist"
+          playlists_path = Path("Data") / "localsunodb_playlists.json"
+          playlists_path.parent.mkdir(parents=True, exist_ok=True)
+          playlists_path.write_text(
+              json.dumps({
+                  "schema_version": 1,
+                  "playlists": [{
+                      "id": playlist_id,
+                      "name": "Shell Playlist",
+                      "created_at": "",
+                      "updated_at": "",
+                      "track_ids": [],
+                  }],
+              }),
+              encoding="utf-8",
+          )
+
           proc = subprocess.Popen(
               [sys.executable, "LocalSunoDb.py"],
               stdout=subprocess.PIPE,
@@ -161,10 +178,6 @@ jobs:
                       if time.time() > deadline:
                           raise
                       time.sleep(.25)
-
-              created = req("/playlist-create", {"name": "Shell Playlist"})
-              playlist_id = str((created.get("playlist") or {}).get("id") or "")
-              assert playlist_id, created
 
               with sync_playwright() as pw:
                   browser = pw.chromium.launch(headless=True)
