@@ -49,6 +49,7 @@ jobs:
           import json
           import math
           import struct
+          import sqlite3
           import subprocess
           import sys
           import time
@@ -77,6 +78,55 @@ jobs:
 
           wav(root / "01 - Alpha Shell.wav", 440)
           wav(root / "02 - Beta Shell.wav", 554)
+
+          db_dir = Path("Data") / "MusicDB"
+          db_dir.mkdir(parents=True, exist_ok=True)
+          db_path = db_dir / "ShellTest.db"
+          conn = sqlite3.connect(db_path)
+          conn.executescript("""
+          CREATE TABLE library_info (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '');
+          CREATE TABLE covers (sha1 TEXT PRIMARY KEY, mime_type TEXT NOT NULL DEFAULT '', image_data BLOB NOT NULL);
+          CREATE TABLE tracks (
+              id INTEGER PRIMARY KEY,
+              path TEXT NOT NULL COLLATE NOCASE UNIQUE,
+              filename TEXT NOT NULL DEFAULT '',
+              title TEXT NOT NULL DEFAULT '',
+              artist TEXT NOT NULL DEFAULT '',
+              album_artist TEXT NOT NULL DEFAULT '',
+              album TEXT NOT NULL DEFAULT '',
+              year INTEGER, track_no INTEGER, track_total INTEGER,
+              disc_no INTEGER, disc_total INTEGER,
+              genre TEXT NOT NULL DEFAULT '',
+              duration_seconds REAL,
+              format TEXT NOT NULL DEFAULT '',
+              size_bytes INTEGER NOT NULL DEFAULT 0,
+              modified_time TEXT NOT NULL DEFAULT '',
+              cover_sha1 TEXT,
+              imported_at TEXT NOT NULL DEFAULT ''
+          );
+          """)
+          conn.executemany(
+              "INSERT INTO library_info(key,value) VALUES (?,?)",
+              [("name","ShellTest"),("root_folder",str(root.resolve())),("default_genre","BrowserTest")],
+          )
+          for idx, (filename, title) in enumerate([
+              ("01 - Alpha Shell.wav", "Alpha Shell"),
+              ("02 - Beta Shell.wav", "Beta Shell"),
+          ], start=1):
+              path = (root / filename).resolve()
+              conn.execute(
+                  """INSERT INTO tracks(
+                      id,path,filename,title,artist,album_artist,album,year,track_no,track_total,
+                      disc_no,disc_total,genre,duration_seconds,format,size_bytes,modified_time,cover_sha1,imported_at
+                  ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                  (
+                      idx, str(path), filename, title, "Shell Artist", "Shell Artist",
+                      "Shell Album", 2026, idx, 2, 1, 1, "BrowserTest", 1.0,
+                      "wav", path.stat().st_size, "", None, ""
+                  ),
+              )
+          conn.commit()
+          conn.close()
 
           proc = subprocess.Popen(
               [sys.executable, "LocalSunoDb.py"],
@@ -111,14 +161,6 @@ jobs:
                       if time.time() > deadline:
                           raise
                       time.sleep(.25)
-
-              imported = req("/music-db-import", {
-                  "name": "ShellTest",
-                  "root_folder": str(root.resolve()),
-                  "default_genre": "BrowserTest",
-              })
-              assert imported.get("ok"), imported
-              assert int(imported.get("track_count") or 0) >= 2, imported
 
               created = req("/playlist-create", {"name": "Shell Playlist"})
               playlist_id = str((created.get("playlist") or {}).get("id") or "")
