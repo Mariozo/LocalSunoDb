@@ -1,0 +1,274 @@
+name: Same DOM shared views preview
+
+on:
+  push:
+    branches:
+      - refactor/same-dom-library-playlists
+
+jobs:
+  verify:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Syntax
+        shell: bash
+        run: |
+          python -m py_compile ls_library/music_browser.py ls_library/playlists.py ls_web/handler.py
+          node --check ls_web/static/persistent_shell.js
+          node --check ls_web/static/shared_views.js
+          node --check ls_player/static/suno_global_player_script_assets.js
+      - name: Focused tests
+        shell: bash
+        run: |
+          python -m pip install pytest
+          python -m pytest -q tests/test_same_dom_shared_views.py tests/test_local_playlists.py
+
+  browser:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Chromium
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Real browser same-DOM playback test
+        run: |
+          python - <<'PY'
+          import json
+          import math
+          import struct
+          import subprocess
+          import sys
+          import time
+          import urllib.parse
+          import urllib.request
+          import wave
+          from pathlib import Path
+
+          from playwright.sync_api import sync_playwright
+
+          base = "http://127.0.0.1:8765"
+          root = Path("browser_fixture") / "[2026] - Shell Artist - Shell Album"
+          root.mkdir(parents=True, exist_ok=True)
+
+          def wav(path, freq):
+              rate = 8000
+              count = int(rate * 1.0)
+              with wave.open(str(path), "wb") as out:
+                  out.setnchannels(1)
+                  out.setsampwidth(2)
+                  out.setframerate(rate)
+                  frames = bytearray()
+                  for i in range(count):
+                      frames += struct.pack("<h", int(9000 * math.sin(2 * math.pi * freq * i / rate)))
+                  out.writeframes(bytes(frames))
+
+          wav(root / "01 - Alpha Shell.wav", 440)
+          wav(root / "02 - Beta Shell.wav", 554)
+
+          proc = subprocess.Popen(
+              [sys.executable, "LocalSunoDb.py"],
+              stdout=subprocess.PIPE,
+              stderr=subprocess.PIPE,
+              text=True,
+          )
+
+          def req(path, data=None):
+              payload = None
+              headers = {}
+              if data is not None:
+                  payload = urllib.parse.urlencode(data).encode()
+                  headers["Content-Type"] = "application/x-www-form-urlencoded"
+              request = urllib.request.Request(base + path, data=payload, headers=headers)
+              with urllib.request.urlopen(request, timeout=10) as response:
+                  raw = response.read()
+                  if "json" in response.headers.get("Content-Type", ""):
+                      return json.loads(raw.decode())
+                  return raw.decode(errors="replace")
+
+          try:
+              deadline = time.time() + 30
+              while True:
+                  try:
+                      req("/")
+                      break
+                  except Exception:
+                      if proc.poll() is not None:
+                          out, err = proc.communicate(timeout=2)
+                          raise RuntimeError("Backend exited\n" + out + "\n" + err)
+                      if time.time() > deadline:
+                          raise
+                      time.sleep(.25)
+
+              imported = req("/music-db-import", {
+                  "name": "ShellTest",
+                  "root_folder": str(root.resolve()),
+                  "default_genre": "BrowserTest",
+              })
+              assert imported.get("ok"), imported
+              assert int(imported.get("track_count") or 0) >= 2, imported
+
+              created = req("/playlist-create", {"name": "Shell Playlist"})
+              playlist_id = str((created.get("playlist") or {}).get("id") or "")
+              assert playlist_id, created
+
+              with sync_playwright() as pw:
+                  browser = pw.chromium.launch(headless=True)
+                  page = browser.new_page(viewport={"width": 1600, "height": 1000})
+                  page.goto(base + "/", wait_until="domcontentloaded")
+                  page.wait_for_selector("body#ls-library")
+                  page.evaluate("document.getElementById('fresh-install-modal')?.remove()")
+
+                  assert page.locator("#ls-sidebar-stems-btn").count() == 0
+
+                  page.evaluate("window.LSShellNavigate('/my-library?db=ShellTest')")
+                  page.wait_for_selector("#ls-shell-content-main:not([hidden]) #ls-shared-view")
+                  assert page.locator("#ls-shell-screen-host iframe.is-active").count() == 0
+                  assert page.eval_on_selector("body > main:not(#ls-shell-content-main)", "el => el.hidden") is True
+                  assert page.locator("#ls-shell-content-main .album-card").count() >= 1
+
+                  page.locator("#ls-shell-content-main .album-card").first.click()
+                  page.wait_for_selector("#ls-shell-content-main .ls-shared-album-hero")
+                  assert page.locator("#ls-shell-content-main .panel").count() == 0
+
+                  rows = page.locator("#ls-shell-content-main [data-ls-player-row]")
+                  assert rows.count() >= 2
+                  first_title = rows.nth(0).get_attribute("data-title")
+                  second_title = rows.nth(1).get_attribute("data-title")
+                  assert first_title and second_title and first_title != second_title
+
+                  rows.nth(0).locator(".ls-cover-play-btn").click()
+                  page.wait_for_function(
+                      "(title) => document.querySelector('#ls-global-player-title')?.textContent.trim() === title",
+                      arg=first_title,
+                  )
+                  page.wait_for_function(
+                      "(title) => document.querySelector('#selected-track-panel-title')?.textContent.trim() === title",
+                      arg=first_title,
+                  )
+                  page.wait_for_function(
+                      "() => { const a = document.querySelector('#ls-global-player audio'); return !!a && !a.paused && !!a.getAttribute('src'); }"
+                  )
+                  assert page.locator("#selected-track-panel").evaluate(
+                      "el => el.classList.contains('is-shared-track')"
+                  )
+
+                  page.locator("#ls-global-player-next").click()
+                  page.wait_for_function(
+                      "(title) => document.querySelector('#ls-global-player-title')?.textContent.trim() === title",
+                      arg=second_title,
+                  )
+                  page.wait_for_function(
+                      "(title) => document.querySelector('#selected-track-panel-title')?.textContent.trim() === title",
+                      arg=second_title,
+                  )
+
+                  playlist_url = "/playlists?id=" + urllib.parse.quote(playlist_id)
+                  page.evaluate("(url) => window.LSShellNavigate(url)", playlist_url)
+                  page.wait_for_selector("#ls-shell-content-main:not([hidden]) .ls-shared-playlist-hero")
+                  assert page.locator("#ls-shell-screen-host iframe.is-active").count() == 0
+                  assert page.eval_on_selector("body > main:not(#ls-shell-content-main)", "el => el.hidden") is True
+                  assert page.locator("#ls-shell-content-main .panel").count() == 0
+
+                  page.locator('header .header-tab[href="/"]').click()
+                  page.wait_for_function(
+                      "() => !document.documentElement.classList.contains('ls-shell-content-active')"
+                  )
+                  assert page.eval_on_selector("body > main:not(#ls-shell-content-main)", "el => !el.hidden") is True
+
+                  browser.close()
+          finally:
+              proc.terminate()
+              try:
+                  proc.wait(timeout=5)
+              except subprocess.TimeoutExpired:
+                  proc.kill()
+          PY
+
+  build:
+    needs: browser
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build full code-only preview
+        run: |
+          python - <<'PY'
+          import subprocess, zipfile
+          from pathlib import Path
+
+          roots = (
+              "LS_Elza/", "LS_Suno_TokenBridge/", "ls_audio/", "ls_core/",
+              "ls_data/", "ls_downloader/", "ls_library/", "ls_media/",
+              "ls_player/", "ls_stems/", "ls_suno/", "ls_tools/",
+              "ls_upgrade/", "ls_web/",
+          )
+          top = {
+              "LocalSunoDb.py", "Start_LocalSunoDb.cmd",
+              "RESTART_BACKEND.cmd", "INSTALL_v1.16_backend.cmd",
+          }
+          tracked = subprocess.check_output(["git", "ls-files"], text=True).splitlines()
+          names = [n for n in tracked if n in top or n.startswith(roots)]
+          forbidden = ("Data/", "Logs/", "Backup/", "Temp/", "Reports/", "exports/")
+          assert not any(n.startswith(forbidden) for n in names)
+
+          out = Path("LocalSunoDb_v2291_SAME_DOM_P2.zip")
+          with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
+              for name in names:
+                  z.write(name, name)
+          with zipfile.ZipFile(out, "r") as z:
+              assert z.testzip() is None
+          print(len(names))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LocalSunoDb-v2291-SAME-DOM-P2
+          path: LocalSunoDb_v2291_SAME_DOM_P2.zip
+          retention-days: 7
+
+  windows-artifact:
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: LocalSunoDb-v2291-SAME-DOM-P2
+          path: artifact
+      - name: Exact artifact startup
+        shell: pwsh
+        run: |
+          Expand-Archive ".\artifact\LocalSunoDb_v2291_SAME_DOM_P2.zip" ".\app" -Force
+          Set-Location ".\app"
+          python .\LocalSunoDb.py --ls-update-probe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          $p = Start-Process python -ArgumentList ".\LocalSunoDb.py" -PassThru
+          $ok = $false
+          for ($i=0; $i -lt 50; $i++) {
+            Start-Sleep -Milliseconds 400
+            if ($p.HasExited) { break }
+            try {
+              $r = Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:8765/" -TimeoutSec 2
+              if ($r.StatusCode -eq 200) { $ok = $true; break }
+            } catch {}
+          }
+          if (-not $ok) {
+            if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
+            throw "Artifact did not start on port 8765"
+          }
+          Stop-Process -Id $p.Id -Force
