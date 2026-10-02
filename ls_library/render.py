@@ -30,6 +30,11 @@ from ls_core.runtime import *
 from ls_core.assets import asset_text, asset_url, render_template_tokens, script_asset_boundary
 from ls_data.repository import get_track_local_family_titles
 
+
+def esc(value):
+    return html.escape(str(value or ""), quote=True)
+
+
 def build_local_playback_url(track_id, has_confirmed_local_audio):
     if not has_confirmed_local_audio:
         return ""
