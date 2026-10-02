@@ -78,3 +78,20 @@ def test_my_library_album_hero_is_present_without_duplicate_inspector():
     assert 'id="album-hero-cover"' in browser
     assert "--album-hero" in browser
     assert 'class="album-inspector-v2"' not in browser
+
+
+def test_secondary_views_hide_parent_suno_main_surface():
+    css = Path("ls_web/static/persistent_shell.css").read_text(encoding="utf-8")
+
+    assert "html.ls-shell-secondary-active body#ls-library > main" in css
+    assert "visibility: hidden !important;" in css
+
+
+def test_shared_playback_uses_synchronous_same_origin_parent_player_first():
+    browser = Path("ls_library/music_browser.py").read_text(encoding="utf-8")
+    playlists = Path("ls_library/playlists.py").read_text(encoding="utf-8")
+
+    assert "window.parent?.LS?.player" in browser
+    assert "parentPlayer.loadExternalQueue(items, queueIndex, true)" in browser
+    assert "window.parent?.LS?.player" in playlists
+    assert "parentPlayer.loadExternalQueue(items, queueIndex, true)" in playlists
