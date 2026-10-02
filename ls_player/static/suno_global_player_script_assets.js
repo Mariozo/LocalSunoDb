@@ -926,6 +926,9 @@
                 audio.dataset.lsArtist = item.artist;
                 audio.dataset.lsAlbum = item.album;
                 audio.dataset.lsSection = item.section;
+                try {
+                    window.dispatchEvent(new CustomEvent("ls-global-external-track", {detail: item}));
+                } catch (_) {}
                 audio.src = item.audioUrl;
                 audio.load();
                 audio.loop = false;
