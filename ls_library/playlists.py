@@ -407,7 +407,7 @@ def _playlist_page_script(active_playlist_id="", pending_track_id=""):
     (() => {{
       const activePlaylistId = {active_json};
       const pendingTrackId = {pending_json};
-      const usesSharedShellPlayer = window.self !== window.top && document.documentElement.classList.contains("ls-shell-embedded");
+      const usesSharedShellPlayer = window.self !== window.top && (new URLSearchParams(window.location.search).get("ls_embedded") === "1" || document.documentElement.classList.contains("ls-shell-embedded"));
       const shellNavigate = (url) => {{
         if (typeof window.LSShellNavigate === "function" && window.LSShellNavigate(url)) return;
         window.location.href = url;
