@@ -115,73 +115,72 @@ jobs:
 
               # Add deterministic My Library/Playlist data only after the
               # backend has completed clean startup/migrations.
-                        db_dir = Path("Data") / "MusicDB"
-                        db_dir.mkdir(parents=True, exist_ok=True)
-                        db_path = db_dir / "ShellTest.db"
-                        conn = sqlite3.connect(db_path)
-                        conn.executescript("""
-                        CREATE TABLE library_info (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '');
-                        CREATE TABLE covers (sha1 TEXT PRIMARY KEY, mime_type TEXT NOT NULL DEFAULT '', image_data BLOB NOT NULL);
-                        CREATE TABLE tracks (
-                            id INTEGER PRIMARY KEY,
-                            path TEXT NOT NULL COLLATE NOCASE UNIQUE,
-                            filename TEXT NOT NULL DEFAULT '',
-                            title TEXT NOT NULL DEFAULT '',
-                            artist TEXT NOT NULL DEFAULT '',
-                            album_artist TEXT NOT NULL DEFAULT '',
-                            album TEXT NOT NULL DEFAULT '',
-                            year INTEGER, track_no INTEGER, track_total INTEGER,
-                            disc_no INTEGER, disc_total INTEGER,
-                            genre TEXT NOT NULL DEFAULT '',
-                            duration_seconds REAL,
-                            format TEXT NOT NULL DEFAULT '',
-                            size_bytes INTEGER NOT NULL DEFAULT 0,
-                            modified_time TEXT NOT NULL DEFAULT '',
-                            cover_sha1 TEXT,
-                            imported_at TEXT NOT NULL DEFAULT ''
-                        );
-                        """)
-                        conn.executemany(
-                            "INSERT INTO library_info(key,value) VALUES (?,?)",
-                            [("name","ShellTest"),("root_folder",str(root.resolve())),("default_genre","BrowserTest")],
-                        )
-                        for idx, (filename, title) in enumerate([
-                            ("01 - Alpha Shell.wav", "Alpha Shell"),
-                            ("02 - Beta Shell.wav", "Beta Shell"),
-                        ], start=1):
-                            path = (root / filename).resolve()
-                            conn.execute(
-                                """INSERT INTO tracks(
-                                    id,path,filename,title,artist,album_artist,album,year,track_no,track_total,
-                                    disc_no,disc_total,genre,duration_seconds,format,size_bytes,modified_time,cover_sha1,imported_at
-                                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                                (
-                                    idx, str(path), filename, title, "Shell Artist", "Shell Artist",
-                                    "Shell Album", 2026, idx, 2, 1, 1, "BrowserTest", 1.0,
-                                    "wav", path.stat().st_size, "", None, ""
-                                ),
-                            )
-                        conn.commit()
-                        conn.close()
-              
-                        playlist_id = "shell-playlist"
-                        playlists_path = Path("Data") / "localsunodb_playlists.json"
-                        playlists_path.parent.mkdir(parents=True, exist_ok=True)
-                        playlists_path.write_text(
-                            json.dumps({
-                                "schema_version": 1,
-                                "playlists": [{
-                                    "id": playlist_id,
-                                    "name": "Shell Playlist",
-                                    "created_at": "",
-                                    "updated_at": "",
-                                    "track_ids": [],
-                                }],
-                            }),
-                            encoding="utf-8",
-                        )
-              
-              
+              db_dir = Path("Data") / "MusicDB"
+              db_dir.mkdir(parents=True, exist_ok=True)
+              db_path = db_dir / "ShellTest.db"
+              conn = sqlite3.connect(db_path)
+              conn.executescript("""
+              CREATE TABLE library_info (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '');
+              CREATE TABLE covers (sha1 TEXT PRIMARY KEY, mime_type TEXT NOT NULL DEFAULT '', image_data BLOB NOT NULL);
+              CREATE TABLE tracks (
+                  id INTEGER PRIMARY KEY,
+                  path TEXT NOT NULL COLLATE NOCASE UNIQUE,
+                  filename TEXT NOT NULL DEFAULT '',
+                  title TEXT NOT NULL DEFAULT '',
+                  artist TEXT NOT NULL DEFAULT '',
+                  album_artist TEXT NOT NULL DEFAULT '',
+                  album TEXT NOT NULL DEFAULT '',
+                  year INTEGER, track_no INTEGER, track_total INTEGER,
+                  disc_no INTEGER, disc_total INTEGER,
+                  genre TEXT NOT NULL DEFAULT '',
+                  duration_seconds REAL,
+                  format TEXT NOT NULL DEFAULT '',
+                  size_bytes INTEGER NOT NULL DEFAULT 0,
+                  modified_time TEXT NOT NULL DEFAULT '',
+                  cover_sha1 TEXT,
+                  imported_at TEXT NOT NULL DEFAULT ''
+              );
+              """)
+              conn.executemany(
+                  "INSERT INTO library_info(key,value) VALUES (?,?)",
+                  [("name","ShellTest"),("root_folder",str(root.resolve())),("default_genre","BrowserTest")],
+              )
+              for idx, (filename, title) in enumerate([
+                  ("01 - Alpha Shell.wav", "Alpha Shell"),
+                  ("02 - Beta Shell.wav", "Beta Shell"),
+              ], start=1):
+                  track_path = (root / filename).resolve()
+                  conn.execute(
+                      """INSERT INTO tracks(
+                          id,path,filename,title,artist,album_artist,album,year,track_no,track_total,
+                          disc_no,disc_total,genre,duration_seconds,format,size_bytes,modified_time,cover_sha1,imported_at
+                      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                      (
+                          idx, str(track_path), filename, title, "Shell Artist", "Shell Artist",
+                          "Shell Album", 2026, idx, 2, 1, 1, "BrowserTest", 1.0,
+                          "wav", track_path.stat().st_size, "", None, ""
+                      ),
+                  )
+              conn.commit()
+              conn.close()
+
+              playlist_id = "shell-playlist"
+              playlists_path = Path("Data") / "localsunodb_playlists.json"
+              playlists_path.parent.mkdir(parents=True, exist_ok=True)
+              playlists_path.write_text(
+                  json.dumps({
+                      "schema_version": 1,
+                      "playlists": [{
+                          "id": playlist_id,
+                          "name": "Shell Playlist",
+                          "created_at": "",
+                          "updated_at": "",
+                          "track_ids": [],
+                      }],
+                  }),
+                  encoding="utf-8",
+              )
+
               with sync_playwright() as pw:
                   browser = pw.chromium.launch(headless=True)
                   page = browser.new_page(viewport={"width": 1600, "height": 1000})
