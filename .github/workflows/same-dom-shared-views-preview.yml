@@ -79,10 +79,12 @@ jobs:
           wav(root / "01 - Alpha Shell.wav", 440)
           wav(root / "02 - Beta Shell.wav", 554)
 
+          stdout_log = open("browser-backend.stdout.log", "w+", encoding="utf-8")
+          stderr_log = open("browser-backend.stderr.log", "w+", encoding="utf-8")
           proc = subprocess.Popen(
               [sys.executable, "LocalSunoDb.py"],
-              stdout=subprocess.DEVNULL,
-              stderr=subprocess.DEVNULL,
+              stdout=stdout_log,
+              stderr=stderr_log,
               text=True,
           )
 
@@ -106,9 +108,19 @@ jobs:
                       req("/")
                       break
                   except Exception:
-                      if proc.poll() is not None:
-                          raise RuntimeError("Backend exited during browser fixture startup")
-                      if time.time() > deadline:
+                      if proc.poll() is not None or time.time() > deadline:
+                          stdout_log.flush()
+                          stderr_log.flush()
+                          stdout_log.seek(0)
+                          stderr_log.seek(0)
+                          print("--- BACKEND STDOUT ---")
+                          print(stdout_log.read())
+                          print("--- BACKEND STDERR ---")
+                          print(stderr_log.read())
+                          error_path = Path("error.log")
+                          if error_path.is_file():
+                              print("--- error.log ---")
+                              print(error_path.read_text(encoding="utf-8", errors="replace"))
                           raise
                       time.sleep(.25)
 
@@ -251,6 +263,8 @@ jobs:
                   proc.wait(timeout=5)
               except subprocess.TimeoutExpired:
                   proc.kill()
+              stdout_log.close()
+              stderr_log.close()
           PY
 
   build:
