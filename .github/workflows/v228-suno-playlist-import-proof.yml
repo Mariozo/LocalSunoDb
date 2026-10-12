@@ -1,0 +1,96 @@
+name: v2.28 Suno playlist import proof
+
+on:
+  push:
+    branches:
+      - feat/v228-suno-playlist-import
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Syntax and focused tests
+        run: |
+          python -m pip install pytest
+          python -m py_compile ls_suno/service.py ls_downloader/controller.py
+          node --check ls_downloader/static/downloader_update_workflows_script.js
+          python -m pytest -q tests/test_suno_playlist_import.py tests/test_local_playlists.py
+      - name: Build exact delta ZIP
+        run: |
+          python - <<'PY'
+          import zipfile
+          files = [
+              "ls_suno/service.py",
+              "ls_downloader/controller.py",
+              "ls_downloader/templates/metadata_section.html",
+              "ls_downloader/static/downloader_update_workflows_script.js",
+          ]
+          out = "LocalSunoDb_v228_SUNO_PLAYLIST_IMPORT_DELTA.zip"
+          with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
+              for path in files:
+                  z.write(path, path)
+          with zipfile.ZipFile(out, "r") as z:
+              assert z.namelist() == files
+              assert z.testzip() is None
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LocalSunoDb-v228-SUNO-PLAYLIST-IMPORT-DELTA
+          path: LocalSunoDb_v228_SUNO_PLAYLIST_IMPORT_DELTA.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  windows-exact-artifact:
+    needs: test-and-package
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/v2.28
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: LocalSunoDb-v228-SUNO-PLAYLIST-IMPORT-DELTA
+          path: artifact
+      - name: Overlay exact delta and prove LS starts
+        shell: pwsh
+        run: |
+          Expand-Archive -Path ".\artifact\LocalSunoDb_v228_SUNO_PLAYLIST_IMPORT_DELTA.zip" -DestinationPath "." -Force
+          python -m py_compile ls_suno/service.py ls_downloader/controller.py
+          node --check ls_downloader/static/downloader_update_workflows_script.js
+
+          $stdout = Join-Path $PWD "runtime.stdout.log"
+          $stderr = Join-Path $PWD "runtime.stderr.log"
+          $p = Start-Process -FilePath "python" -ArgumentList ".\LocalSunoDb.py", "--ls-restarted" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+
+          $ok = $false
+          for ($i=0; $i -lt 60; $i++) {
+            Start-Sleep -Milliseconds 500
+            if ($p.HasExited) { break }
+            try {
+              $r = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:8765/downloader" -TimeoutSec 2
+              if ($r.StatusCode -eq 200 -and $r.Content -match "suno-playlist-url") {
+                $ok = $true
+                break
+              }
+            } catch {}
+          }
+
+          if (-not $ok) {
+            if (Test-Path $stdout) { Get-Content $stdout }
+            if (Test-Path $stderr) { Get-Content $stderr }
+            if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
+            throw "Exact playlist-import delta failed to serve Downloader"
+          }
+
+          Stop-Process -Id $p.Id -Force
