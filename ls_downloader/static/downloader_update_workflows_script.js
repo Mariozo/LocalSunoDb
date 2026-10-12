@@ -326,6 +326,185 @@
             };
         }
 
+        const loadSunoPlaylistBtn = document.getElementById("load-suno-playlist-btn");
+        const sunoPlaylistUrlInput = document.getElementById("suno-playlist-url");
+
+        if (loadSunoPlaylistBtn && sunoPlaylistUrlInput) {
+            loadSunoPlaylistBtn.addEventListener("click", async () => {
+                const playlistUrl = String(sunoPlaylistUrlInput.value || "").trim();
+                if (!playlistUrl) {
+                    alert("Ievadi Suno playlist URL.");
+                    return;
+                }
+
+                markDownloaderViewFresh();
+                lastRefreshReportHtml = "";
+                metaResult.innerHTML = "";
+                setStatus("Lasa Suno playlist…");
+                showRefreshWait("LS lasa norādīto Suno playlist un salīdzina dziesmas ar LS DB.", 1);
+
+                try {
+                    const response = await fetch(
+                        "/suno-playlist-preview?playlist_url=" + encodeURIComponent(playlistUrl)
+                    );
+                    const data = await response.json();
+                    if (!response.ok || !data.ok) {
+                        throw new Error(data.error || "Suno playlist priekšskatījums neizdevās");
+                    }
+
+                    let rows = "";
+                    (data.items || []).forEach((item, index) => {
+                        rows += `
+                            <tr>
+                                <td><input type="checkbox" class="suno-playlist-track-check" value="${escHtml(item.id || "")}" checked></td>
+                                <td>${index + 1}</td>
+                                <td><code>${escHtml(item.short_id || "")}</code></td>
+                                <td><strong>${escHtml(item.title || "")}</strong><br><span class="muted">${escHtml(item.created_at || "")}</span></td>
+                                <td>${escHtml(item.workspace || "")}</td>
+                                <td>${item.in_ls_db ? '<span class="pill yes">jau LS DB</span>' : '<span class="pill no">jauns</span>'}</td>
+                            </tr>
+                        `;
+                    });
+
+                    const completeness = data.complete
+                        ? ""
+                        : '<p class="status warn">Suno atgrieza nepilnu playlist lapu. Tiks apstrādātas tikai zemāk redzamās dziesmas.</p>';
+
+                    metaResult.innerHTML = `
+                        <div class="update-preview-scroll">
+                            <h3>Suno playlist: ${escHtml(data.playlist_name || "")}</h3>
+                            <p class="muted">
+                                Playlist ID: <code>${escHtml(data.playlist_id || "")}</code><br>
+                                Suno kopā: <strong>${escHtml(data.expected_count)}</strong>;
+                                saņemti: <strong>${escHtml(data.raw_count)}</strong>;
+                                parastās dziesmas: <strong>${escHtml(data.track_count)}</strong>;
+                                jaunas LS DB: <strong>${escHtml(data.new_count)}</strong>;
+                                jau LS DB: <strong>${escHtml(data.existing_count)}</strong>;
+                                izlaisti stemi: <strong>${escHtml(data.skipped_stems)}</strong>.
+                            </p>
+                            ${completeness}
+                            <table class="preview-table">
+                                <thead>
+                                    <tr><th>Importēt</th><th>#</th><th>ID</th><th>Nosaukums</th><th>Darba telpa</th><th>LS statuss</th></tr>
+                                </thead>
+                                <tbody>${rows || '<tr><td colspan="6">Playlist nav atrasta neviena importējama dziesma.</td></tr>'}</tbody>
+                            </table>
+                            <div class="tracklist-action-strip">
+                                <div class="tracklist-action-groups">
+                                    <div class="tracklist-primary-actions">
+                                        <button type="button" class="green" id="import-suno-playlist-btn">Importēt izvēlētās LS DB + playlist</button>
+                                    </div>
+                                    <div class="tracklist-secondary-actions">
+                                        <button type="button" class="secondary" id="playlist-select-all-btn">Atlasīt visas</button>
+                                        <button type="button" class="secondary" id="playlist-select-none-btn">Noņemt atlasi</button>
+                                    </div>
+                                    <p class="muted tracklist-action-help">
+                                        Dziesmu metadati nonāk LS DB; playlist nosaukums tiek saglabāts LS Playlists.
+                                        WAV mapes netiek veidotas pēc playlist nosaukuma.
+                                    </p>
+                                </div>
+                            </div>
+                            <div id="suno-playlist-import-result"></div>
+                        </div>
+                    `;
+
+                    const selectAllBtn = document.getElementById("playlist-select-all-btn");
+                    const selectNoneBtn = document.getElementById("playlist-select-none-btn");
+                    const importBtn = document.getElementById("import-suno-playlist-btn");
+
+                    if (selectAllBtn) {
+                        selectAllBtn.addEventListener("click", () => {
+                            document.querySelectorAll(".suno-playlist-track-check").forEach((check) => {
+                                check.checked = true;
+                            });
+                        });
+                    }
+                    if (selectNoneBtn) {
+                        selectNoneBtn.addEventListener("click", () => {
+                            document.querySelectorAll(".suno-playlist-track-check").forEach((check) => {
+                                check.checked = false;
+                            });
+                        });
+                    }
+
+                    if (importBtn) {
+                        importBtn.addEventListener("click", async () => {
+                            const ids = Array.from(document.querySelectorAll(".suno-playlist-track-check:checked"))
+                                .map((check) => check.value)
+                                .filter((value) => value);
+                            if (!ids.length) {
+                                alert("Nav atzīmēta neviena playlist dziesma.");
+                                return;
+                            }
+                            if (!confirm(
+                                "Importēt " + ids.length + " dziesmu(-as) no playlist “" +
+                                (data.playlist_name || "Suno playlist") +
+                                "” LS DB un saglabāt LS playlist?\n\nPirms DB rakstīšanas LS izveidos rezerves kopiju."
+                            )) {
+                                return;
+                            }
+
+                            importBtn.disabled = true;
+                            setStatus("Importē Suno playlist LS DB…");
+                            try {
+                                const body = new URLSearchParams();
+                                body.set("playlist_url", data.playlist_url || playlistUrl);
+                                body.set("track_ids", ids.join("\n"));
+                                const importResponse = await fetch("/suno-import-selected-playlist", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                                    body: body.toString()
+                                });
+                                const importData = await importResponse.json();
+                                if (!importResponse.ok || !importData.ok) {
+                                    throw new Error(importData.error || "Suno playlist imports neizdevās");
+                                }
+
+                                const localPlaylist = importData.local_playlist || {};
+                                const resultBox = document.getElementById("suno-playlist-import-result");
+                                if (resultBox) {
+                                    resultBox.innerHTML = `
+                                        <p class="status ok">
+                                            Imports pabeigts. Jauni DB ieraksti: <strong>${escHtml(importData.inserted || 0)}</strong>;
+                                            jau esoši: <strong>${escHtml(importData.skipped_existing || 0)}</strong>;
+                                            kļūdas: <strong>${escHtml(importData.errors || 0)}</strong>.<br>
+                                            LS playlist: <strong>${escHtml(localPlaylist.name || data.playlist_name || "")}</strong>
+                                            (${escHtml(localPlaylist.track_count || ids.length)} dziesmas).<br>
+                                            DB backup: <code>${escHtml(importData.backup || "")}</code>
+                                        </p>
+                                        ${importData.selected_url ? '<a class="btn" href="' + escHtml(importData.selected_url) + '">Atvērt importētās dziesmas Suno Library</a>' : ''}
+                                    `;
+                                }
+                                setStatus(
+                                    "Suno playlist imports pabeigts. Jauni: " +
+                                    (importData.inserted || 0) +
+                                    ", jau bija DB: " +
+                                    (importData.skipped_existing || 0) +
+                                    ".",
+                                    "ok"
+                                );
+                            } catch (error) {
+                                setStatus("Suno playlist importa kļūda: " + error.message, "error");
+                            } finally {
+                                importBtn.disabled = false;
+                            }
+                        });
+                    }
+
+                    setStatus(
+                        "Playlist “" + (data.playlist_name || "") + "” nolasīts. Dziesmas: " +
+                        (data.track_count || 0) + ", jaunas LS DB: " + (data.new_count || 0) + ".",
+                        data.complete ? "ok" : "warn"
+                    );
+                } catch (error) {
+                    setStatus("Suno playlist kļūda: " + error.message, "error");
+                } finally {
+                    hideRefreshWait();
+                    forceCloseDownloaderWorkingPopup();
+                }
+            });
+        }
+
         if (refreshTracklistBtn) {
             refreshTracklistBtn.addEventListener("click", async () => {
                 markDownloaderViewFresh();
