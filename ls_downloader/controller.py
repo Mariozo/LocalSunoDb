@@ -1,5 +1,11 @@
 from ls_core.runtime import *
 from ls_downloader.token_bridge_liveness import ensure_token_bridge_liveness_files
+from ls_library.playlists import (
+    add_tracks_to_local_playlist,
+    create_local_playlist,
+    get_local_playlists,
+)
+
 
 
 class DownloaderControllerMixin:
@@ -48,6 +54,11 @@ class DownloaderControllerMixin:
             limit_value = params.get("limit", ["100"])[0]
             workspace_id = params.get("workspace_id", ["latest"])[0]
             self.send_suno_tracklist_preview(limit_value, workspace_id)
+            return
+
+        if path == "/suno-playlist-preview":
+            playlist_url = params.get("playlist_url", [""])[0]
+            self.send_suno_playlist_preview(playlist_url)
             return
 
         if path == "/refresh-db":
@@ -114,6 +125,10 @@ class DownloaderControllerMixin:
 
         if path == "/suno-import-selected-tracklist":
             self.suno_import_selected_tracklist()
+            return
+
+        if path == "/suno-import-selected-playlist":
+            self.suno_import_selected_playlist()
             return
 
         if path == "/suno-ignore-selected-tracklist":
@@ -333,6 +348,55 @@ class DownloaderControllerMixin:
             self.send_header("Content-Length", str(len(content)))
             self.end_headers()
             self.wfile.write(content)
+
+    def send_suno_playlist_preview(self, playlist_url):
+        try:
+            result = build_suno_playlist_preview(playlist_url)
+            self.send_json_response(result)
+        except Exception as exc:
+            self.send_json_response(
+                {"ok": False, "error": str(exc)},
+                status=400,
+            )
+
+    def suno_import_selected_playlist(self):
+        length = int(self.headers.get("Content-Length", "0") or "0")
+        raw_body = self.rfile.read(length).decode("utf-8", errors="replace")
+        params = urllib.parse.parse_qs(raw_body)
+        playlist_url = params.get("playlist_url", [""])[0]
+        track_ids_text = params.get("track_ids", [""])[0]
+        track_ids = [
+            line.strip()
+            for line in track_ids_text.replace(",", "\n").splitlines()
+            if line.strip()
+        ]
+
+        try:
+            result = import_suno_playlist_selected(playlist_url, track_ids)
+            if result.get("ok"):
+                playlist_name = str(result.get("playlist_name") or "Suno playlist").strip()
+                source_ids = list(result.get("playlist_track_ids") or [])
+                local_playlist = None
+                for item in get_local_playlists():
+                    if str(item.get("name") or "").strip().casefold() == playlist_name.casefold():
+                        local_playlist = item
+                        break
+                if local_playlist is None:
+                    local_playlist = create_local_playlist(playlist_name)
+                local_playlist = add_tracks_to_local_playlist(
+                    local_playlist.get("id"),
+                    source_ids,
+                )
+                result["local_playlist"] = local_playlist
+            self.send_json_response(
+                result,
+                status=200 if result.get("ok") else 400,
+            )
+        except Exception as exc:
+            self.send_json_response(
+                {"ok": False, "error": str(exc)},
+                status=400,
+            )
 
     def preview_selected_wav_download(self):
         try:
