@@ -10,9 +10,9 @@ Log "=== LocalSunoDb v2.28 known-good recovery ==="
 Log ("Date: " + (Get-Date -Format "yyyy-MM-dd HH:mm:ss"))
 Log ("Root: " + $Root)
 
-if (-not (Test-Path (Join-Path $Root "LocalSunoDb.py"))) { throw "LocalSunoDb.py nav atrasts." }
+if (-not (Test-Path (Join-Path $Root "LocalSunoDb.py"))) { throw "LocalSunoDb.py not found." }
 if (-not (Test-Path (Join-Path $Root "LS_Elza\__init__.py"))) {
-    throw "LS_Elza nav atrasts. Recovery apzināti Elza nepārraksta."
+    throw "LS_Elza not found. Recovery intentionally preserves existing Elza."
 }
 
 $ExpectedScript = (Join-Path $Root "LocalSunoDb.py")
@@ -32,7 +32,7 @@ for ($i=0; $i -lt 40; $i++) {
     Start-Sleep -Milliseconds 250
 }
 if (Get-NetTCPConnection -LocalPort 8765 -State Listen -ErrorAction SilentlyContinue) {
-    throw "Ports 8765 neatbrīvojās."
+    throw "Port 8765 did not become free."
 }
 
 $Py = Get-Command py.exe -ErrorAction SilentlyContinue
@@ -44,7 +44,7 @@ if ($Py) {
     $PythonExe = $Python.Source
     $Args = @("LocalSunoDb.py", "--ls-restarted")
 } else {
-    throw "Python nav atrasts."
+    throw "Python not found."
 }
 
 $Stdout = Join-Path $Root "RECOVER_V228_STDOUT.log"
@@ -72,7 +72,7 @@ if (-not $Ok) {
     if (Test-Path $Stdout) { Get-Content $Stdout | Select-Object -Last 200 | Add-Content $Log -Encoding UTF8 }
     if (Test-Path $Stderr) { Get-Content $Stderr | Select-Object -Last 200 | Add-Content $Log -Encoding UTF8 }
     if (Test-Path (Join-Path $Root "error.log")) { Get-Content (Join-Path $Root "error.log") | Select-Object -Last 200 | Add-Content $Log -Encoding UTF8 }
-    throw "LS v2.28 nestartējās. Skatīt RECOVER_V228.log."
+    throw "LS v2.28 did not start. See RECOVER_V228.log."
 }
 
 Log "RESULT: PASS - LS v2.28 HTTP 200"
