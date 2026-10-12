@@ -950,6 +950,191 @@ def fetch_suno_feed_page(cursor=None, limit=100, workspace_id="default"):
         raise RuntimeError(f"Suno API HTTP {e.code}: {detail}") from e
 
 
+_SUNO_PLAYLIST_ID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.I,
+)
+
+
+def normalize_suno_playlist_id(value):
+    text = str(value or "").strip()
+    if not text:
+        raise ValueError("Suno playlist URL or ID is required.")
+
+    if _SUNO_PLAYLIST_ID_RE.fullmatch(text):
+        return text.lower()
+
+    try:
+        parsed = urllib.parse.urlparse(text)
+    except Exception:
+        parsed = None
+
+    path = str(getattr(parsed, "path", "") or "")
+    match = re.search(
+        r"/playlist/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:/|$)",
+        path,
+        re.I,
+    )
+    if match:
+        return match.group(1).lower()
+
+    raise ValueError("Invalid Suno playlist URL or ID.")
+
+
+def fetch_suno_playlist_detail(playlist_url_or_id):
+    playlist_id = normalize_suno_playlist_id(playlist_url_or_id)
+    headers = suno_api_headers()
+    url = f"https://studio-api-prod.suno.com/api/playlist/{playlist_id}/"
+    request = urllib.request.Request(url, headers=headers, method="GET")
+    try:
+        with urllib.request.urlopen(request, timeout=45) as response:
+            data = json.loads(response.read().decode("utf-8", errors="replace"))
+        mark_suno_api_token_valid()
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:800]
+        if exc.code == 401:
+            mark_suno_api_token_invalid()
+            raise SunoAuthenticationError(
+                "Suno API HTTP 401: token is expired or invalid. Use Renew Suno login in LS."
+            ) from exc
+        if exc.code == 429:
+            raise SunoRateLimitError(
+                "Suno API HTTP 429: Too many requests. Wait 5-10 minutes and try again."
+            ) from exc
+        raise RuntimeError(f"Suno playlist API HTTP {exc.code}: {detail}") from exc
+
+    if not isinstance(data, dict):
+        raise RuntimeError("Suno playlist API returned an invalid response.")
+
+    wrappers = data.get("playlist_clips") or []
+    if not isinstance(wrappers, list):
+        wrappers = []
+
+    tracks = []
+    for entry in wrappers:
+        if not isinstance(entry, dict):
+            continue
+        raw = entry.get("clip") if isinstance(entry.get("clip"), dict) else entry
+        if not isinstance(raw, dict):
+            continue
+        track_id = str(raw.get("id") or raw.get("clip_id") or "").strip()
+        if track_id:
+            tracks.append(raw)
+
+    try:
+        expected_count = int(data.get("num_total_results"))
+    except (TypeError, ValueError):
+        expected_count = len(wrappers)
+
+    return {
+        "playlist_id": playlist_id,
+        "playlist_url": f"https://suno.com/playlist/{playlist_id}",
+        "playlist_name": str(data.get("name") or "Suno playlist").strip() or "Suno playlist",
+        "expected_count": max(0, expected_count),
+        "raw_count": len(wrappers),
+        "complete": expected_count == len(wrappers),
+        "tracks": tracks,
+    }
+
+
+def build_suno_playlist_preview(playlist_url_or_id):
+    detail = fetch_suno_playlist_detail(playlist_url_or_id)
+    ls_ids, _ls_map = get_track_identity_snapshot()
+
+    items = []
+    skipped_stems = 0
+    for raw in detail["tracks"]:
+        if is_suno_stem_track(raw):
+            skipped_stems += 1
+            continue
+        meta = extract_suno_metadata_for_ls(raw)
+        track_id = str(meta.get("id") or raw.get("id") or raw.get("clip_id") or "").strip()
+        if not track_id:
+            continue
+        items.append({
+            "id": track_id,
+            "short_id": track_id[:8],
+            "title": meta.get("title") or raw.get("title") or "(untitled)",
+            "created_at": meta.get("created_at") or raw.get("created_at") or "",
+            "workspace": meta.get("workspaceName") or meta.get("workspace_name") or "",
+            "model_name": meta.get("model_name") or "",
+            "audio_url": meta.get("audio_url") or raw.get("audio_url") or "",
+            "has_lyrics": bool(meta.get("lyrics")),
+            "has_prompt": bool(meta.get("prompt")),
+            "has_style": bool(meta.get("metadata_tags")),
+            "in_ls_db": track_id.lower() in ls_ids,
+        })
+
+    return {
+        "ok": True,
+        "playlist_id": detail["playlist_id"],
+        "playlist_url": detail["playlist_url"],
+        "playlist_name": detail["playlist_name"],
+        "expected_count": detail["expected_count"],
+        "raw_count": detail["raw_count"],
+        "complete": detail["complete"],
+        "track_count": len(items),
+        "skipped_stems": skipped_stems,
+        "new_count": sum(1 for item in items if not item["in_ls_db"]),
+        "existing_count": sum(1 for item in items if item["in_ls_db"]),
+        "items": items,
+    }
+
+
+def import_suno_playlist_selected(playlist_url_or_id, track_ids):
+    selected = []
+    seen = set()
+    for value in track_ids or []:
+        track_id = str(value or "").strip()
+        key = track_id.lower()
+        if track_id and key not in seen:
+            selected.append(track_id)
+            seen.add(key)
+
+    if not selected:
+        return {"ok": False, "error": "No Suno playlist tracks selected."}
+
+    detail = fetch_suno_playlist_detail(playlist_url_or_id)
+    wanted = {track_id.lower() for track_id in selected}
+    tracks = []
+    found = set()
+    for raw in detail["tracks"]:
+        track_id = str(raw.get("id") or raw.get("clip_id") or "").strip()
+        key = track_id.lower()
+        if not track_id or key not in wanted or is_suno_stem_track(raw):
+            continue
+        tracks.append(raw)
+        found.add(key)
+
+    missing = [track_id for track_id in selected if track_id.lower() not in found]
+    if missing:
+        return {
+            "ok": False,
+            "error": "Some selected tracks are no longer present in the Suno playlist.",
+            "missing_ids": missing,
+        }
+
+    prepared_tracks = [
+        {
+            "raw": raw,
+            "meta": extract_suno_metadata_for_ls(raw),
+            "is_stem": False,
+        }
+        for raw in tracks
+    ]
+    result = insert_suno_tracks_metadata_only(prepared_tracks)
+    result.update({
+        "playlist_id": detail["playlist_id"],
+        "playlist_url": detail["playlist_url"],
+        "playlist_name": detail["playlist_name"],
+        "playlist_track_ids": [
+            str(raw.get("id") or raw.get("clip_id") or "").strip()
+            for raw in tracks
+        ],
+    })
+    return result
+
+
 def ignore_suno_tracklist_selected(track_ids):
     selected = []
     seen = set()
