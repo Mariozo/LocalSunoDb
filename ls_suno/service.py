@@ -26,7 +26,12 @@ from pathlib import Path, PurePosixPath
 
 from ls_core.runtime import *
 from ls_core.assets import asset_text
-from ls_data.repository import get_track_download_info
+from ls_data.repository import (
+    extract_suno_metadata_for_ls,
+    get_track_download_info,
+    get_track_identity_snapshot,
+    insert_suno_tracks_metadata_only,
+)
 
 SUNO_METADATA_JOB_THREAD = None
 SUNO_TOKEN_INVALID_IN_PROCESS = False
