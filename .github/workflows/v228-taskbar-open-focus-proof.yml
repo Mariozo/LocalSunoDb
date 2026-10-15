@@ -23,42 +23,8 @@ jobs:
           python -m pytest -q tests/test_taskbar_open_focus.py tests/test_backend_restart.py
       - name: Build exact repair ZIP
         run: |
-          python - <<'PY'
-          import zipfile
-          from pathlib import Path
-
-          cmd = r'''@echo off
-setlocal
-cd /d "%~dp0"
-where py >nul 2>nul
-if %errorlevel%==0 (
-  py -3 "ls_tools\launcher.py" --repair-taskbar-shortcut
-) else (
-  python "ls_tools\launcher.py" --repair-taskbar-shortcut
-)
-set RC=%ERRORLEVEL%
-echo.
-if "%RC%"=="0" (
-  echo Taskbar repair PASS.
-) else (
-  echo Taskbar repair FAIL.
-)
-pause
-exit /b %RC%
-'''
-          Path("REPAIR_LS_TASKBAR_FINAL.cmd").write_text(cmd, encoding="ascii")
-          files = [
-              "ls_tools/launcher.py",
-              "REPAIR_LS_TASKBAR_FINAL.cmd",
-          ]
-          out = "LocalSunoDb_v228_TASKBAR_OPEN_FOCUS_FIX.zip"
-          with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
-              for file in files:
-                  z.write(file, file)
-          with zipfile.ZipFile(out, "r") as z:
-              assert z.namelist() == files
-              assert z.testzip() is None
-          PY
+          zip -9 LocalSunoDb_v228_TASKBAR_OPEN_FOCUS_FIX.zip ls_tools/launcher.py REPAIR_LS_TASKBAR_FINAL.cmd
+          unzip -t LocalSunoDb_v228_TASKBAR_OPEN_FOCUS_FIX.zip
       - uses: actions/upload-artifact@v4
         with:
           name: LocalSunoDb-v228-TASKBAR-OPEN-FOCUS-FIX
