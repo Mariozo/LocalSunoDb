@@ -7,12 +7,4 @@ if %errorlevel%==0 (
 ) else (
   python "ls_tools\launcher.py" --repair-taskbar-shortcut
 )
-set RC=%ERRORLEVEL%
-echo.
-if "%RC%"=="0" (
-  echo Taskbar repair PASS.
-) else (
-  echo Taskbar repair FAIL.
-)
-pause
-exit /b %RC%
+exit /b %ERRORLEVEL%
