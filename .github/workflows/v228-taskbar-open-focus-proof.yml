@@ -1,0 +1,132 @@
+name: v2.28 taskbar open-focus proof
+
+on:
+  push:
+    branches:
+      - fix/v228-taskbar-open-focus
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Focused tests
+        run: |
+          python -m pip install pytest
+          python -m py_compile ls_tools/launcher.py
+          python -m pytest -q tests/test_taskbar_open_focus.py tests/test_backend_restart.py
+      - name: Build exact repair ZIP
+        run: |
+          python - <<'PY'
+          import zipfile
+          from pathlib import Path
+
+          cmd = r'''@echo off
+setlocal
+cd /d "%~dp0"
+where py >nul 2>nul
+if %errorlevel%==0 (
+  py -3 "ls_tools\launcher.py" --repair-taskbar-shortcut
+) else (
+  python "ls_tools\launcher.py" --repair-taskbar-shortcut
+)
+set RC=%ERRORLEVEL%
+echo.
+if "%RC%"=="0" (
+  echo Taskbar repair PASS.
+) else (
+  echo Taskbar repair FAIL.
+)
+pause
+exit /b %RC%
+'''
+          Path("REPAIR_LS_TASKBAR_FINAL.cmd").write_text(cmd, encoding="ascii")
+          files = [
+              "ls_tools/launcher.py",
+              "REPAIR_LS_TASKBAR_FINAL.cmd",
+          ]
+          out = "LocalSunoDb_v228_TASKBAR_OPEN_FOCUS_FIX.zip"
+          with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
+              for file in files:
+                  z.write(file, file)
+          with zipfile.ZipFile(out, "r") as z:
+              assert z.namelist() == files
+              assert z.testzip() is None
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LocalSunoDb-v228-TASKBAR-OPEN-FOCUS-FIX
+          path: LocalSunoDb_v228_TASKBAR_OPEN_FOCUS_FIX.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  windows-exact-artifact:
+    needs: test-and-package
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 6adb851ddf5845b199a435b1099d7227d71d422d
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: LocalSunoDb-v228-TASKBAR-OPEN-FOCUS-FIX
+          path: artifact
+      - name: Overlay exact ZIP
+        shell: pwsh
+        run: |
+          Expand-Archive -Path ".\artifact\LocalSunoDb_v228_TASKBAR_OPEN_FOCUS_FIX.zip" -DestinationPath "." -Force
+          python -m py_compile ls_tools\launcher.py
+      - name: Create old-style LS taskbar pin
+        shell: pwsh
+        run: |
+          $TaskbarDir = Join-Path $env:APPDATA 'Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar'
+          New-Item -ItemType Directory -Path $TaskbarDir -Force | Out-Null
+          $Pin = Join-Path $TaskbarDir 'LocalSunoDb.lnk'
+          $Shell = New-Object -ComObject WScript.Shell
+          $S = $Shell.CreateShortcut($Pin)
+          $S.TargetPath = (Get-Command python.exe).Source
+          $S.Arguments = '"' + (Join-Path $PWD 'ls_tools\launcher.py') + '" --launch-browser-tab'
+          $S.WorkingDirectory = [string]$PWD
+          $S.IconLocation = (Join-Path $PWD 'ls_web\static\LS.ico') + ',0'
+          $S.Save()
+      - name: Repair twice and verify stable pin
+        shell: pwsh
+        run: |
+          cmd.exe /c ".\REPAIR_LS_TASKBAR_FINAL.cmd < nul"
+          if ($LASTEXITCODE -ne 0) { throw "First repair failed" }
+          cmd.exe /c ".\REPAIR_LS_TASKBAR_FINAL.cmd < nul"
+          if ($LASTEXITCODE -ne 0) { throw "Second repair failed" }
+
+          $TaskbarDir = Join-Path $env:APPDATA 'Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar'
+          $Pin = Join-Path $TaskbarDir 'LocalSunoDb.lnk'
+          if (-not (Test-Path $Pin)) { throw "Taskbar pin disappeared" }
+
+          $Shell = New-Object -ComObject WScript.Shell
+          $S = $Shell.CreateShortcut($Pin)
+          if ($S.TargetPath -notmatch '(?i)pythonw?\.exe$') {
+            throw ("Unexpected target: " + $S.TargetPath)
+          }
+          if ($S.Arguments -notmatch '(?i)ls_tools[\\/]launcher\.py') {
+            throw ("Launcher path missing: " + $S.Arguments)
+          }
+          if ($S.Arguments -notmatch '--launch-chrome-app') {
+            throw ("Chrome app flag missing: " + $S.Arguments)
+          }
+          if ($S.Arguments -match '--launch-browser-tab') {
+            throw ("Old browser-tab flag still present: " + $S.Arguments)
+          }
+      - name: Focused Windows tests
+        shell: pwsh
+        run: |
+          python -m pip install pytest
+          python -m pytest -q tests\test_taskbar_open_focus.py tests\test_backend_restart.py
