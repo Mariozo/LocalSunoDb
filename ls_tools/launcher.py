@@ -39,6 +39,7 @@ LS_BACKEND_SUPERVISOR_FLAG = "--backend-supervisor"
 LS_BACKEND_AUTOSTART_INSTALL_FLAG = "--install-backend-autostart"
 LS_BACKEND_RESTART_FLAG = "--restart-backend"
 LS_BACKEND_RESTART_QUIET_FLAG = "--quiet-restart"
+LS_TASKBAR_REPAIR_FLAG = "--repair-taskbar-shortcut"
 LS_BACKEND_RESTART_GUARD_PATH = Path(HOST_ROOT) / "Temp" / "ls_backend_restart.guard"
 LS_BACKEND_RUN_VALUE_NAME = "LocalSunoDbBackend"
 LS_BROWSER_MANAGED_FLAG = "--ls-browser-managed"
@@ -2350,6 +2351,13 @@ def _show_launcher_error(exc):
 
 def main():
     try:
+        if LS_TASKBAR_REPAIR_FLAG in sys.argv:
+            result = create_localsunodb_launcher_shortcut()
+            if int(result.get("taskbar_shortcuts_rewritten") or 0) < 1:
+                raise RuntimeError(
+                    "No existing LocalSunoDb taskbar shortcut was found to repair."
+                )
+            return 0
         if LS_BACKEND_RESTART_FLAG in sys.argv:
             result = restart_localsunodb_backend()
             if os.name == "nt" and LS_BACKEND_RESTART_QUIET_FLAG not in sys.argv:
