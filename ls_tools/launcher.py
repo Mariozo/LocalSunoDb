@@ -956,10 +956,14 @@ def rebind_taskbar_localsunodb_shortcuts(
     chrome_executable=None,
     profile_directory=None,
 ):
-    """Rewrite existing LS taskbar pins in place as direct Chrome --app shortcuts."""
+    """Rewrite LS taskbar pins to the native launcher and bind them to Chrome app identity."""
     paths = list(pinned_paths) if pinned_paths is not None else _taskbar_pinned_shortcuts()
     writer = shortcut_writer or _write_windows_shortcut
     spec = build_browser_tab_launcher_shortcut_spec()
+    profile = str(
+        profile_directory or _chrome_last_used_profile_directory() or LS_CHROME_DEFAULT_PROFILE
+    ).strip() or LS_CHROME_DEFAULT_PROFILE
+    app_id = expected_chrome_app_url_aumid(LS_APP_URL, profile_directory=profile)
     changed = 0
     for raw_path in paths:
         path = Path(raw_path)
@@ -967,6 +971,7 @@ def rebind_taskbar_localsunodb_shortcuts(
             if not path.is_file():
                 continue
             writer(path, spec)
+            set_localsunodb_shortcut_app_id(path, app_user_model_id=app_id)
             changed += 1
         except Exception:
             continue
@@ -2076,9 +2081,32 @@ def run_localsunodb_browser_tab(
     }
 
 
-def run_localsunodb_chrome_app():
-    """Legacy shortcut alias; Chrome app/PWA mode now opens the standard browser-tab flow."""
-    return run_localsunodb_browser_tab()
+def run_localsunodb_chrome_app(
+    *,
+    backend_ensurer=None,
+    app_opener=None,
+    autostart_cleaner=None,
+):
+    """Ensure the backend, then open or focus the canonical LS Chrome app window."""
+    cleaner = autostart_cleaner or (
+        lambda: uninstall_localsunodb_backend_autostart(stop_supervisors=True)
+    )
+    cleaner()
+    ensure_backend = backend_ensurer or ensure_localsunodb_backend_ready
+    status, cold_started = ensure_backend()
+    target_url = build_localsunodb_app_url((status or {}).get("last_view_url"))
+    opener = app_opener or open_or_focus_localsunodb_chrome_app
+    opened = opener(url=target_url)
+    if not isinstance(opened, dict) or not opened.get("ok"):
+        raise RuntimeError("LocalSunoDb Chrome app window could not be opened or focused.")
+    return {
+        "ok": True,
+        "action": opened.get("action") or (
+            "backend_started_and_app_opened" if cold_started else "app_opened"
+        ),
+        "url": target_url,
+        "running_version": _backend_status_version(status),
+    }
 
 
 
@@ -2086,16 +2114,23 @@ def build_browser_tab_launcher_shortcut_spec(
     *,
     host_root=None,
     launcher_path=None,
+    python_executable=None,
     **_ignored,
 ):
-    """Windows shortcut contract matching Suno Finder's stable CMD launcher."""
+    """Native no-console shortcut that ensures backend and opens/focuses the LS app."""
     host_root = Path(host_root or HOST_ROOT).resolve()
     launcher_path = Path(
-        launcher_path or (host_root / "Start_LocalSunoDb.cmd")
+        launcher_path or Path(__file__).resolve()
+    ).resolve()
+    python_executable = Path(
+        python_executable or _background_python_executable()
     ).resolve()
     return {
-        "target_path": str(launcher_path),
-        "arguments": "",
+        "target_path": str(python_executable),
+        "arguments": subprocess.list2cmdline([
+            str(launcher_path),
+            LS_CHROME_APP_LAUNCH_FLAG,
+        ]),
         "working_directory": str(host_root),
         "icon_location": str(LS_ICON_PATH.resolve()) + ",0",
     }
@@ -2350,7 +2385,10 @@ def main():
         if LS_BACKEND_ONLY_FLAG in sys.argv:
             run_localsunodb_backend_only()
             return 0
-        if LS_BROWSER_TAB_LAUNCH_FLAG in sys.argv or LS_CHROME_APP_LAUNCH_FLAG in sys.argv:
+        if LS_CHROME_APP_LAUNCH_FLAG in sys.argv:
+            run_localsunodb_chrome_app()
+            return 0
+        if LS_BROWSER_TAB_LAUNCH_FLAG in sys.argv:
             run_localsunodb_browser_tab()
             return 0
         return 0
