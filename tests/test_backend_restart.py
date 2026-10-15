@@ -165,16 +165,19 @@ def test_browser_tab_launcher_waits_for_backend_before_opening():
     assert result["browser_opened"] is True
 
 
-def test_browser_tab_shortcut_uses_stable_sf_style_cmd_launcher(tmp_path):
-    cmd = tmp_path / "Start_LocalSunoDb.cmd"
+def test_browser_tab_shortcut_uses_native_no_console_launcher(tmp_path):
+    launcher_path = tmp_path / "ls_tools" / "launcher.py"
+    pythonw = tmp_path / "pythonw.exe"
     spec = launcher.build_browser_tab_launcher_shortcut_spec(
-        launcher_path=cmd,
+        launcher_path=launcher_path,
+        python_executable=pythonw,
         host_root=tmp_path,
     )
 
-    assert spec["target_path"] == str(cmd.resolve())
-    assert spec["arguments"] == ""
-    assert "--app=" not in spec["arguments"]
+    assert spec["target_path"] == str(pythonw.resolve())
+    assert str(launcher_path.resolve()) in spec["arguments"]
+    assert launcher.LS_CHROME_APP_LAUNCH_FLAG in spec["arguments"]
+    assert launcher.LS_BROWSER_TAB_LAUNCH_FLAG not in spec["arguments"]
     assert spec["working_directory"] == str(tmp_path.resolve())
 
 
