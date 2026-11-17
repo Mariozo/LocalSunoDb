@@ -11,6 +11,18 @@
                             </div>
                         </div>
 
+                        <div class="status" id="suno-mcp-proof-card">
+                            <strong>Oficiālais Suno MCP — read-only proof</strong>
+                            <div class="muted" id="suno-mcp-proof-summary">
+                                OAuth vēl nav pārbaudīts šajā LS instalācijā. Šis tests DB nemaina un neizsauc maksas Suno darbības.
+                            </div>
+                            <div class="connection-token-actions">
+                                <button type="button" class="green" id="suno-mcp-connect-btn" data-action-label="Pieslēgt Suno MCP">Pieslēgt Suno MCP</button>
+                                <button type="button" class="secondary" id="suno-mcp-proof-btn" data-action-label="Pārbaudīt Suno MCP">Pārbaudīt MCP</button>
+                            </div>
+                            <pre id="suno-mcp-proof-result" style="white-space:pre-wrap; margin:10px 0 0;"></pre>
+                        </div>
+
                         <div class="connection-primary-actions">
                             <button type="button" class="orange big-action" id="repair-token-bridge-btn" data-action-label="Salabot Token Bridge" hidden>Salabot Token Bridge</button>
                             <button type="button" class="btn green big-action" id="renew-suno-login-btn" data-action-label="Atjaunot Suno pieslēgumu">Atjaunot Suno pieslēgumu</button>
@@ -55,4 +67,5 @@
                     </details>
 
                 </section>
+                <script src="/ls-static/ls_downloader/static/downloader_suno_mcp_proof_script.js" defer></script>
 
