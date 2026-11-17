@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feat/suno-mcp-readonly-proof
+      - fix/suno-mcp-readonly-minimal-scope
   workflow_dispatch:
 
 permissions:
@@ -32,15 +33,13 @@ jobs:
           import subprocess
           runtime = {
               name for name in subprocess.check_output(
-                  ["git", "diff", "--name-only", "43eed4c5948416d9fe4d1e5173ca3da1ee938930...HEAD"],
+                  ["git", "diff", "--name-only", "057654d0ec793a71fe41c06b4fe6158729eb7859...HEAD"],
                   text=True,
               ).splitlines()
               if name and not name.startswith(("tests/", ".github/"))
           }
           expected = {
               "ls_suno/mcp_client.py",
-              "ls_downloader/controller.py",
-              "ls_downloader/templates/connection_section.html",
               "ls_downloader/static/downloader_suno_mcp_proof_script.js",
           }
           assert runtime == expected, (runtime, expected)
@@ -52,11 +51,9 @@ jobs:
           from pathlib import Path
           files = [
               "ls_suno/mcp_client.py",
-              "ls_downloader/controller.py",
-              "ls_downloader/templates/connection_section.html",
               "ls_downloader/static/downloader_suno_mcp_proof_script.js",
           ]
-          out = Path("LocalSunoDb_SUNO_MCP_READONLY_PROOF_DELTA.zip")
+          out = Path("LocalSunoDb_SUNO_MCP_MINIMAL_SCOPE_FIX.zip")
           with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
               for name in files:
                   z.write(name, name)
@@ -66,7 +63,7 @@ jobs:
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: LocalSunoDb-SUNO-MCP-READONLY-PROOF
+          name: LocalSunoDb-SUNO-MCP-MINIMAL-SCOPE-FIX
           path: LocalSunoDb_SUNO_MCP_READONLY_PROOF_DELTA.zip
           if-no-files-found: error
           retention-days: 7
@@ -78,7 +75,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 43eed4c5948416d9fe4d1e5173ca3da1ee938930
+          ref: 057654d0ec793a71fe41c06b4fe6158729eb7859
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
