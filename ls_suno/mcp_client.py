@@ -1,10 +1,9 @@
 """Read-only proof client for Suno's official MCP/OAuth connection.
 
 This module does not write the LS database and does not invoke any Suno tool
-that creates, edits, downloads, or otherwise spends credits.  The OAuth grant
-includes Suno's currently advertised credits:spend scope because the official
-MCP resource uses that scope set for account usage; the proof itself calls only
-account-me, account-usage, and library-list.
+that creates, edits, downloads, or otherwise spends credits. The proof requests
+only the minimum scopes needed for account identity and Library read access,
+then calls only account-me and library-list.
 """
 
 import base64
@@ -33,9 +32,7 @@ SUNO_MCP_TOKEN_URL = (
     "https://studio-api-prod.suno.com/api/v2/external/oauth/token/"
 )
 SUNO_MCP_PROTOCOL_VERSION = "2025-06-18"
-SUNO_MCP_SCOPE = (
-    "api:v0 profile:read library:read credits:spend offline_access"
-)
+SUNO_MCP_SCOPE = "api:v0 profile:read library:read"
 SUNO_MCP_CREDENTIALS_PATH = DATA_DIR / "suno_mcp_oauth.json"
 SUNO_MCP_REDIRECT_PATH = "/suno-mcp-oauth-callback"
 SUNO_MCP_USER_AGENT = (
@@ -206,7 +203,7 @@ def start_suno_mcp_oauth():
         payload={
             "client_name": "LocalSunoDb MCP Proof",
             "redirect_uris": [redirect_uri],
-            "grant_types": ["authorization_code", "refresh_token"],
+            "grant_types": ["authorization_code"],
             "response_types": ["code"],
             "token_endpoint_auth_method": "none",
             "scope": SUNO_MCP_SCOPE,
@@ -472,28 +469,6 @@ def _account_summary(account):
     }
 
 
-def _usage_summary(usage):
-    if not isinstance(usage, dict):
-        return {}
-    account = usage.get("suno_account")
-    if not isinstance(account, dict):
-        account = {}
-    plan = account.get("plan")
-    if not isinstance(plan, dict):
-        plan = {}
-    return {
-        "plan": str(plan.get("name") or ""),
-        "period": str(plan.get("period") or ""),
-        "credits_remaining": account.get("credits_remaining"),
-        "download_credits_remaining": account.get("download_credits_remaining"),
-        "monthly_usage": account.get("monthly_usage"),
-        "monthly_limit": account.get("monthly_limit"),
-        "renews_on": str(account.get("renews_on") or ""),
-        "allowed_models": list(usage.get("allowed_models") or []),
-        "features": list(usage.get("features") or []),
-    }
-
-
 def _library_summary(page, limit=5):
     if not isinstance(page, dict):
         return {"count": 0, "items": [], "next_cursor": ""}
@@ -526,14 +501,12 @@ def run_suno_mcp_readonly_proof():
     token = _valid_access_token()
     session = _McpSession(token)
     account = session.call_tool("account-me", {})
-    usage = session.call_tool("account-usage", {})
     library = session.call_tool("library-list", {"limit": 5})
     result = {
         "ok": True,
         "connected": True,
-        "proof": "account-me + account-usage + library-list",
+        "proof": "account-me + library-list",
         "account": _account_summary(account),
-        "usage": _usage_summary(usage),
         "library": _library_summary(library, limit=5),
         "db_writes": 0,
         "credit_spend_calls": 0,
