@@ -26,8 +26,8 @@ def test_oauth_start_uses_pkce_and_readonly_proof_scope(monkeypatch):
     assert "api:v0" in scope
     assert "profile:read" in scope
     assert "library:read" in scope
-    assert "credits:spend" in scope
-    assert "offline_access" in scope
+    assert "credits:spend" not in scope
+    assert "offline_access" not in scope
     assert "library:write" not in scope
     assert "download" not in scope
     assert calls[0][0] == mcp_client.SUNO_MCP_REGISTER_URL
@@ -43,7 +43,6 @@ def test_oauth_callback_exchanges_code_and_saves_credentials(tmp_path, monkeypat
         ({"client_id": "client-abc"}, {}),
         ({
             "access_token": "access-xyz",
-            "refresh_token": "refresh-xyz",
             "token_type": "Bearer",
             "expires_in": 900,
             "scope": mcp_client.SUNO_MCP_SCOPE,
@@ -68,7 +67,7 @@ def test_oauth_callback_exchanges_code_and_saves_credentials(tmp_path, monkeypat
     )
     assert saved["client_id"] == "client-abc"
     assert saved["access_token"] == "access-xyz"
-    assert saved["refresh_token"] == "refresh-xyz"
+    assert saved["refresh_token"] == ""
     assert saved["obtained_at"] > 0
 
 
@@ -86,19 +85,6 @@ def test_readonly_proof_calls_only_read_tools(monkeypatch):
                     "display_name": "M",
                     "handle": "m",
                     "profile_url": "https://suno.com/@m",
-                }
-            if name == "account-usage":
-                return {
-                    "allowed_models": ["v6"],
-                    "features": [],
-                    "suno_account": {
-                        "credits_remaining": 10,
-                        "download_credits_remaining": 3,
-                        "monthly_usage": 1,
-                        "monthly_limit": 10,
-                        "renews_on": "2026-12-01",
-                        "plan": {"name": "Pro", "period": "monthly"},
-                    },
                 }
             if name == "library-list":
                 return {
@@ -120,7 +106,6 @@ def test_readonly_proof_calls_only_read_tools(monkeypatch):
 
     assert [name for name, _args in called] == [
         "account-me",
-        "account-usage",
         "library-list",
     ]
     assert called[-1][1] == {"limit": 5}
