@@ -1,0 +1,149 @@
+name: Suno MCP read-only proof
+
+on:
+  push:
+    branches:
+      - feat/suno-mcp-readonly-proof
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  focused-proof:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Focused syntax and tests
+        run: |
+          python -m pip install pytest
+          python -m py_compile ls_suno/mcp_client.py ls_downloader/controller.py
+          node --check ls_downloader/static/downloader_suno_mcp_proof_script.js
+          python -m pytest -q tests/test_suno_mcp_readonly_proof.py
+          git diff --check
+      - name: Verify exact runtime delta
+        run: |
+          python - <<'PY'
+          import subprocess
+          runtime = {
+              name for name in subprocess.check_output(
+                  ["git", "diff", "--name-only", "43eed4c5948416d9fe4d1e5173ca3da1ee938930...HEAD"],
+                  text=True,
+              ).splitlines()
+              if name and not name.startswith(("tests/", ".github/"))
+          }
+          expected = {
+              "ls_suno/mcp_client.py",
+              "ls_downloader/controller.py",
+              "ls_downloader/templates/connection_section.html",
+              "ls_downloader/static/downloader_suno_mcp_proof_script.js",
+          }
+          assert runtime == expected, (runtime, expected)
+          PY
+      - name: Build exact proof ZIP
+        run: |
+          python - <<'PY'
+          import zipfile
+          from pathlib import Path
+          files = [
+              "ls_suno/mcp_client.py",
+              "ls_downloader/controller.py",
+              "ls_downloader/templates/connection_section.html",
+              "ls_downloader/static/downloader_suno_mcp_proof_script.js",
+          ]
+          out = Path("LocalSunoDb_SUNO_MCP_READONLY_PROOF_DELTA.zip")
+          with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
+              for name in files:
+                  z.write(name, name)
+          with zipfile.ZipFile(out, "r") as z:
+              assert z.namelist() == files
+              assert z.testzip() is None
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LocalSunoDb-SUNO-MCP-READONLY-PROOF
+          path: LocalSunoDb_SUNO_MCP_READONLY_PROOF_DELTA.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  windows-exact-artifact:
+    needs: focused-proof
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 43eed4c5948416d9fe4d1e5173ca3da1ee938930
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: LocalSunoDb-SUNO-MCP-READONLY-PROOF
+          path: artifact
+      - name: Overlay exact ZIP and verify syntax
+        shell: pwsh
+        run: |
+          Expand-Archive -Path ".\artifact\LocalSunoDb_SUNO_MCP_READONLY_PROOF_DELTA.zip" -DestinationPath "." -Force
+          python -m py_compile ls_suno\mcp_client.py ls_downloader\controller.py
+          node --check ls_downloader\static\downloader_suno_mcp_proof_script.js
+          python LocalSunoDb.py --ls-update-probe
+      - name: Start exact overlaid LS
+        shell: pwsh
+        run: |
+          $p = Start-Process python -ArgumentList @("LocalSunoDb.py","--ls-restarted") -PassThru -RedirectStandardOutput "mcp-proof-server.log" -RedirectStandardError "mcp-proof-server.err"
+          $p.Id | Out-File -Encoding ascii mcp-proof-server.pid
+          @'
+          import time
+          from urllib.request import urlopen
+
+          for _ in range(160):
+              try:
+                  with urlopen("http://127.0.0.1:8765/app-version", timeout=1) as response:
+                      if response.status == 200:
+                          raise SystemExit(0)
+              except Exception:
+                  time.sleep(0.25)
+          raise SystemExit("LS server did not start")
+          '@ | python -
+      - name: Verify Downloader proof surface and no-network status
+        shell: pwsh
+        run: |
+          @'
+          import json
+          from urllib.request import urlopen
+
+          with urlopen("http://127.0.0.1:8765/downloader", timeout=5) as response:
+              page = response.read().decode("utf-8", errors="replace")
+          assert 'id="suno-mcp-connect-btn"' in page
+          assert 'id="suno-mcp-proof-btn"' in page
+          assert "downloader_suno_mcp_proof_script.js" in page
+
+          with urlopen("http://127.0.0.1:8765/suno-mcp-proof-status?run=0", timeout=5) as response:
+              payload = json.loads(response.read().decode("utf-8"))
+          assert payload["ok"] is True
+          assert payload["connected"] is False
+          '@ | python -
+      - name: Stop LS
+        if: always()
+        shell: pwsh
+        run: |
+          if (Test-Path mcp-proof-server.pid) {
+            $pidValue = [int](Get-Content mcp-proof-server.pid)
+            Stop-Process -Id $pidValue -Force -ErrorAction SilentlyContinue
+          }
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: suno-mcp-proof-diagnostics
+          path: |
+            mcp-proof-server.log
+            mcp-proof-server.err
+          if-no-files-found: warn
+          retention-days: 3
