@@ -1,10 +1,43 @@
 from ls_core.runtime import *
 from ls_downloader.token_bridge_liveness import ensure_token_bridge_liveness_files
+from ls_suno.mcp_client import (
+    complete_suno_mcp_oauth,
+    get_suno_mcp_status,
+    render_suno_mcp_oauth_callback_page,
+    start_suno_mcp_oauth,
+)
 
 
 class DownloaderControllerMixin:
     def handle_suno_workflow_get_request(self, path, params):
         """Serve Suno preview, audit, and refresh workflow endpoints."""
+        if path == "/suno-mcp-proof-status":
+            run_proof = str(params.get("run", ["0"])[0]).strip().lower() in {
+                "1", "true", "yes"
+            }
+            payload = get_suno_mcp_status(run_proof=run_proof)
+            self.send_json_response(
+                payload,
+                status=200 if payload.get("ok") else 503,
+                cache_control="no-store, no-cache, must-revalidate, max-age=0",
+            )
+            return
+
+        if path == "/suno-mcp-oauth-callback":
+            try:
+                complete_suno_mcp_oauth(params)
+                self.send_html(
+                    render_suno_mcp_oauth_callback_page(
+                        True,
+                        "Oficiālā Suno OAuth autorizācija ir saņemta. LS tagad var veikt read-only MCP pārbaudi.",
+                    )
+                )
+            except Exception as exc:
+                self.send_html(
+                    render_suno_mcp_oauth_callback_page(False, str(exc))
+                )
+            return
+
         if path == "/suno-meta-preview":
             track_id = params.get("track_id", [""])[0]
             self.send_suno_meta_preview(track_id)
@@ -58,6 +91,17 @@ class DownloaderControllerMixin:
 
     def handle_suno_workflow_post_request(self, path, parsed):
         """Handle Downloader/Suno workflow POST endpoints."""
+        if path == "/suno-mcp-connect":
+            try:
+                payload = start_suno_mcp_oauth()
+                self.send_json_response(payload)
+            except Exception as exc:
+                self.send_json_response(
+                    {"ok": False, "error": str(exc)},
+                    status=503,
+                )
+            return
+
         if path == "/preview-selected-wav-download":
             self.preview_selected_wav_download()
             return
