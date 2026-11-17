@@ -93,50 +93,55 @@ jobs:
           python -m py_compile ls_suno\mcp_client.py ls_downloader\controller.py
           node --check ls_downloader\static\downloader_suno_mcp_proof_script.js
           python LocalSunoDb.py --ls-update-probe
-      - name: Start exact overlaid LS
-        shell: pwsh
-        run: |
-          $p = Start-Process python -ArgumentList @("LocalSunoDb.py","--ls-restarted") -PassThru -RedirectStandardOutput "mcp-proof-server.log" -RedirectStandardError "mcp-proof-server.err"
-          $p.Id | Out-File -Encoding ascii mcp-proof-server.pid
-          @'
-          import time
-          from urllib.request import urlopen
-
-          for _ in range(160):
-              try:
-                  with urlopen("http://127.0.0.1:8765/app-version", timeout=1) as response:
-                      if response.status == 200:
-                          raise SystemExit(0)
-              except Exception:
-                  time.sleep(0.25)
-          raise SystemExit("LS server did not start")
-          '@ | python -
-      - name: Verify Downloader proof surface and no-network status
+      - name: Start and verify exact overlaid LS in one process scope
         shell: pwsh
         run: |
           @'
           import json
+          import subprocess
+          import sys
+          import time
+          from pathlib import Path
           from urllib.request import urlopen
 
-          with urlopen("http://127.0.0.1:8765/downloader", timeout=5) as response:
-              page = response.read().decode("utf-8", errors="replace")
-          assert 'id="suno-mcp-connect-btn"' in page
-          assert 'id="suno-mcp-proof-btn"' in page
-          assert "downloader_suno_mcp_proof_script.js" in page
+          out = open("mcp-proof-server.log", "w", encoding="utf-8")
+          err = open("mcp-proof-server.err", "w", encoding="utf-8")
+          process = subprocess.Popen(
+              [sys.executable, "LocalSunoDb.py", "--ls-restarted"],
+              stdout=out,
+              stderr=err,
+          )
+          try:
+              for _ in range(160):
+                  try:
+                      with urlopen("http://127.0.0.1:8765/app-version", timeout=1) as response:
+                          if response.status == 200:
+                              break
+                  except Exception:
+                      time.sleep(0.25)
+              else:
+                  raise AssertionError("LS server did not start")
 
-          with urlopen("http://127.0.0.1:8765/suno-mcp-proof-status?run=0", timeout=5) as response:
-              payload = json.loads(response.read().decode("utf-8"))
-          assert payload["ok"] is True
-          assert payload["connected"] is False
+              with urlopen("http://127.0.0.1:8765/downloader", timeout=5) as response:
+                  page = response.read().decode("utf-8", errors="replace")
+              assert 'id="suno-mcp-connect-btn"' in page
+              assert 'id="suno-mcp-proof-btn"' in page
+              assert "downloader_suno_mcp_proof_script.js" in page
+
+              with urlopen("http://127.0.0.1:8765/suno-mcp-proof-status?run=0", timeout=5) as response:
+                  payload = json.loads(response.read().decode("utf-8"))
+              assert payload["ok"] is True
+              assert payload["connected"] is False
+          finally:
+              process.terminate()
+              try:
+                  process.wait(timeout=10)
+              except subprocess.TimeoutExpired:
+                  process.kill()
+                  process.wait(timeout=5)
+              out.close()
+              err.close()
           '@ | python -
-      - name: Stop LS
-        if: always()
-        shell: pwsh
-        run: |
-          if (Test-Path mcp-proof-server.pid) {
-            $pidValue = [int](Get-Content mcp-proof-server.pid)
-            Stop-Process -Id $pidValue -Force -ErrorAction SilentlyContinue
-          }
       - name: Upload diagnostics
         if: failure()
         uses: actions/upload-artifact@v4
