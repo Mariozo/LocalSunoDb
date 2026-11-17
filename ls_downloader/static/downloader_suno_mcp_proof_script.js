@@ -26,7 +26,6 @@
             return "";
         }
         const account = data.account || {};
-        const usage = data.usage || {};
         const library = data.library || {};
         const lines = [];
 
@@ -34,19 +33,6 @@
             const handle = account.handle ? " (@" + account.handle + ")" : "";
             lines.push("Konts: " + (account.display_name || "Suno") + handle);
         }
-        if (usage.plan) {
-            lines.push("Plāns: " + usage.plan + (usage.period ? " · " + usage.period : ""));
-        }
-        if (usage.credits_remaining !== null && usage.credits_remaining !== undefined) {
-            lines.push("Kredīti: " + String(usage.credits_remaining));
-        }
-        if (
-            usage.download_credits_remaining !== null &&
-            usage.download_credits_remaining !== undefined
-        ) {
-            lines.push("Download kredīti: " + String(usage.download_credits_remaining));
-        }
-
         const items = Array.isArray(library.items) ? library.items : [];
         lines.push("Library proof: " + String(items.length) + " ieraksti");
         items.forEach((item, index) => {
@@ -92,7 +78,7 @@
             if (runProof) {
                 setState(
                     "ok",
-                    "Suno MCP read-only proof PASS: account-me, account-usage un library-list."
+                    "Suno MCP read-only proof PASS: account-me un library-list."
                 );
                 result.textContent = formatProof(data);
                 return;
