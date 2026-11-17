@@ -64,7 +64,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: LocalSunoDb-SUNO-MCP-MINIMAL-SCOPE-FIX
-          path: LocalSunoDb_SUNO_MCP_READONLY_PROOF_DELTA.zip
+          path: LocalSunoDb_SUNO_MCP_MINIMAL_SCOPE_FIX.zip
           if-no-files-found: error
           retention-days: 7
 
@@ -81,12 +81,12 @@ jobs:
           python-version: '3.12'
       - uses: actions/download-artifact@v4
         with:
-          name: LocalSunoDb-SUNO-MCP-READONLY-PROOF
+          name: LocalSunoDb-SUNO-MCP-MINIMAL-SCOPE-FIX
           path: artifact
       - name: Overlay exact ZIP and verify syntax
         shell: pwsh
         run: |
-          Expand-Archive -Path ".\artifact\LocalSunoDb_SUNO_MCP_READONLY_PROOF_DELTA.zip" -DestinationPath "." -Force
+          Expand-Archive -Path ".\artifact\LocalSunoDb_SUNO_MCP_MINIMAL_SCOPE_FIX.zip" -DestinationPath "." -Force
           python -m py_compile ls_suno\mcp_client.py ls_downloader\controller.py
           node --check ls_downloader\static\downloader_suno_mcp_proof_script.js
           python LocalSunoDb.py --ls-update-probe
