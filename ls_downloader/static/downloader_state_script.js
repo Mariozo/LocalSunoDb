@@ -244,6 +244,9 @@
                 if (state.status_text) {
                     metaStatus.className = "status " + (state.status_mode || "");
                     metaStatus.innerText = state.status_text;
+                } else if (isHistoricalExpiredSunoTokenStatus(metaStatus.innerText)) {
+                    metaStatus.className = "status";
+                    metaStatus.innerText = "Gatavs.";
                 }
                 const savedHtml = String(state.html || "");
                 if (savedHtml) {
