@@ -122,9 +122,18 @@
 
         function readDownloaderStateFromBrowser() {
             try {
-                return normalizeDownloaderState(
-                    JSON.parse(localStorage.getItem(DOWNLOADER_STATE_KEY) || "null")
+                const rawState = JSON.parse(
+                    localStorage.getItem(DOWNLOADER_STATE_KEY) || "null"
                 );
+                const normalized = normalizeDownloaderState(rawState);
+                if (
+                    normalized
+                    && rawState
+                    && isHistoricalExpiredSunoTokenStatus(rawState.status_text)
+                ) {
+                    writeDownloaderStateToBrowser(normalized);
+                }
+                return normalized;
             } catch (error) {
                 return null;
             }
@@ -220,7 +229,15 @@
                 const response = await fetch("/downloader-state", { cache: "no-store" });
                 const data = await response.json();
                 if (response.ok && data.ok && data.state && typeof data.state === "object") {
-                    return normalizeDownloaderState(data.state);
+                    const rawState = data.state;
+                    const normalized = normalizeDownloaderState(rawState);
+                    if (
+                        normalized
+                        && isHistoricalExpiredSunoTokenStatus(rawState.status_text)
+                    ) {
+                        await writeDownloaderStateToServer(normalized);
+                    }
+                    return normalized;
                 }
             } catch (error) {}
             return null;
