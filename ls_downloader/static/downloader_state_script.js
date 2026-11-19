@@ -64,6 +64,12 @@
             return true;
         }
 
+        function isHistoricalExpiredSunoTokenStatus(statusText) {
+            const text = String(statusText || "");
+            return /Suno API HTTP 401/i.test(text)
+                && /(token is expired|token is invalid|expired or invalid|Renew Suno login)/i.test(text);
+        }
+
         function normalizeDownloaderState(candidate) {
             if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
                 return null;
@@ -77,10 +83,12 @@
             if (!isCompatibleDownloaderHtml(htmlText)) {
                 return null;
             }
+            const statusText = String(candidate.status_text || "");
+            const staleAuthStatus = isHistoricalExpiredSunoTokenStatus(statusText);
             return {
                 html: htmlText,
-                status_text: String(candidate.status_text || ""),
-                status_mode: String(candidate.status_mode || ""),
+                status_text: staleAuthStatus ? "" : statusText,
+                status_mode: staleAuthStatus ? "" : String(candidate.status_mode || ""),
                 scroll_y: parseInt(candidate.scroll_y || 0, 10) || 0,
                 checked_controls: Array.isArray(candidate.checked_controls) ? candidate.checked_controls : [],
                 select_values: Array.isArray(candidate.select_values) ? candidate.select_values : [],
