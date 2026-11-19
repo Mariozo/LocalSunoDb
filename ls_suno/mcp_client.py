@@ -522,6 +522,151 @@ def _library_summary(page, limit=5):
     }
 
 
+def _mcp_page_items(page, *keys):
+    if not isinstance(page, dict):
+        return []
+    for key in keys:
+        value = page.get(key)
+        if isinstance(value, list):
+            return value
+    return []
+
+
+def _mcp_next_cursor(page):
+    if not isinstance(page, dict):
+        return ""
+    return str(page.get("next_cursor") or page.get("cursor") or "")
+
+
+def _mcp_clip_row(raw):
+    if not isinstance(raw, dict):
+        return {}
+    clip = raw.get("clip")
+    if isinstance(clip, dict):
+        raw = clip
+    metadata = raw.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+    return {
+        "id": str(raw.get("id") or raw.get("clip_id") or ""),
+        "title": str(raw.get("title") or ""),
+        "status": str(raw.get("status") or ""),
+        "created_at": str(raw.get("created_at") or ""),
+        "visibility": str(raw.get("visibility") or ""),
+        "style": str(metadata.get("style") or raw.get("style") or ""),
+        "duration": metadata.get("duration", raw.get("duration")),
+        "liked": bool(raw.get("liked", False)),
+    }
+
+
+def _mcp_playlist_row(raw):
+    if not isinstance(raw, dict):
+        return {}
+    return {
+        "id": str(raw.get("id") or raw.get("playlist_id") or ""),
+        "name": str(raw.get("name") or raw.get("title") or ""),
+        "description": str(raw.get("description") or ""),
+        "visibility": str(raw.get("visibility") or ""),
+        "clip_count": raw.get("clip_count", raw.get("count")),
+        "created_at": str(raw.get("created_at") or ""),
+        "updated_at": str(raw.get("updated_at") or ""),
+    }
+
+
+def read_suno_mcp_library(limit=50, cursor=""):
+    token = _valid_access_token()
+    session = _McpSession(token)
+    try:
+        limit = max(1, min(50, int(limit or 50)))
+    except (TypeError, ValueError):
+        limit = 50
+    arguments = {"limit": limit}
+    cursor = str(cursor or "").strip()
+    if cursor:
+        arguments["cursor"] = cursor
+    page = session.call_tool("library-list", arguments)
+    rows = [
+        _mcp_clip_row(item)
+        for item in _mcp_page_items(page, "items", "clips")
+    ]
+    rows = [item for item in rows if item.get("id")]
+    return {
+        "ok": True,
+        "source": "suno_mcp",
+        "read_only": True,
+        "items": rows,
+        "count": len(rows),
+        "next_cursor": _mcp_next_cursor(page),
+        "db_writes": 0,
+    }
+
+
+def read_suno_mcp_playlists(limit=50, cursor="", query=""):
+    token = _valid_access_token()
+    session = _McpSession(token)
+    try:
+        limit = max(1, min(50, int(limit or 50)))
+    except (TypeError, ValueError):
+        limit = 50
+    arguments = {"limit": limit}
+    cursor = str(cursor or "").strip()
+    if cursor:
+        arguments["cursor"] = cursor
+    query = str(query or "").strip()
+    if query:
+        arguments["query"] = query[:200]
+    page = session.call_tool("playlists-list", arguments)
+    rows = [
+        _mcp_playlist_row(item)
+        for item in _mcp_page_items(page, "items", "playlists")
+    ]
+    rows = [item for item in rows if item.get("id")]
+    return {
+        "ok": True,
+        "source": "suno_mcp",
+        "read_only": True,
+        "items": rows,
+        "count": len(rows),
+        "next_cursor": _mcp_next_cursor(page),
+        "db_writes": 0,
+    }
+
+
+def read_suno_mcp_playlist_clips(playlist_id, limit=50, cursor=""):
+    playlist_id = str(playlist_id or "").strip()
+    if not playlist_id:
+        raise SunoMcpError("Playlist ID is required")
+    token = _valid_access_token()
+    session = _McpSession(token)
+    try:
+        limit = max(1, min(50, int(limit or 50)))
+    except (TypeError, ValueError):
+        limit = 50
+    arguments = {
+        "id": playlist_id,
+        "limit": limit,
+    }
+    cursor = str(cursor or "").strip()
+    if cursor:
+        arguments["cursor"] = cursor
+    page = session.call_tool("playlists-list-clips", arguments)
+    rows = [
+        _mcp_clip_row(item)
+        for item in _mcp_page_items(page, "items", "clips")
+    ]
+    rows = [item for item in rows if item.get("id")]
+    return {
+        "ok": True,
+        "source": "suno_mcp",
+        "read_only": True,
+        "playlist_id": playlist_id,
+        "items": rows,
+        "count": len(rows),
+        "next_cursor": _mcp_next_cursor(page),
+        "db_writes": 0,
+    }
+
+
 def run_suno_mcp_readonly_proof():
     token = _valid_access_token()
     session = _McpSession(token)
