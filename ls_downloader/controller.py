@@ -3,6 +3,9 @@ from ls_downloader.token_bridge_liveness import ensure_token_bridge_liveness_fil
 from ls_suno.mcp_client import (
     complete_suno_mcp_oauth,
     get_suno_mcp_status,
+    read_suno_mcp_library,
+    read_suno_mcp_playlist_clips,
+    read_suno_mcp_playlists,
     render_suno_mcp_oauth_callback_page,
     start_suno_mcp_oauth,
 )
@@ -21,6 +24,70 @@ class DownloaderControllerMixin:
                 status=200 if payload.get("ok") else 503,
                 cache_control="no-store, no-cache, must-revalidate, max-age=0",
             )
+            return
+
+        if path == "/suno-mcp-library-read":
+            limit_value = params.get("limit", ["50"])[0]
+            cursor = params.get("cursor", [""])[0]
+            try:
+                payload = read_suno_mcp_library(
+                    limit=limit_value,
+                    cursor=cursor,
+                )
+                self.send_json_response(
+                    payload,
+                    cache_control="no-store, no-cache, must-revalidate, max-age=0",
+                )
+            except Exception as exc:
+                self.send_json_response(
+                    {"ok": False, "error": str(exc)},
+                    status=503,
+                    cache_control="no-store, no-cache, must-revalidate, max-age=0",
+                )
+            return
+
+        if path == "/suno-mcp-playlists-read":
+            limit_value = params.get("limit", ["50"])[0]
+            cursor = params.get("cursor", [""])[0]
+            query = params.get("query", [""])[0]
+            try:
+                payload = read_suno_mcp_playlists(
+                    limit=limit_value,
+                    cursor=cursor,
+                    query=query,
+                )
+                self.send_json_response(
+                    payload,
+                    cache_control="no-store, no-cache, must-revalidate, max-age=0",
+                )
+            except Exception as exc:
+                self.send_json_response(
+                    {"ok": False, "error": str(exc)},
+                    status=503,
+                    cache_control="no-store, no-cache, must-revalidate, max-age=0",
+                )
+            return
+
+        if path == "/suno-mcp-playlist-clips-read":
+            playlist_id = params.get("id", [""])[0]
+            limit_value = params.get("limit", ["50"])[0]
+            cursor = params.get("cursor", [""])[0]
+            try:
+                payload = read_suno_mcp_playlist_clips(
+                    playlist_id,
+                    limit=limit_value,
+                    cursor=cursor,
+                )
+                self.send_json_response(
+                    payload,
+                    cache_control="no-store, no-cache, must-revalidate, max-age=0",
+                )
+            except Exception as exc:
+                self.send_json_response(
+                    {"ok": False, "error": str(exc)},
+                    status=503,
+                    cache_control="no-store, no-cache, must-revalidate, max-age=0",
+                )
             return
 
         if path == "/suno-mcp-oauth-callback":
