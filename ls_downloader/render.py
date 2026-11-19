@@ -67,7 +67,11 @@ def render_downloader_token_bridge_script():
 
 
 def render_downloader_state_script():
-    return script_asset_boundary('ls_downloader/static/downloader_state_script.js')
+    return (
+        '</script><script src="'
+        + asset_url('ls_downloader/static/downloader_state_script.js')
+        + '&rev=imports-state-cache-bust-1"></script><script>'
+    )
 
 
 def render_downloader_restored_selection_script_assets():
