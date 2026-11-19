@@ -1,0 +1,153 @@
+name: Imports persist stale 401 cleanup proof
+
+on:
+  push:
+    branches:
+      - fix/imports-persist-stale-401-cleanup
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  focused-proof:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Focused tests
+        run: |
+          python -m pip install pytest
+          python -m py_compile ls_downloader/render.py
+          node --check ls_downloader/static/downloader_state_script.js
+          python -m pytest -q tests/test_imports_persist_stale_401_cleanup.py
+          git diff --check
+      - name: Verify exact runtime delta
+        run: |
+          python - <<'PY'
+          import subprocess
+          runtime = {
+              name for name in subprocess.check_output(
+                  ["git", "diff", "--name-only", "50632a5eaf4e510f41f884cad5113f7aedd18ce2...HEAD"],
+                  text=True,
+              ).splitlines()
+              if name and not name.startswith(("tests/", ".github/"))
+          }
+          expected = {
+              "ls_downloader/static/downloader_state_script.js",
+              "ls_downloader/render.py",
+          }
+          assert runtime == expected, (runtime, expected)
+          PY
+      - name: Build exact delta ZIP
+        run: |
+          python - <<'PY'
+          import zipfile
+          from pathlib import Path
+          files = [
+              "ls_downloader/static/downloader_state_script.js",
+              "ls_downloader/render.py",
+          ]
+          out = Path("LocalSunoDb_IMPORTS_PERSIST_STALE_401_CLEANUP_FIX.zip")
+          with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+              for name in files:
+                  archive.write(name, name)
+          with zipfile.ZipFile(out, "r") as archive:
+              assert archive.namelist() == files
+              assert archive.testzip() is None
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LocalSunoDb-IMPORTS-PERSIST-STALE-401-CLEANUP-FIX
+          path: LocalSunoDb_IMPORTS_PERSIST_STALE_401_CLEANUP_FIX.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  windows-exact-artifact:
+    needs: focused-proof
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 50632a5eaf4e510f41f884cad5113f7aedd18ce2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: LocalSunoDb-IMPORTS-PERSIST-STALE-401-CLEANUP-FIX
+          path: artifact
+      - name: Overlay exact ZIP and verify syntax
+        shell: pwsh
+        run: |
+          Expand-Archive -Path ".\artifact\LocalSunoDb_IMPORTS_PERSIST_STALE_401_CLEANUP_FIX.zip" -DestinationPath "." -Force
+          python -m py_compile ls_downloader\render.py
+          node --check ls_downloader\static\downloader_state_script.js
+      - name: Start and verify exact overlaid LS
+        shell: pwsh
+        run: |
+          @'
+          import subprocess
+          import sys
+          import time
+          from urllib.request import urlopen
+
+          out = open("imports-stale-401-cleanup.log", "w", encoding="utf-8")
+          err = open("imports-stale-401-cleanup.err", "w", encoding="utf-8")
+          process = subprocess.Popen(
+              [sys.executable, "LocalSunoDb.py", "--ls-restarted"],
+              stdout=out,
+              stderr=err,
+          )
+          try:
+              for _ in range(160):
+                  try:
+                      with urlopen("http://127.0.0.1:8765/app-version", timeout=1) as response:
+                          if response.status == 200:
+                              break
+                  except Exception:
+                      time.sleep(0.25)
+              else:
+                  raise AssertionError("LS server did not start")
+
+              with urlopen("http://127.0.0.1:8765/downloader", timeout=5) as response:
+                  page = response.read().decode("utf-8", errors="replace")
+
+              assert (
+                  "/ls-static/ls_downloader/static/downloader_state_script.js"
+                  "?v=v2.28.5&rev=imports-state-cache-bust-2"
+              ) in page
+              assert '<span class="ls-sidebar-title-full">LS v2.28.5</span>' in page
+
+              with urlopen(
+                  "http://127.0.0.1:8765/ls-static/ls_downloader/static/downloader_state_script.js",
+                  timeout=5,
+              ) as response:
+                  script = response.read().decode("utf-8", errors="replace")
+              assert "writeDownloaderStateToBrowser(normalized);" in script
+              assert "await writeDownloaderStateToServer(normalized);" in script
+          finally:
+              process.terminate()
+              try:
+                  process.wait(timeout=10)
+              except subprocess.TimeoutExpired:
+                  process.kill()
+                  process.wait(timeout=5)
+              out.close()
+              err.close()
+          '@ | python -
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: imports-persist-stale-401-cleanup-diagnostics
+          path: |
+            imports-stale-401-cleanup.log
+            imports-stale-401-cleanup.err
+          if-no-files-found: warn
+          retention-days: 3
