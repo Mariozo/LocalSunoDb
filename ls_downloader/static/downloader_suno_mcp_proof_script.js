@@ -7,6 +7,13 @@
     const connectBtn = document.getElementById("suno-mcp-connect-btn");
     const proofBtn = document.getElementById("suno-mcp-proof-btn");
 
+    const readCard = document.getElementById("suno-mcp-read-card");
+    const readSummary = document.getElementById("suno-mcp-read-summary");
+    const readResult = document.getElementById("suno-mcp-read-result");
+    const libraryBtn = document.getElementById("suno-mcp-library-btn");
+    const playlistsBtn = document.getElementById("suno-mcp-playlists-btn");
+    const playlistList = document.getElementById("suno-mcp-playlist-list");
+
     if (!card || !summary || !result || !connectBtn || !proofBtn) {
         return;
     }
@@ -60,6 +67,156 @@
         lines.push("LS DB raksti: 0");
         lines.push("Maksas/spend tool izsaukumi: 0");
         return lines.join("\n");
+    }
+
+    function setReadBusy(busy) {
+        if (libraryBtn) {
+            libraryBtn.disabled = Boolean(busy);
+        }
+        if (playlistsBtn) {
+            playlistsBtn.disabled = Boolean(busy);
+        }
+    }
+
+    function setReadState(level, text) {
+        if (readCard) {
+            readCard.className = "status " + (level || "");
+        }
+        if (readSummary) {
+            readSummary.textContent = text || "";
+        }
+    }
+
+    function renderClipRows(data, heading) {
+        const items = Array.isArray(data && data.items) ? data.items : [];
+        const lines = [
+            heading + ": " + String(items.length),
+        ];
+        items.forEach((item, index) => {
+            const title = String(item.title || "(bez nosaukuma)");
+            const id = String(item.id || "");
+            const style = String(item.style || "");
+            lines.push(
+                String(index + 1) + ". " + title +
+                (id ? " · " + id.slice(0, 8) : "") +
+                (style ? " · " + style : "")
+            );
+        });
+        if (data && data.next_cursor) {
+            lines.push("Ir vēl ieraksti nākamajā MCP lapā.");
+        }
+        lines.push("LS DB raksti: 0");
+        if (readResult) {
+            readResult.textContent = lines.join("\n");
+        }
+    }
+
+    async function fetchReadJson(url) {
+        const response = await fetch(url + (url.includes("?") ? "&" : "?") + "_=" + Date.now(), {
+            cache: "no-store",
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) {
+            throw new Error(data.error || ("HTTP " + response.status));
+        }
+        return data;
+    }
+
+    async function loadMcpLibrary() {
+        setReadBusy(true);
+        setReadState("warn", "Nolasa Suno Library caur MCP…");
+        if (playlistList) {
+            playlistList.replaceChildren();
+        }
+        if (readResult) {
+            readResult.textContent = "";
+        }
+        try {
+            const data = await fetchReadJson("/suno-mcp-library-read?limit=50");
+            setReadState("ok", "MCP Library nolasīta. DB un Token Bridge nav mainīti.");
+            renderClipRows(data, "Library ieraksti");
+        } catch (error) {
+            setReadState("error", "MCP Library nolasīšana neizdevās.");
+            if (readResult) {
+                readResult.textContent = String(error && error.message || error || "Nezināma kļūda");
+            }
+        } finally {
+            setReadBusy(false);
+        }
+    }
+
+    async function loadMcpPlaylistClips(playlistId, playlistName) {
+        setReadBusy(true);
+        setReadState("warn", "Nolasa playlist “" + playlistName + "” caur MCP…");
+        if (readResult) {
+            readResult.textContent = "";
+        }
+        try {
+            const data = await fetchReadJson(
+                "/suno-mcp-playlist-clips-read?id=" +
+                encodeURIComponent(playlistId) +
+                "&limit=50"
+            );
+            setReadState(
+                "ok",
+                "Playlist “" + playlistName + "” nolasīta caur MCP. DB nav mainīta."
+            );
+            renderClipRows(data, "Playlist “" + playlistName + "” dziesmas");
+        } catch (error) {
+            setReadState("error", "MCP playlist nolasīšana neizdevās.");
+            if (readResult) {
+                readResult.textContent = String(error && error.message || error || "Nezināma kļūda");
+            }
+        } finally {
+            setReadBusy(false);
+        }
+    }
+
+    async function loadMcpPlaylists() {
+        setReadBusy(true);
+        setReadState("warn", "Nolasa Suno playlists caur MCP…");
+        if (playlistList) {
+            playlistList.replaceChildren();
+        }
+        if (readResult) {
+            readResult.textContent = "";
+        }
+        try {
+            const data = await fetchReadJson("/suno-mcp-playlists-read?limit=50");
+            const items = Array.isArray(data.items) ? data.items : [];
+            setReadState(
+                "ok",
+                "MCP playlists nolasītas: " + String(items.length) + ". Izvēlies playlisti."
+            );
+            items.forEach((item) => {
+                const id = String(item.id || "");
+                if (!id || !playlistList) {
+                    return;
+                }
+                const name = String(item.name || "(bez nosaukuma)");
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "secondary";
+                button.textContent = name;
+                button.addEventListener("click", () => {
+                    loadMcpPlaylistClips(id, name);
+                });
+                playlistList.appendChild(button);
+            });
+            if (!items.length && readResult) {
+                readResult.textContent = "Suno MCP neatgrieza nevienu playlisti.";
+            }
+            if (data.next_cursor && readResult) {
+                readResult.textContent = "Parādītas pirmās 50 playlists; Suno MCP ziņo, ka ir vēl.";
+            }
+        } catch (error) {
+            setReadState("error", "MCP playlist saraksta nolasīšana neizdevās.");
+            if (readResult) {
+                readResult.textContent = String(error && error.message || error || "Nezināma kļūda");
+            }
+        } finally {
+            setReadBusy(false);
+        }
     }
 
     async function readStatus(runProof) {
@@ -172,6 +329,13 @@
         }
         window.setTimeout(() => refreshStatus(true), 300);
     });
+
+    if (libraryBtn) {
+        libraryBtn.addEventListener("click", loadMcpLibrary);
+    }
+    if (playlistsBtn) {
+        playlistsBtn.addEventListener("click", loadMcpPlaylists);
+    }
 
     refreshStatus(false);
 })();
