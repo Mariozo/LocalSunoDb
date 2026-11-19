@@ -145,3 +145,105 @@ def test_ui_and_routes_are_present():
     assert 'id="suno-mcp-proof-btn"' in template
     assert "/suno-mcp-connect" in script
     assert "/suno-mcp-proof-status?run=" in script
+
+def test_library_and_playlist_readers_call_only_read_tools(monkeypatch):
+    calls = []
+
+    class FakeSession:
+        def __init__(self, token):
+            assert token == "token"
+
+        def call_tool(self, name, arguments=None):
+            calls.append((name, dict(arguments or {})))
+            if name == "library-list":
+                return {
+                    "items": [{
+                        "id": "lib-1",
+                        "title": "Library song",
+                        "status": "complete",
+                        "created_at": "2026-11-19T10:00:00Z",
+                        "metadata": {"style": "folk", "duration": 120},
+                    }],
+                    "next_cursor": "lib-next",
+                }
+            if name == "playlists-list":
+                return {
+                    "items": [{
+                        "id": "playlist-1",
+                        "name": "New Folk",
+                        "description": "Test playlist",
+                        "visibility": "private",
+                        "clip_count": 10,
+                    }],
+                }
+            if name == "playlists-list-clips":
+                return {
+                    "clips": [{
+                        "id": "clip-1",
+                        "title": "Playlist song",
+                        "status": "complete",
+                        "metadata": {"style": "jazz", "duration": 140},
+                    }],
+                    "next_cursor": "clip-next",
+                }
+            raise AssertionError("unexpected tool: " + name)
+
+    monkeypatch.setattr(mcp_client, "_valid_access_token", lambda: "token")
+    monkeypatch.setattr(mcp_client, "_McpSession", FakeSession)
+
+    library = mcp_client.read_suno_mcp_library(limit=999)
+    playlists = mcp_client.read_suno_mcp_playlists(limit=50, query="New")
+    clips = mcp_client.read_suno_mcp_playlist_clips("playlist-1", limit=50)
+
+    assert calls == [
+        ("library-list", {"limit": 50}),
+        ("playlists-list", {"limit": 50, "query": "New"}),
+        ("playlists-list-clips", {"id": "playlist-1", "limit": 50}),
+    ]
+    assert library["items"][0]["title"] == "Library song"
+    assert library["items"][0]["style"] == "folk"
+    assert library["next_cursor"] == "lib-next"
+    assert playlists["items"][0]["name"] == "New Folk"
+    assert playlists["items"][0]["clip_count"] == 10
+    assert clips["items"][0]["title"] == "Playlist song"
+    assert clips["next_cursor"] == "clip-next"
+    for payload in (library, playlists, clips):
+        assert payload["read_only"] is True
+        assert payload["source"] == "suno_mcp"
+        assert payload["db_writes"] == 0
+
+
+def test_playlist_reader_requires_playlist_id(monkeypatch):
+    monkeypatch.setattr(mcp_client, "_valid_access_token", lambda: "token")
+    try:
+        mcp_client.read_suno_mcp_playlist_clips("")
+    except mcp_client.SunoMcpError as exc:
+        assert "Playlist ID" in str(exc)
+    else:
+        raise AssertionError("missing playlist ID must fail")
+
+
+def test_mcp_readonly_ui_and_routes_are_present():
+    controller = Path("ls_downloader/controller.py").read_text(encoding="utf-8")
+    template = Path(
+        "ls_downloader/templates/connection_section.html"
+    ).read_text(encoding="utf-8")
+    script = Path(
+        "ls_downloader/static/downloader_suno_mcp_proof_script.js"
+    ).read_text(encoding="utf-8")
+
+    for route in (
+        "/suno-mcp-library-read",
+        "/suno-mcp-playlists-read",
+        "/suno-mcp-playlist-clips-read",
+    ):
+        assert route in controller
+        assert route in script
+
+    assert 'id="suno-mcp-library-btn"' in template
+    assert 'id="suno-mcp-playlists-btn"' in template
+    assert 'id="suno-mcp-playlist-list"' in template
+    assert "playlists-create" not in script
+    assert "playlists-add-clips" not in script
+    assert "playlists-remove-clips" not in script
+
