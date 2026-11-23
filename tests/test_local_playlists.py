@@ -290,3 +290,48 @@ def test_v221_f4_and_bfcache_contracts_present():
     assert "openFinderSearchBox();" in search_events
     assert 'window.addEventListener("pageshow"' in lazy_loader
     assert "event.persisted" in lazy_loader
+
+
+
+def test_move_one_song_between_playlists_preserves_store(isolated_store):
+    source = playlists.create_local_playlist("Elizabetei")["id"]
+    target = playlists.create_local_playlist("Piano Jazz")["id"]
+    playlists.add_tracks_to_local_playlist(source, ["first", "second", "third"])
+    playlists.add_tracks_to_local_playlist(target, ["existing"])
+
+    result = playlists.move_track_between_local_playlists(source, target, "second")
+    assert result["track_id"] == "second"
+    assert playlists.get_local_playlist(source)["track_ids"] == ["first", "third"]
+    assert playlists.get_local_playlist(target)["track_ids"] == ["existing", "second"]
+
+    # Error cases must not write partial changes.
+    before = isolated_store.read_bytes()
+    with pytest.raises(ValueError, match="already"):
+        playlists.move_track_between_local_playlists(source, target, "second")
+    assert isolated_store.read_bytes() == before
+
+    with pytest.raises(ValueError, match="different"):
+        playlists.move_track_between_local_playlists(source, source, "first")
+    with pytest.raises(ValueError, match="not in"):
+        playlists.move_track_between_local_playlists(source, target, "missing")
+    assert isolated_store.read_bytes() == before
+
+
+def test_playlist_song_row_move_controls_and_version(isolated_store, monkeypatch):
+    monkeypatch.setattr(playlists, "esc", lambda value: str(value), raising=False)
+    monkeypatch.setattr(playlists, "format_duration", lambda value: str(value), raising=False)
+    source = playlists.create_local_playlist("Elizabetei")["id"]
+    playlists.create_local_playlist("Piano Jazz")
+    playlists.add_track_to_local_playlist(source, "id-song")
+    monkeypatch.setattr(
+        playlists, "_playlist_track_rows", lambda _: [{
+            "id": "id-song", "title": "Pilna sirds", "workspace": "Test",
+            "duration": "3:00", "missing": False, "play_source": "local",
+        }],
+    )
+    page = playlists.render_playlists_page(source).decode("utf-8")
+    assert 'class="playlist-move-target"' in page
+    assert 'class="playlist-track-move"' in page
+    assert "Piano Jazz" in page
+    assert '"/playlist-move-track"' in page
+    assert "LS <small" in page
