@@ -247,6 +247,10 @@ class LibraryControllerMixin:
             self.remove_playlist_track()
             return
 
+        if path == "/playlist-move-track":
+            self.move_playlist_track()
+            return
+
         if path == "/playlist-reorder":
             self.reorder_playlist_tracks()
             return
@@ -439,6 +443,20 @@ class LibraryControllerMixin:
                 params.get("track_id", [""])[0],
             )
             self.send_json_response({"ok": True, "playlist": item})
+        except ValueError as error:
+            self.send_json_response({"ok": False, "error": str(error)}, status=400)
+        except Exception as error:
+            self.send_json_response({"ok": False, "error": str(error)}, status=500)
+
+    def move_playlist_track(self):
+        try:
+            params = self.read_playlist_form()
+            result = move_track_between_local_playlists(
+                params.get("playlist_id", [""])[0],
+                params.get("destination_playlist_id", [""])[0],
+                params.get("track_id", [""])[0],
+            )
+            self.send_json_response({"ok": True, "move": result})
         except ValueError as error:
             self.send_json_response({"ok": False, "error": str(error)}, status=400)
         except Exception as error:
