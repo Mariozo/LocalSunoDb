@@ -221,6 +221,41 @@ def remove_track_from_local_playlist(playlist_id, track_id):
     return dict(item, track_count=len(item.get("track_ids") or []))
 
 
+
+def move_track_between_local_playlists(source_playlist_id, destination_playlist_id, track_id):
+    """Atomically update one local playlist store; never touch song/audio records."""
+    source_id = str(source_playlist_id or "").strip()
+    destination_id = str(destination_playlist_id or "").strip()
+    clean_track = _clean_track_id(track_id)
+    if not source_id or not destination_id or source_id == destination_id:
+        raise ValueError("Choose a different destination playlist.")
+
+    with _PLAYLIST_LOCK:
+        payload = _load_playlist_store()
+        source = _playlist_by_id(payload, source_id)
+        destination = _playlist_by_id(payload, destination_id)
+        source_ids = list(source.get("track_ids") or [])
+        matching = [value for value in source_ids if str(value).casefold() == clean_track.casefold()]
+        if not matching:
+            raise ValueError("Song is not in the source playlist.")
+        if any(str(value).casefold() == clean_track.casefold() for value in destination.get("track_ids") or []):
+            raise ValueError("Song already exists in the destination playlist.")
+
+        source["track_ids"] = [
+            value for value in source_ids if str(value).casefold() != clean_track.casefold()
+        ]
+        destination["track_ids"] = list(destination.get("track_ids") or []) + [matching[0]]
+        now = _playlist_now()
+        source["updated_at"] = now
+        destination["updated_at"] = now
+        _save_playlist_store(payload)
+        return {
+            "track_id": matching[0],
+            "source_playlist_id": source_id,
+            "destination_playlist_id": destination_id,
+        }
+
+
 def reorder_local_playlist(playlist_id, ordered_track_ids):
     payload = _load_playlist_store()
     item = _playlist_by_id(payload, playlist_id)
