@@ -366,8 +366,13 @@ def _playlist_catalog_html(playlists, add_track_id=""):
     return "".join(cards)
 
 
-def _playlist_detail_rows(playlist):
+def _playlist_detail_rows(playlist, available_playlists=None):
     rows = _playlist_track_rows(playlist["track_ids"])
+    destinations = [item for item in (available_playlists or []) if item["id"] != playlist["id"]]
+    options = "".join(
+        f'<option value="{esc(item["id"])}">{esc(item["name"])}</option>'
+        for item in destinations
+    )
     html_rows = []
     for index, row in enumerate(rows, start=1):
         track_id = str(row.get("id") or "")
@@ -378,6 +383,13 @@ def _playlist_detail_rows(playlist):
         play_source = str(row.get("play_source") or "")
         play_disabled = " disabled" if missing else ""
         missing_badge = '<span class="playlist-missing-badge">Missing</span>' if missing else ""
+        move_actions = (
+            '<span class="playlist-track-transfer">'
+            '<select class="playlist-move-target" aria-label="Mērķa playliste">'
+            '<option value="">Move to…</option>' + options + '</select>'
+            f'<button type="button" class="playlist-track-move" data-track-id="{esc(track_id)}">Move</button>'
+            '</span>'
+        ) if options else ""
         html_rows.append(f"""
             <div class="playlist-track-row{' is-missing' if missing else ''}"
                  draggable="true" data-track-id="{esc(track_id)}" data-play-source="{esc(play_source)}">
@@ -390,6 +402,7 @@ def _playlist_detail_rows(playlist):
                     <span>{esc(workspace)} {missing_badge}</span>
                 </div>
                 <span class="playlist-track-duration">{esc(duration)}</span>
+                {move_actions}
                 <button type="button" class="playlist-track-remove" data-track-id="{esc(track_id)}" title="Remove from Playlist" aria-label="Remove from Playlist">×</button>
             </div>
         """)
@@ -420,12 +433,16 @@ def _playlist_page_style():
     .playlist-actions{display:flex;gap:10px;flex-wrap:wrap}.playlist-primary,.playlist-secondary{border:0;border-radius:24px;padding:12px 20px;cursor:pointer}
     .playlist-primary{background:#f5f2ed;color:#101012}.playlist-secondary{background:#2b2b30;color:#fff}.playlist-danger{color:#ff6f64}
     .playlist-detail-search{margin:12px 0 18px}.playlist-tracks{display:flex;flex-direction:column}
-    .playlist-track-row{display:grid;grid-template-columns:34px 42px 58px 36px minmax(0,1fr) 72px 44px;gap:12px;align-items:center;padding:10px 8px;border-radius:10px}
+    .playlist-track-row{display:grid;grid-template-columns:34px 42px 58px 36px minmax(0,1fr) 72px auto 44px;gap:12px;align-items:center;padding:10px 8px;border-radius:10px}
     .playlist-track-row:hover{background:#18181b}.playlist-track-row.is-current{background:#3b3b40;box-shadow:inset 3px 0 0 #f3f3f5}.playlist-track-row.dragging{opacity:.45}.playlist-track-row.drag-over{outline:1px solid #73737b}
     .playlist-drag-handle,.playlist-track-play,.playlist-track-remove{border:0;background:transparent;color:#c8c8cd;cursor:pointer}
     .playlist-track-play{display:inline-flex;align-items:center;justify-content:center;min-width:28px;min-height:28px}.playlist-track-play-icon{display:inline}.playlist-track-eq{display:none;align-items:flex-end;justify-content:center;gap:2px;height:16px}.playlist-track-eq i{display:block;width:3px;height:5px;border-radius:2px;background:currentColor;animation:playlist-eq .75s ease-in-out infinite}.playlist-track-eq i:nth-child(2){animation-delay:.16s}.playlist-track-eq i:nth-child(3){animation-delay:.32s}.playlist-track-row.is-playing .playlist-track-play-icon{display:none}.playlist-track-row.is-playing .playlist-track-eq{display:inline-flex}@keyframes playlist-eq{0%,100%{height:4px}50%{height:15px}}
     .playlist-drag-handle{cursor:grab}.playlist-track-number{color:#8e8e95;text-align:right}.playlist-track-cover{width:54px;height:54px;border-radius:8px;object-fit:cover;background:#222}
     .playlist-track-copy{display:flex;flex-direction:column;gap:5px;min-width:0}.playlist-track-copy strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.playlist-track-copy span{font-size:13px;color:#929299}
+    .playlist-track-transfer{display:flex;gap:5px;align-items:center}
+    .playlist-move-target{max-width:145px;background:#29292e;color:#fff;border:1px solid #48484f;border-radius:8px;padding:7px}
+    .playlist-track-move{background:#34343c;color:#fff;border:0;border-radius:8px;padding:8px 10px;cursor:pointer}
+    .playlist-track-move:disabled{opacity:.5}
     .playlist-track-duration{color:#aaa;text-align:right}.playlist-track-remove{font-size:24px}.playlist-missing-badge{color:#e58c83!important;margin-left:8px}
     .playlist-empty-state{padding:50px;text-align:center;color:#999;border:1px dashed #35353a;border-radius:14px}
     .playlist-player{position:fixed;left:0;right:0;bottom:0;height:74px;background:#09090a;border-top:1px solid #262629;display:grid;grid-template-columns:minmax(220px,1fr) minmax(360px,700px) minmax(220px,1fr);align-items:center;padding:0 28px;z-index:8}
@@ -555,6 +572,25 @@ def _playlist_page_script(active_playlist_id="", pending_track_id=""):
         }});
 
         rowsBox.addEventListener("click", async (event) => {{
+          const move = event.target.closest(".playlist-track-move");
+          if (move) {{
+            const row = move.closest(".playlist-track-row");
+            const destination = row?.querySelector(".playlist-move-target")?.value || "";
+            if (!destination) {{ window.alert("Izvēlies mērķa playlisti."); return; }}
+            move.disabled = true;
+            try {{
+              await post("/playlist-move-track", {{
+                playlist_id: activePlaylistId,
+                destination_playlist_id: destination,
+                track_id: move.dataset.trackId
+              }});
+              window.location.reload();
+            }} catch (error) {{
+              move.disabled = false;
+              window.alert(error.message);
+            }}
+            return;
+          }}
           const remove = event.target.closest(".playlist-track-remove");
           if (remove) {{
             try {{
@@ -678,7 +714,7 @@ def render_playlists_page(playlist_id="", add_track_id=""):
               </div>
             </section>
             <input id="playlist-detail-search" class="playlist-search playlist-detail-search" type="search" placeholder="Search in this playlist">
-            <section class="playlist-tracks" id="playlist-tracks">{_playlist_detail_rows(active)}</section>
+            <section class="playlist-tracks" id="playlist-tracks">{_playlist_detail_rows(active, playlists)}</section>
           </main>
           <footer class="playlist-player">
             <div class="playlist-player-title" id="playlist-player-title">Playlist</div>
@@ -706,7 +742,7 @@ def render_playlists_page(playlist_id="", add_track_id=""):
 <body id="ls-playlists">
 <div class="playlist-shell">
 <header class="playlist-topbar">
-  <a class="playlist-brand" data-library-return href="/">LS</a>
+  <a class="playlist-brand" data-library-return href="/">LS <small style="font-size:11px;font-weight:400;color:#aaa">{esc(APP_VERSION)}</small></a>
   <nav class="playlist-nav">
     <a data-library-return href="/">Suno Library</a>
     <a class="active" href="/playlists">Playlists</a>
