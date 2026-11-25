@@ -67,6 +67,33 @@ _DATA_LS_INTENT_STRUCTURE_MARKER_RE = re.compile(
 )
 _DATA_LS_CATEGORY_ASSIGNMENT_SCORE = 90
 
+
+def lv_sort_key(value):
+    """Return the stable Latvian-friendly text sort key used by DATA SQL."""
+    text = str(value or "").strip().lower()
+    text = unicodedata.normalize("NFD", text)
+    return "".join(char for char in text if unicodedata.category(char) != "Mn")
+
+
+def duration_sort_value(value):
+    """Return duration seconds for SQL sorting; accept seconds or clock text."""
+    if value is None or value == "":
+        return 0
+    text = str(value).strip()
+    try:
+        return float(text)
+    except (TypeError, ValueError):
+        pass
+    parts = text.split(":")
+    try:
+        if len(parts) == 2:
+            return int(parts[0]) * 60 + float(parts[1])
+        if len(parts) == 3:
+            return int(parts[0]) * 3600 + int(parts[1]) * 60 + float(parts[2])
+    except (TypeError, ValueError):
+        return 0
+    return 0
+
 STEM_SUFFIX_PATTERN = re.compile(
     r"\s*\((Vocals|Vocal|Instrumental|Bass|Drums|Guitar|Keyboard|Percussion|Synth|Strings|Woodwinds|FX|Other|Backing Vocals|Lead Vocals)\)\s*$",
     re.I,

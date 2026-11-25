@@ -8,9 +8,20 @@ APP_BASED_ON = "v1.15"
 
 from datetime import datetime
 from pathlib import Path
+import os
 import sys
 import threading
 import traceback
+
+
+def _sanitize_inherited_ssl_keylogfile():
+    """Prevent a driver-only key-log device path from breaking Python startup."""
+    value = str(os.environ.get("SSLKEYLOGFILE") or "")
+    if value.casefold().startswith("\\\\.\\nllmonfltproxy\\"):
+        os.environ.pop("SSLKEYLOGFILE", None)
+
+
+_sanitize_inherited_ssl_keylogfile()
 
 ROOT_DIR = Path(__file__).resolve().parent
 ERROR_LOG_PATH = ROOT_DIR / "error.log"
