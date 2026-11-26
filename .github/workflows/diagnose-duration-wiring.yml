@@ -18,4 +18,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Diagnose runtime wiring
-        run: python tests/diagnose_duration_wiring.py
+        shell: pwsh
+        run: |
+          $env:PYTHONPATH = "."
+          python tests/diagnose_duration_wiring.py
