@@ -192,10 +192,12 @@ def test_workspace_and_type_options_are_canonical(direct_db):
     assert types == {"Cover": 2, "Extend": 1}
 
 
-def test_direct_library_runtime_renders_lazy_rows(direct_db):
+def test_direct_library_runtime_renders_lazy_rows(direct_db, monkeypatch):
     from ls_library import render
     from ls_web import app, pages
 
+    monkeypatch.delattr(repository, "lv_sort_key", raising=False)
+    monkeypatch.delattr(repository, "duration_sort_value", raising=False)
     app.compose_runtime(probe_mode=True)
 
     payload = pages.render_library_rows_chunk(batch_size=10)
