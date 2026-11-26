@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - diag/duration-wiring-regression
+  pull_request:
+    branches:
+      - baseline/localsuno-7aeab62-ci
   workflow_dispatch:
 
 jobs:
