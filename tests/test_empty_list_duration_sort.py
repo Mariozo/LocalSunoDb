@@ -31,12 +31,12 @@ class LibraryLocalAudioPathRegressionTest(unittest.TestCase):
                 rows=[row],
                 stem_counts={},
                 confirmed_local_audio_paths={},
-                local_audio_paths={"track-1": r"E:\\Music\\Test.mp3"},
+                local_audio_paths={"track-1": "E:/Music/Test.mp3"},
                 selection_view_active=False,
                 kind_filter="",
             ))
 
-        self.assertIn('data-local-mp3="E:\\Music\\Test.mp3"', html)
+        self.assertIn('data-local-mp3="E:/Music/Test.mp3"', html)
         self.assertIn('data-local-wav=""', html)
 
 
