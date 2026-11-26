@@ -1,3 +1,4 @@
+# GitHub-only diagnostic: no product code changes.
 import importlib
 import json
 
