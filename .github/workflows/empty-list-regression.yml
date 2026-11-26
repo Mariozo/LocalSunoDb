@@ -1,0 +1,19 @@
+name: LocalSuno empty-list regression
+
+on:
+  pull_request:
+    branches:
+      - baseline/localsuno-7aeab62-ci
+
+jobs:
+  regression:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Compile affected modules
+        run: python -m compileall -q ls_core ls_library
+      - name: Run duration sort render regression
+        run: python -m unittest discover -s tests -p "test_empty_list_duration_sort.py" -v
