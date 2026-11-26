@@ -1,0 +1,24 @@
+name: Diagnose duration wiring regression
+
+on:
+  push:
+    branches:
+      - diag/duration-wiring-regression
+  pull_request:
+    branches:
+      - baseline/localsuno-7aeab62-ci
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Diagnose runtime wiring
+        shell: pwsh
+        run: |
+          $env:PYTHONPATH = "."
+          python tests/diagnose_duration_wiring.py
