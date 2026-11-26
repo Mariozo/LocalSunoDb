@@ -27,6 +27,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path, PurePosixPath
 
 from ls_core.runtime import *
+from ls_core.service import duration_sort_value
 from ls_core.assets import asset_text, asset_url, render_template_tokens, script_asset_boundary
 from ls_data.repository import get_track_local_family_titles
 
