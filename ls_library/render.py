@@ -1689,9 +1689,9 @@ def build_library_table_rows(
             or ""
         ).strip()
 
-        local_mp3 = row["local_mp3"]
-        local_wav = row["local_wav"]
         resolved_local_audio = str(local_audio_paths.get(str(track_id or "").lower()) or "").strip()
+        local_wav = resolved_local_audio if resolved_local_audio.lower().endswith(".wav") else ""
+        local_mp3 = resolved_local_audio if resolved_local_audio.lower().endswith(".mp3") else ""
         compare_local_wav = ""
 
         # Prefer the explicit tracks.local_wav link when it exists. Otherwise use the
